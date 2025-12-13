@@ -24,43 +24,47 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useUserRole, PERMISSIONS } from '@/hooks/useUserRole';
+import { useUserRole } from '@/hooks/useUserRole';
+import { PERMISSIONS } from '@/lib/permissions';
+
+import { hasPermission } from '@/lib/permissions';
 
 // Menu Groups Configuration
 const menuGroups = [
     {
         title: 'الرئيسية',
         items: [
-            { name: 'لوحة التحكم', href: '/dashboard', icon: LayoutDashboard },
-            { name: 'استراتيجيات النمو', href: '/dashboard/strategy', icon: TrendingUp },
+            { name: 'لوحة التحكم', href: '/dashboard', icon: LayoutDashboard, permission: 'dashboard:view' },
+            { name: 'استراتيجيات النمو', href: '/dashboard/strategy', icon: TrendingUp, permission: 'dashboard:view' },
         ]
     },
     {
         title: 'المخزون والمشتريات',
         items: [
-            { name: 'المنتجات', href: '/products', icon: Package },
-            { name: 'حركة المخزون', href: '/stock', icon: Box },
-            { name: 'أوامر الشراء', href: '/purchase-orders', icon: ShoppingCart },
-            { name: 'الموردين', href: '/suppliers', icon: Users },
-            { name: 'الجرد المخزني', href: '/audit', icon: ClipboardCheck },
-            { name: 'تحليل المخزون', href: '/analytics/stock', icon: Truck },
+            { name: 'المنتجات', href: '/products', icon: Package, permission: 'products:view' },
+            { name: 'حركة المخزون', href: '/stock', icon: Box, permission: 'products:view' },
+            { name: 'أوامر الشراء', href: '/purchase-orders', icon: ShoppingCart, permission: 'suppliers:manage' }, // Assuming PO is for managers/warehouse
+            { name: 'الموردين', href: '/suppliers', icon: Users, permission: 'suppliers:manage' },
+            { name: 'الجرد المخزني', href: '/audit', icon: ClipboardCheck, permission: 'audit:manage' },
+            { name: 'تحليل المخزون', href: '/analytics/stock', icon: Truck, permission: 'reports:view' },
         ]
     },
     {
         title: 'المبيعات والمالية',
         items: [
-            { name: 'فاتورة جديدة', href: '/invoices/new', icon: Plus },
-            { name: 'سجل الفواتير', href: '/invoices', icon: FileText },
-            { name: 'الخزينة / المالية', href: '/financial', icon: DollarSign },
-            { name: 'تقارير المبيعات', href: '/reports/sales', icon: BarChart2 },
-            { name: 'نواقص البضاعة', href: '/reports/shortage', icon: AlertCircle },
+            { name: 'فاتورة جديدة', href: '/invoices/new', icon: Plus, permission: 'invoices:create' },
+            { name: 'سجل الفواتير', href: '/invoices', icon: FileText, permission: 'invoices:view' },
+            { name: 'الخزينة / المالية', href: '/financial', icon: DollarSign, permission: 'financial:view' },
+            { name: 'تقارير المبيعات', href: '/reports/sales', icon: BarChart2, permission: 'reports:view' },
+            { name: 'نواقص البضاعة', href: '/reports/shortage', icon: AlertCircle, permission: 'products:view' },
         ]
     },
     {
         title: 'النظام',
         items: [
-            { name: 'سجل العمليات', href: '/logs', icon: History },
-            { name: 'الإعدادات', href: '/settings', icon: Settings },
+            { name: 'سجل العمليات', href: '/logs', icon: History, permission: 'activity:view' }, // Need this perm
+            { name: 'المستخدمين', href: '/users', icon: Users, permission: 'users:manage' }, // Need this perm
+            { name: 'الإعدادات', href: '/settings', icon: Settings, permission: 'settings:manage' }, // Need this perm
         ]
     }
 ];
@@ -68,7 +72,7 @@ const menuGroups = [
 export default function Sidebar() {
     const pathname = usePathname();
     const { role, user, loading } = useUserRole();
-    const [openGroups, setOpenGroups] = useState({ 'الرئيسية': true, 'المخزون والمشتريات': true, 'المبيعات والمالية': true });
+    const [openGroups, setOpenGroups] = useState({ 'الرئيسية': true, 'المخزون والمشتريات': true, 'المبيعات والمالية': true, 'النظام': true });
 
     // Toggle Group
     const toggleGroup = (title) => {
@@ -76,18 +80,18 @@ export default function Sidebar() {
     };
 
     // Filter Logic
-    const isAllowed = (href) => {
+    const isAllowed = (item) => {
         if (loading || !role) return false;
         if (role === 'owner') return true;
-        const allowedRoutes = PERMISSIONS[role] || [];
-        // Handle nested routes or partial matches if needed, currently exact match or startWith in logic below
-        return allowedRoutes.some(route => href.startsWith(route) || route.startsWith(href)); // Loose check
+        // If no permission specified on item, assume public/allowed? Better to be strict: required.
+        if (!item.permission) return true;
+        return hasPermission(role, item.permission);
     };
 
     if (loading) return <aside className="w-72 bg-primary/80 backdrop-blur-xl min-h-screen animate-pulse"></aside>;
 
     return (
-        <aside className="w-72 bg-gradient-to-b from-[#1B3C73]/95 to-[#1B3C73]/90 backdrop-blur-xl text-white min-h-screen flex flex-col shadow-2xl z-20 border-r border-white/10 transition-colors duration-300">
+        <aside className="w-72 bg-[#1B3C73] text-white min-h-screen flex flex-col shadow-2xl z-20 border-r border-[#1B3C73] transition-colors duration-300">
             {/* Header */}
             <div className="h-20 flex items-center justify-center border-b border-primary-foreground/20 bg-primary/95 backdrop-blur-sm shrink-0">
                 <div className="flex items-center gap-3">
@@ -105,7 +109,7 @@ export default function Sidebar() {
             <div className="flex-1 overflow-y-auto py-6 px-3 space-y-6 custom-scrollbar">
                 {menuGroups.map((group) => {
                     // Check if group has any allowed items
-                    const allowedItems = group.items.filter(item => isAllowed(item.href));
+                    const allowedItems = group.items.filter(item => isAllowed(item));
                     if (allowedItems.length === 0) return null;
 
                     const isOpen = openGroups[group.title];
@@ -161,7 +165,7 @@ export default function Sidebar() {
                     <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-secondary to-yellow-200 p-0.5">
                         <img src={user?.picture || "https://ui-avatars.com/api/?name=User&background=random"} className="rounded-full w-full h-full" alt="User" />
                     </div>
-                    <div className="overflow-hidden">
+                    <div className="overflow-hidden flex-1">
                         <p className="text-sm font-bold text-primary-foreground truncate">{user?.name || 'مستخدم'}</p>
                         <p className="text-xs text-primary-foreground/70 truncate">{
                             role === 'owner' ? 'المالك' :
@@ -169,6 +173,9 @@ export default function Sidebar() {
                                     role === 'cashier' ? 'كاشير' : 'أمين مستودع'
                         }</p>
                     </div>
+                    <button onClick={() => window.location.reload()} className="p-2 hover:bg-white/10 rounded-full" title="تحديث النظام / حذف الكاش">
+                        <History size={16} className="text-white/50 hover:text-white" />
+                    </button>
                 </div>
             </div>
         </aside>

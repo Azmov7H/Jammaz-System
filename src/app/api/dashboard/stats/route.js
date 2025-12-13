@@ -7,6 +7,16 @@ import StockMovement from '@/models/StockMovement';
 export async function GET() {
     try {
         await dbConnect();
+        // Just to be safe, though middleware handles it
+        // const user = await verifyToken(request);
+        // if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); 
+        // Commenting out explicit auth check here if request is not available or if I want to rely on middleware for GET.
+        // But for refactor consistency, let's keep it simple. middleware is enough for valid token presence.
+        // Actually, let's look at `StockMovement` aggregation. It doesn't filter by user, which is correct (Owner sees all).
+        // If I want to filter by user permissions?
+        // Current requirement: "No data appears".
+        // Let's ensure no error occurs if collections are empty.
+
 
         // Parallelize queries for performance
         const [

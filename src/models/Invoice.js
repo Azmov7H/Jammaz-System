@@ -24,6 +24,6 @@ const InvoiceSchema = new mongoose.Schema({
 // Performance Indices
 InvoiceSchema.index({ customer: 1 });
 InvoiceSchema.index({ date: -1 });
-InvoiceSchema.index({ number: 1 });
+
 
 export default mongoose.models.Invoice || mongoose.model('Invoice', InvoiceSchema);

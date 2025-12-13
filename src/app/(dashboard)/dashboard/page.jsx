@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useDashboardStats } from '@/hooks/useDashboard';
+
 import {
     TrendingUp,
     Package,
@@ -25,30 +26,26 @@ import Link from 'next/link';
 import SmartInsightsWidget from '@/components/SmartInsightsWidget';
 
 export default function DashboardPage() {
-    const [data, setData] = useState({
+    const { data, isLoading: loading, error } = useDashboardStats();
+
+    // Default safe data
+    const safeData = data || {
         stats: { products: 0, lowStock: 0, invoices: 0, sales: 0 },
         chartData: [],
         topSelling: [],
         recentInvoices: []
-    });
-    const [loading, setLoading] = useState(true);
+    };
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const res = await fetch('/api/dashboard/stats');
-                if (!res.ok) throw new Error('Failed to fetch stats');
-                const result = await res.json();
-                setData(result);
-            } catch (e) {
-                console.error("Dashboard fetch error:", e);
-            } finally {
-                setLoading(false);
-            }
-        };
+    // Override local state
+    // Don't need useEffect anymore.
 
-        fetchData();
-    }, []);
+    if (loading) {
+        return <div className="p-8 text-center text-slate-500 animate-pulse">جاري تحميل البيانات...</div>;
+    }
+
+    if (error) {
+        return <div className="p-8 text-center text-red-500">حدث خطأ في تحميل البيانات. يرجى المحاولة مرة أخرى.</div>;
+    }
 
     if (loading) {
         return <div className="p-8 text-center text-slate-500 animate-pulse">جاري تحميل البيانات...</div>;
@@ -78,7 +75,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <KPICard
                     title="إجمالي المبيعات"
-                    value={data.stats.sales.toLocaleString()}
+                    value={(safeData.stats.sales || 0).toLocaleString()}
                     unit=" ج.م"
                     icon={DollarSign}
                     trend="شهري"
@@ -88,7 +85,7 @@ export default function DashboardPage() {
                 />
                 <KPICard
                     title="الفواتير المصدرة"
-                    value={data.stats.invoices}
+                    value={safeData.stats.invoices}
                     unit=" فاتورة"
                     icon={TrendingUp}
                     trend="الكل"
@@ -98,7 +95,7 @@ export default function DashboardPage() {
                 />
                 <KPICard
                     title="المنتجات بالمخزن"
-                    value={data.stats.products}
+                    value={safeData.stats.products}
                     unit=" صنف"
                     icon={Package}
                     trend="نشط"
@@ -109,14 +106,14 @@ export default function DashboardPage() {
                 />
                 <KPICard
                     title="تنبيهات المخزون"
-                    value={data.stats.lowStock}
+                    value={safeData.stats.lowStock}
                     unit=" منتج"
                     icon={AlertTriangle}
                     trend="انتباه"
                     trendUp={false}
                     color="text-red-600"
                     bgIcon="bg-red-100"
-                    isWarning={data.stats.lowStock > 0}
+                    isWarning={safeData.stats.lowStock > 0}
                 />
             </div>
 
@@ -134,7 +131,7 @@ export default function DashboardPage() {
                     <CardContent className="p-6">
                         <div className="h-[350px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={data.chartData}>
+                                <AreaChart data={safeData.chartData}>
                                     <defs>
                                         <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#1B3C73" stopOpacity={0.1} />
@@ -170,10 +167,10 @@ export default function DashboardPage() {
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-slate-100">
-                                {data.recentInvoices.length === 0 ? (
+                                {safeData.recentInvoices.length === 0 ? (
                                     <div className="p-4 text-center text-sm text-slate-500">لا توجد فواتير حديثة</div>
                                 ) : (
-                                    data.recentInvoices.map((inv) => (
+                                    safeData.recentInvoices.map((inv) => (
                                         <div key={inv._id} className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
@@ -204,10 +201,10 @@ export default function DashboardPage() {
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-slate-100">
-                                {data.topSelling.length === 0 ? (
+                                {safeData.topSelling.length === 0 ? (
                                     <div className="p-4 text-center text-sm text-slate-500">لا توجد بيانات كافية</div>
                                 ) : (
-                                    data.topSelling.map((item, i) => (
+                                    safeData.topSelling.map((item, i) => (
                                         <div key={i} className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
                                             <div className="flex items-center gap-3">
                                                 <span className="text-[#E8C547] font-bold text-lg">#{i + 1}</span>

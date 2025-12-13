@@ -1,11 +1,21 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import Product from '@/models/Product';
-import Supplier from '@/models/Supplier'; // Ensure registered
+import Supplier from '@/models/Supplier';
+import { getCurrentUser } from '@/lib/auth';
+import { hasPermission, getProductFilterInternal } from '@/lib/permissions';
 
 export async function GET(request) {
     try {
         await dbConnect();
+        const user = await getCurrentUser();
+        // Note: Public viewing might be allowed if no token, but let's assume login required for now based on middleware
+        // If user is null (public), we might return empty or restricted. Let's assume Viewer role if public validation fails but route is open? 
+        // Middleware protects /api, so user should exist if valid.
+
+        const role = user?.role || 'viewer';
+        const roleFilter = getProductFilterInternal(role);
+
         const { searchParams } = new URL(request.url);
         const search = searchParams.get('search') || '';
         const category = searchParams.get('category');
@@ -13,7 +23,8 @@ export async function GET(request) {
         const limit = parseInt(searchParams.get('limit') || '10');
         const skip = (page - 1) * limit;
 
-        const query = {};
+        const query = { ...roleFilter }; // Apply Role Filter
+
         if (search) {
             query.$or = [
                 { name: { $regex: search, $options: 'i' } },
@@ -50,6 +61,11 @@ export async function GET(request) {
 export async function POST(request) {
     try {
         await dbConnect();
+        const user = await getCurrentUser();
+        if (!user || !hasPermission(user.role, 'products:manage')) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+
         const body = await request.json();
 
         // Check if code exists
@@ -60,7 +76,6 @@ export async function POST(request) {
 
         const { name, code, sellPrice, buyPrice, warehouseQty = 0, shopQty = 0, stockQty: initialStock, minLevel, brand, category } = body;
 
-        // If warehouse/shop qty provided, use them. If only stockQty provided, assume it's all warehouse (legacy support).
         let finalWarehouse = Number(warehouseQty);
         let finalShop = Number(shopQty);
 

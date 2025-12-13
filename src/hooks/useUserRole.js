@@ -1,43 +1,20 @@
-'use client';
-
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api-utils';
 
 export function useUserRole() {
-    const [role, setRole] = useState(null);
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const { data, isLoading, refetch } = useQuery({
+        queryKey: ['user-session'],
+        queryFn: async () => {
+            // using api helper ensures cache-control headers are sent
+            const res = await api.get('/api/auth/session');
+            return res;
+        },
+        staleTime: 1000 * 60 * 5, // 5 minutes check
+        retry: 1
+    });
 
-    useEffect(() => {
-        const fetchSession = async () => {
-            try {
-                const res = await fetch('/api/auth/session');
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.user) {
-                        setRole(data.user.role);
-                        setUser(data.user);
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to fetch user role:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
+    const user = data?.user || null;
+    const role = user?.role || null;
 
-        fetchSession();
-    }, []);
-
-    return { role, user, loading };
+    return { role, user, loading: isLoading, refetch };
 }
-
-export const PERMISSIONS = {
-    owner: ['*'],
-    manager: [
-        '/dashboard', '/dashboard/strategy', '/products', '/stock', '/invoices',
-        '/invoices/new', '/purchase-orders', '/suppliers', '/reports/sales',
-        '/reports/shortage', '/audit', '/financial', '/logs', '/settings', '/analytics/stock'
-    ],
-    cashier: ['/dashboard', '/invoices', '/invoices/new', '/products', '/settings'],
-    warehouse: ['/dashboard', '/stock', '/products', '/audit', '/analytics/stock', '/settings'],
-};

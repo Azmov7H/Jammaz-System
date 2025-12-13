@@ -9,20 +9,20 @@ export async function GET() {
     const token = cookieStore.get('token')?.value;
 
     if (!token) {
-        return NextResponse.json({ user: null }, { status: 401 });
+        return NextResponse.json({ user: null }, { status: 200 });
     }
 
     const decoded = verifyToken(token);
 
     if (!decoded) {
-        return NextResponse.json({ user: null }, { status: 401 });
+        return NextResponse.json({ user: null }, { status: 200 });
     }
 
     await dbConnect();
     const user = await User.findById(decoded.userId).select('-__v');
 
     if (!user) {
-        return NextResponse.json({ user: null }, { status: 401 });
+        return NextResponse.json({ user: null }, { status: 200 });
     }
 
     return NextResponse.json({ user });

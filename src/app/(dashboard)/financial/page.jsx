@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api-utils';
+import { useTreasury, useAddTransaction } from '@/hooks/useFinancial';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -13,29 +12,20 @@ import { ArrowUpCircle, ArrowDownCircle, Wallet, Plus, Minus, Loader2 } from 'lu
 import { toast } from 'sonner';
 
 export default function FinancialPage() {
-    const queryClient = useQueryClient();
-    const { data, isLoading } = useQuery({
-        queryKey: ['treasury'],
-        queryFn: () => api.get('/api/financial/treasury')
-    });
-
-    const mutation = useMutation({
-        mutationFn: (data) => api.post('/api/financial/transaction', data),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['treasury'] });
-            setIsDialogOpen(false);
-            setFormData({ amount: '', description: '', type: 'INCOME' });
-            toast.success('تم تسجيل المعاملة بنجاح');
-        },
-        onError: (err) => toast.error(err.message || 'فشل التسجيل')
-    });
+    const { data, isLoading } = useTreasury();
+    const { mutate: addTransaction, isPending } = useAddTransaction();
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [formData, setFormData] = useState({ amount: '', description: '', type: 'INCOME' });
 
     const handleSubmit = () => {
         if (!formData.amount || !formData.description) return;
-        mutation.mutate(formData);
+        addTransaction(formData, {
+            onSuccess: () => {
+                setIsDialogOpen(false);
+                setFormData({ amount: '', description: '', type: 'INCOME' });
+            }
+        });
     };
 
     if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-[#1B3C73]" size={40} /></div>;
@@ -99,7 +89,7 @@ export default function FinancialPage() {
                             <DialogFooter>
                                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>إلغاء</Button>
                                 <Button onClick={handleSubmit} className={formData.type === 'INCOME' ? 'bg-green-600' : 'bg-red-600'}>
-                                    {mutation.isPending ? 'جاري الحفظ...' : 'حفظ المعاملة'}
+                                    {isPending ? 'جاري الحفظ...' : 'حفظ المعاملة'}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>

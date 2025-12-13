@@ -19,22 +19,19 @@ export function useProducts(filters = {}) {
     });
 }
 
-// Hook specifically for getting metadata (brands/categories) - leveraging the same data but maybe cached longer if we split API later
+// Hook specifically for getting metadata (brands/categories)
 export function useProductMetadata() {
     return useQuery({
         queryKey: ['products', 'metadata'],
         queryFn: async () => {
-            // In a real app we might have a dedicated endpoint, but here we derive from list
-            const data = await api.get(`/api/products?limit=1000`);
-            const prods = data.products || [];
-            const uniqueBrands = [...new Set(prods.map(p => p.brand).filter(Boolean))].map(b => ({ label: b, value: b }));
-            const uniqueCats = [...new Set(prods.map(p => p.category).filter(Boolean))].map(c => ({ label: c, value: c }));
-            return { brands: uniqueBrands, categories: uniqueCats };
+            return api.get('/api/products/metadata');
         },
-        staleTime: 1000 * 60 * 5 // 5 minutes cache for metadata
+        staleTime: 1000 * 60 * 15 // 15 minutes cache for metadata
     });
 }
 
+
+//Add Product
 export function useAddProduct() {
     const queryClient = useQueryClient();
     return useMutation({
@@ -48,3 +45,32 @@ export function useAddProduct() {
         }
     });
 }
+
+export function useUpdateProduct() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data) => api.put(`/api/products/${data._id}`, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+            toast.success('تم تحديث المنتج بنجاح');
+        },
+        onError: (err) => {
+            toast.error(err.message || 'فشل تحديث المنتج');
+        }
+    });
+}
+
+export function useDeleteProduct() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id) => api.delete(`/api/products/${id}`),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+            toast.success('تم حذف المنتج بنجاح');
+        },
+        onError: (err) => {
+            toast.error(err.message || 'فشل حذف المنتج');
+        }
+    });
+}
+

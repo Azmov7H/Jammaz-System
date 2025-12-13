@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { LogOut, Bell, Search, User, Menu } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -12,18 +11,11 @@ import {
 import NotificationPopover from '@/components/NotificationPopover';
 import Sidebar from '@/components/Sidebar';
 
+import { useUserRole } from '@/hooks/useUserRole';
+
 export default function Header() {
     const router = useRouter();
-    const [user, setUser] = useState(null);
-
-    useEffect(() => {
-        fetch('/api/auth/session')
-            .then(res => res.json())
-            .then(data => {
-                if (data.user) setUser(data.user);
-            })
-            .catch(err => console.error(err));
-    }, []);
+    const { user } = useUserRole();
 
     const handleLogout = async () => {
         await fetch('/api/auth/logout', { method: 'POST' });
