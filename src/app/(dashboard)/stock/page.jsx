@@ -8,53 +8,37 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from '@/components/ui/label';
 import { ArrowLeftRight, Archive, Loader2 } from 'lucide-react';
 
+import { hasPermission } from '@/lib/permissions';
+import { useUserRole } from '@/hooks/useUserRole';
+import { useStockMovements, useAddStockMovement } from '@/hooks/useStock';
+import { useProducts } from '@/hooks/useProducts';
+
 export default function StockPage() {
-  const [movements, setMovements] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { role } = useUserRole();
+  const canManage = hasPermission(role, 'stock:manage') || hasPermission(role, 'transfers:manage');
+
+  // Use React Query Hooks
+  const { data: movements = [], isLoading: loadingMovements } = useStockMovements();
+  const { data: productsData, isLoading: loadingProducts } = useProducts({ limit: 100 });
+  const products = productsData || [];
+
+  const { mutate: addMovement, isPending: isSubmitting } = useAddStockMovement();
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [products, setProducts] = useState([]); // For dropdown
   const [formData, setFormData] = useState({
     productId: '', type: 'IN', qty: '', note: ''
   });
 
-  const fetchMovements = async () => {
-    try {
-      const res = await fetch('/api/stock');
-      const data = await res.json();
-      setMovements(data);
-    } catch (e) { console.error(e); }
-  };
+  const loading = loadingMovements || loadingProducts;
 
-  const fetchProducts = async () => {
-    // Just fetch top list for now or autocomplete. Quick select for prototype.
-    const res = await fetch('/api/products?limit=100');
-    const data = await res.json();
-    setProducts(data.products || []);
-  };
-
-  useEffect(() => {
-    setLoading(true);
-    Promise.all([fetchMovements(), fetchProducts()]).then(() => setLoading(false));
-  }, []);
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    try {
-      const res = await fetch('/api/stock/move', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      if (res.ok) {
+    addMovement(formData, {
+      onSuccess: () => {
         setIsDialogOpen(false);
         setFormData({ productId: '', type: 'IN', qty: '', note: '' });
-        fetchMovements();
-      } else {
-        alert('فشل العملية - تأكد من المخزون');
       }
-    } catch (error) {
-      console.error(error);
-    }
+    });
   };
 
   const getTypeStyle = (type) => {
@@ -63,6 +47,7 @@ export default function StockPage() {
       case 'OUT': return 'text-red-600 bg-red-50';
       case 'TRANSFER_TO_SHOP': return 'text-blue-600 bg-blue-50';
       case 'TRANSFER_TO_WAREHOUSE': return 'text-amber-600 bg-amber-50';
+      case 'ADJUST': return 'text-purple-600 bg-purple-50 font-bold border border-purple-200';
       default: return 'text-slate-600 bg-slate-50';
     }
   };
@@ -73,6 +58,7 @@ export default function StockPage() {
       case 'OUT': return 'إخراج';
       case 'TRANSFER_TO_SHOP': return 'تحويل للمحل';
       case 'TRANSFER_TO_WAREHOUSE': return 'إرجاع للمخزن';
+      case 'ADJUST': return 'تسوية جردية (تصحِيح)';
       default: return type;
     }
   };
@@ -85,12 +71,14 @@ export default function StockPage() {
           <p className="text-sm text-slate-500">سجل عمليات الإدخال والإخراج</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2 bg-slate-900">
-              <ArrowLeftRight size={18} />
-              حركة يدوية
-            </Button>
-          </DialogTrigger>
+          {canManage && (
+            <DialogTrigger asChild>
+              <Button className="gap-2 bg-slate-900">
+                <ArrowLeftRight size={18} />
+                حركة يدوية
+              </Button>
+            </DialogTrigger>
+          )}
           <DialogContent dir="rtl">
             <DialogHeader>
               <DialogTitle className="text-right">تسجيل حركة مخزون</DialogTitle>
@@ -136,7 +124,9 @@ export default function StockPage() {
                 <Input value={formData.note} onChange={e => setFormData({ ...formData, note: e.target.value })} />
               </div>
               <DialogFooter>
-                <Button type="submit" disabled={!formData.productId || !formData.qty}>تسجيل الحركة</Button>
+                <Button type="submit" disabled={!formData.productId || !formData.qty || isSubmitting}>
+                  {isSubmitting ? <Loader2 className="animate-spin" /> : 'تسجيل الحركة'}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>

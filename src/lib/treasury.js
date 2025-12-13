@@ -11,6 +11,10 @@ export async function processTreasuryTransaction({ amount, type, description, re
     // Calculate Balance Update
     const balanceChange = type === 'INCOME' ? amount : -amount;
 
+    if (type === 'EXPENSE' && treasury.balance < amount) {
+        throw new Error(`Insufficient funds. Current Balance: ${treasury.balance}`);
+    }
+
     // Update Treasury Balance
     treasury.balance += balanceChange;
     treasury.lastUpdated = new Date();

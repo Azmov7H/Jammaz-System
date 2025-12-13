@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import { processTreasuryTransaction } from '@/lib/treasury';
-import { verifyToken } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/auth';
 
 export async function POST(request) {
     try {
         await dbConnect();
-        const user = await verifyToken(request);
+        const user = await getCurrentUser();
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         const { amount, type, description } = await request.json();

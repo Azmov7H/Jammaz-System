@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, Trash2, Save, Printer, UserPlus, Search, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Save, Printer, UserPlus, Search, AlertTriangle, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function NewInvoicePage() {
@@ -326,7 +326,9 @@ export default function NewInvoicePage() {
                             <div className="flex justify-between text-xl font-bold text-primary"><span>الإجمالي النهائي:</span><span>{total.toLocaleString()} ج.م</span></div>
                         </CardContent>
                     </Card>
-                    <Button size="lg" className="w-full text-lg gap-2" onClick={handleSubmit} disabled={loading}>{loading ? 'جاري الحفظ...' : <><Save size={20} /> إصدار الفاتورة</>}</Button>
+                    <Button size="lg" className="w-full text-lg gap-2" onClick={handleSubmit} disabled={loading || items.length === 0}>
+                        {loading ? <><Loader2 className="animate-spin" /> جاري الحفظ...</> : <><Save size={20} /> إصدار الفاتورة</>}
+                    </Button>
                 </div>
             </div>
 
