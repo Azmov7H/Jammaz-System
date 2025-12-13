@@ -33,11 +33,11 @@ export function useUserRole() {
 
 export const PERMISSIONS = {
     owner: ['*'],
-    manager: ['/dashboard', '/dashboard/strategy', '/products', '/stock', '/invoices', '/suppliers', '/reports/sales', '/analytics/stock', '/audit', '/logs', '/settings'],
-    // Manager has view access to invoices for reporting, but logically Cashier is the primary POS user.
-    // However, keeping access broad for Manager is safer. 
-    // Let's ensure Warehouse definitely DOES NOT have invoice access.
-
-    cashier: ['/dashboard', '/invoices', '/invoices/new', '/products', '/settings'], // Explicitly added /invoices/new
-    warehouse: ['/dashboard', '/stock', '/products', '/audit', '/analytics/stock', '/settings'], // No Invoice access
+    manager: [
+        '/dashboard', '/dashboard/strategy', '/products', '/stock', '/invoices',
+        '/invoices/new', '/purchase-orders', '/suppliers', '/reports/sales',
+        '/reports/shortage', '/audit', '/financial', '/logs', '/settings', '/analytics/stock'
+    ],
+    cashier: ['/dashboard', '/invoices', '/invoices/new', '/products', '/settings'],
+    warehouse: ['/dashboard', '/stock', '/products', '/audit', '/analytics/stock', '/settings'],
 };

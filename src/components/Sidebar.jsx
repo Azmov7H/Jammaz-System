@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -15,88 +16,154 @@ import {
     BarChart2,
     Truck,
     TrendingUp,
-    Plus
+    Plus,
+    ChevronDown,
+    ChevronRight,
+    AlertCircle,
+    DollarSign
 } from 'lucide-react';
 import clsx from 'clsx';
-
-const menuItems = [
-    { name: 'الرئيسية', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'استراتيجيات النمو', href: '/dashboard/strategy', icon: TrendingUp },
-    { name: 'المنتجات', href: '/products', icon: Package },
-    { name: 'حركة المخزون', href: '/stock', icon: Box },
-    { name: 'الفواتير', href: '/invoices', icon: FileText },
-    { name: 'فاتورة جديدة', href: '/invoices/new', icon: Plus },
-    { name: 'أوامر الشراء', href: '/purchase-orders', icon: ShoppingCart },
-    { name: 'الموردين', href: '/suppliers', icon: Users },
-    { name: 'تقارير المبيعات', href: '/reports/sales', icon: BarChart2 },
-    { name: 'تحليل المخزون', href: '/analytics/stock', icon: Truck }, // Using Truck for logistics/analytics context
-    { name: 'الجرد المخزني', href: '/audit', icon: ClipboardCheck },
-    { name: 'الخزينة / المالية', href: '/financial', icon: Users }, // Using Users temporarily or better icon
-    { name: 'سجل العمليات', href: '/logs', icon: History },
-    { name: 'الإعدادات', href: '/settings', icon: Settings },
-];
-
+import { motion, AnimatePresence } from 'framer-motion';
 import { useUserRole, PERMISSIONS } from '@/hooks/useUserRole';
+
+// Menu Groups Configuration
+const menuGroups = [
+    {
+        title: 'الرئيسية',
+        items: [
+            { name: 'لوحة التحكم', href: '/dashboard', icon: LayoutDashboard },
+            { name: 'استراتيجيات النمو', href: '/dashboard/strategy', icon: TrendingUp },
+        ]
+    },
+    {
+        title: 'المخزون والمشتريات',
+        items: [
+            { name: 'المنتجات', href: '/products', icon: Package },
+            { name: 'حركة المخزون', href: '/stock', icon: Box },
+            { name: 'أوامر الشراء', href: '/purchase-orders', icon: ShoppingCart },
+            { name: 'الموردين', href: '/suppliers', icon: Users },
+            { name: 'الجرد المخزني', href: '/audit', icon: ClipboardCheck },
+            { name: 'تحليل المخزون', href: '/analytics/stock', icon: Truck },
+        ]
+    },
+    {
+        title: 'المبيعات والمالية',
+        items: [
+            { name: 'فاتورة جديدة', href: '/invoices/new', icon: Plus },
+            { name: 'سجل الفواتير', href: '/invoices', icon: FileText },
+            { name: 'الخزينة / المالية', href: '/financial', icon: DollarSign },
+            { name: 'تقارير المبيعات', href: '/reports/sales', icon: BarChart2 },
+            { name: 'نواقص البضاعة', href: '/reports/shortage', icon: AlertCircle },
+        ]
+    },
+    {
+        title: 'النظام',
+        items: [
+            { name: 'سجل العمليات', href: '/logs', icon: History },
+            { name: 'الإعدادات', href: '/settings', icon: Settings },
+        ]
+    }
+];
 
 export default function Sidebar() {
     const pathname = usePathname();
     const { role, user, loading } = useUserRole();
+    const [openGroups, setOpenGroups] = useState({ 'الرئيسية': true, 'المخزون والمشتريات': true, 'المبيعات والمالية': true });
 
-    // Filter menu items based on role
-    const filteredMenuItems = menuItems.filter(item => {
-        if (loading || !role) return false; // Hide while loading or if not logged in
-        if (role === 'owner') return true; // Owner sees everything
+    // Toggle Group
+    const toggleGroup = (title) => {
+        setOpenGroups(prev => ({ ...prev, [title]: !prev[title] }));
+    };
 
+    // Filter Logic
+    const isAllowed = (href) => {
+        if (loading || !role) return false;
+        if (role === 'owner') return true;
         const allowedRoutes = PERMISSIONS[role] || [];
-        return allowedRoutes.includes(item.href);
-    });
+        // Handle nested routes or partial matches if needed, currently exact match or startWith in logic below
+        return allowedRoutes.some(route => href.startsWith(route) || route.startsWith(href)); // Loose check
+    };
 
-    if (loading) return <aside className="w-72 bg-primary min-h-screen animate-pulse"></aside>;
+    if (loading) return <aside className="w-72 bg-primary/80 backdrop-blur-xl min-h-screen animate-pulse"></aside>;
 
     return (
-        <aside className="w-72 bg-primary text-primary-foreground min-h-screen flex flex-col shadow-2xl z-20 transition-colors duration-300">
-            <div className="h-20 flex items-center justify-center border-b border-primary-foreground/20 bg-primary/95 backdrop-blur-sm">
+        <aside className="w-72 bg-gradient-to-b from-[#1B3C73]/95 to-[#1B3C73]/90 backdrop-blur-xl text-white min-h-screen flex flex-col shadow-2xl z-20 border-r border-white/10 transition-colors duration-300">
+            {/* Header */}
+            <div className="h-20 flex items-center justify-center border-b border-primary-foreground/20 bg-primary/95 backdrop-blur-sm shrink-0">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center text-secondary-foreground font-bold text-xl shadow-lg">
                         ج
                     </div>
                     <div>
                         <h1 className="text-xl font-bold text-primary-foreground tracking-wide">مخازن الجماز</h1>
-                        <p className="text-[10px] text-primary-foreground/70 opacity-80">أنظمة إدارة المخزون v2.0</p>
+                        <p className="text-[10px] text-primary-foreground/70 opacity-80">v2.1 Smart System</p>
                     </div>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto py-6 px-3 space-y-1 custom-scrollbar">
-                {filteredMenuItems.map((item) => {
-                    const isActive = pathname === item.href || (pathname !== '/dashboard' && pathname.startsWith(item.href));
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto py-6 px-3 space-y-6 custom-scrollbar">
+                {menuGroups.map((group) => {
+                    // Check if group has any allowed items
+                    const allowedItems = group.items.filter(item => isAllowed(item.href));
+                    if (allowedItems.length === 0) return null;
+
+                    const isOpen = openGroups[group.title];
+
                     return (
-                        <Link
-                            key={item.href}
-                            href={item.href}
-                            className={clsx(
-                                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden",
-                                isActive
-                                    ? "bg-secondary text-secondary-foreground font-bold shadow-lg transform scale-[1.02]"
-                                    : "text-primary-foreground/80 hover:bg-white/10 hover:text-white"
-                            )}
-                        >
-                            <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} className={clsx(isActive ? "text-secondary-foreground" : "text-primary-foreground/60 group-hover:text-white")} />
-                            <span className="text-sm">{item.name}</span>
-                            {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-md opacity-20"></div>}
-                        </Link>
+                        <div key={group.title} className="space-y-1">
+                            <button
+                                onClick={() => toggleGroup(group.title)}
+                                className="flex items-center justify-between w-full px-2 text-primary-foreground/50 hover:text-white mb-2 text-xs font-bold uppercase tracking-wider group"
+                            >
+                                <span>{group.title}</span>
+                                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                            </button>
+
+                            <AnimatePresence>
+                                {isOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="space-y-1 overflow-hidden"
+                                    >
+                                        {allowedItems.map((item) => {
+                                            const isActive = pathname === item.href || (pathname !== '/dashboard' && pathname.startsWith(item.href));
+                                            return (
+                                                <Link
+                                                    key={item.href}
+                                                    href={item.href}
+                                                    className={clsx(
+                                                        "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden",
+                                                        isActive
+                                                            ? "bg-secondary text-secondary-foreground font-bold shadow-lg transform scale-[1.02]"
+                                                            : "text-primary-foreground/80 hover:bg-white/10 hover:text-white"
+                                                    )}
+                                                >
+                                                    <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} className={clsx(isActive ? "text-secondary-foreground" : "text-primary-foreground/60 group-hover:text-white")} />
+                                                    <span className="text-sm">{item.name}</span>
+                                                    {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-md opacity-20"></div>}
+                                                </Link>
+                                            );
+                                        })}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     );
                 })}
             </div>
 
-            <div className="p-4 border-t border-primary-foreground/20 bg-primary/95">
+            {/* Footer / User Profile */}
+            <div className="p-4 border-t border-primary-foreground/20 bg-primary/95 shrink-0">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-secondary to-yellow-200 p-0.5">
                         <img src={user?.picture || "https://ui-avatars.com/api/?name=User&background=random"} className="rounded-full w-full h-full" alt="User" />
                     </div>
-                    <div>
-                        <p className="text-sm font-bold text-primary-foreground">{user?.name || 'مستخدم'}</p>
-                        <p className="text-xs text-primary-foreground/70">{
+                    <div className="overflow-hidden">
+                        <p className="text-sm font-bold text-primary-foreground truncate">{user?.name || 'مستخدم'}</p>
+                        <p className="text-xs text-primary-foreground/70 truncate">{
                             role === 'owner' ? 'المالك' :
                                 role === 'manager' ? 'مدير فرع' :
                                     role === 'cashier' ? 'كاشير' : 'أمين مستودع'

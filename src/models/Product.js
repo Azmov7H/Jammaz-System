@@ -17,8 +17,10 @@ const ProductSchema = new mongoose.Schema({
     supplierId: { type: mongoose.Schema.Types.ObjectId, ref: 'Supplier' },
 }, { timestamps: true });
 
-// Indexes
-// ProductSchema.index({ code: 1 }, { unique: true }); // Already defined in schema
-// ProductSchema.index({ stockQty: 1 }); // Already defined in schema
+// Indexes for faster search
+ProductSchema.index({ name: 'text' });
+ProductSchema.index({ code: 1 });
+ProductSchema.index({ category: 1 });
+ProductSchema.index({ brand: 1 });
 
 export default mongoose.models.Product || mongoose.model('Product', ProductSchema);

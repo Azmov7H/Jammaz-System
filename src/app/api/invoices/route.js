@@ -48,7 +48,13 @@ export async function POST(request) {
 
             // Check Shop Stock specifically
             if (product.shopQty < item.qty) {
-                return NextResponse.json({ error: `الكمية غير متوفرة في المحل للمنتج: ${product.name}. المتوفر في المحل: ${product.shopQty}` }, { status: 400 });
+                // Check if Warehouse has enough
+                const canTransfer = product.warehouseQty >= item.qty;
+                const errorMsg = canTransfer
+                    ? `غير متوفر في المحل! (متاح: ${product.shopQty}). يوجد ${product.warehouseQty} في المخزن الرئيسي، الرجاء عمل تحويل مخزني أولاً.`
+                    : `الكمية غير متوفرة نهائياً! (المحل: ${product.shopQty}, المخزن: ${product.warehouseQty}).`;
+
+                return NextResponse.json({ error: errorMsg }, { status: 400 });
             }
 
             subtotal += item.qty * item.unitPrice;

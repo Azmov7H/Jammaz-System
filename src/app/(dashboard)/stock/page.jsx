@@ -22,14 +22,14 @@ export default function StockPage() {
       const res = await fetch('/api/stock');
       const data = await res.json();
       setMovements(data);
-    } catch (e) { console.error(e); } 
+    } catch (e) { console.error(e); }
   };
 
   const fetchProducts = async () => {
-      // Just fetch top list for now or autocomplete. Quick select for prototype.
-      const res = await fetch('/api/products?limit=100');
-      const data = await res.json();
-      setProducts(data.products || []);
+    // Just fetch top list for now or autocomplete. Quick select for prototype.
+    const res = await fetch('/api/products?limit=100');
+    const data = await res.json();
+    setProducts(data.products || []);
   };
 
   useEffect(() => {
@@ -40,29 +40,41 @@ export default function StockPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-        const res = await fetch('/api/stock/move', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
-        });
-        if (res.ok) {
-            setIsDialogOpen(false);
-            setFormData({ productId: '', type: 'IN', qty: '', note: '' });
-            fetchMovements();
-        } else {
-            alert('فشل العملية - تأكد من المخزون');
-        }
+      const res = await fetch('/api/stock/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      if (res.ok) {
+        setIsDialogOpen(false);
+        setFormData({ productId: '', type: 'IN', qty: '', note: '' });
+        fetchMovements();
+      } else {
+        alert('فشل العملية - تأكد من المخزون');
+      }
     } catch (error) {
-        console.error(error);
+      console.error(error);
     }
   };
 
   const getTypeStyle = (type) => {
-      switch(type) {
-          case 'IN': return 'text-green-600 bg-green-50';
-          case 'OUT': return 'text-red-600 bg-red-50';
-          default: return 'text-blue-600 bg-blue-50';
-      }
+    switch (type) {
+      case 'IN': return 'text-green-600 bg-green-50';
+      case 'OUT': return 'text-red-600 bg-red-50';
+      case 'TRANSFER_TO_SHOP': return 'text-blue-600 bg-blue-50';
+      case 'TRANSFER_TO_WAREHOUSE': return 'text-amber-600 bg-amber-50';
+      default: return 'text-slate-600 bg-slate-50';
+    }
+  };
+
+  const getTypeName = (type) => {
+    switch (type) {
+      case 'IN': return 'إدخال (شراء)';
+      case 'OUT': return 'إخراج';
+      case 'TRANSFER_TO_SHOP': return 'تحويل للمحل';
+      case 'TRANSFER_TO_WAREHOUSE': return 'إرجاع للمخزن';
+      default: return type;
+    }
   };
 
   return (
@@ -75,55 +87,58 @@ export default function StockPage() {
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2 bg-slate-900">
-               <ArrowLeftRight size={18} />
-               حركة يدوية
+              <ArrowLeftRight size={18} />
+              حركة يدوية
             </Button>
           </DialogTrigger>
           <DialogContent dir="rtl">
-             <DialogHeader>
-                 <DialogTitle className="text-right">تسجيل حركة مخزون</DialogTitle>
-             </DialogHeader>
-             <form onSubmit={handleSubmit} className="space-y-4">
-                 <div className="space-y-2">
-                     <Label>المنتج</Label>
-                     <select 
-                        className="w-full p-2 border rounded-md bg-white"
-                        value={formData.productId}
-                        onChange={e => setFormData({...formData, productId: e.target.value})}
-                        required
-                     >
-                         <option value="">اختر المنتج...</option>
-                         {products.map(p => (
-                             <option key={p._id} value={p._id}>{p.name} (R:{p.stockQty})</option>
-                         ))}
-                     </select>
-                 </div>
-                 <div className="grid grid-cols-2 gap-4">
-                     <div className="space-y-2">
-                         <Label>النوع</Label>
-                         <select 
-                            className="w-full p-2 border rounded-md bg-white"
-                            value={formData.type}
-                            onChange={e => setFormData({...formData, type: e.target.value})}
-                         >
-                             <option value="IN">إدخال (شراء/مرتجع)</option>
-                             <option value="OUT">إخراج (تالف/صرف)</option>
-                             <option value="ADJUST">تعديل جرد</option>
-                         </select>
-                     </div>
-                     <div className="space-y-2">
-                         <Label>الكمية</Label>
-                         <Input type="number" required value={formData.qty} onChange={e => setFormData({...formData, qty: e.target.value})} />
-                     </div>
-                 </div>
-                 <div className="space-y-2">
-                     <Label>ملاحظات</Label>
-                     <Input value={formData.note} onChange={e => setFormData({...formData, note: e.target.value})} />
-                 </div>
-                 <DialogFooter>
-                     <Button type="submit">تسجيل</Button>
-                 </DialogFooter>
-             </form>
+            <DialogHeader>
+              <DialogTitle className="text-right">تسجيل حركة مخزون</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label>المنتج</Label>
+                <select
+                  className="w-full p-2 border rounded-md bg-white"
+                  value={formData.productId}
+                  onChange={e => setFormData({ ...formData, productId: e.target.value })}
+                  required
+                >
+                  <option value="">اختر المنتج...</option>
+                  {products.map(p => (
+                    <option key={p._id} value={p._id}>
+                      {p.name} (مخزن: {p.warehouseQty || 0} | محل: {p.shopQty || 0})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>العملية</Label>
+                  <select
+                    className="w-full p-2 border rounded-md bg-white"
+                    value={formData.type}
+                    onChange={e => setFormData({ ...formData, type: e.target.value })}
+                  >
+                    <option value="IN">شراء / توريد (للمخزن)</option>
+                    <option value="OUT">صرف / تالف (من المخزن)</option>
+                    <option value="TRANSFER_TO_SHOP">تحويل للمحل (عرض)</option>
+                    <option value="TRANSFER_TO_WAREHOUSE">إرجاع للمخزن (تخزين)</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>الكمية</Label>
+                  <Input type="number" required min="1" value={formData.qty} onChange={e => setFormData({ ...formData, qty: e.target.value })} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>ملاحظات</Label>
+                <Input value={formData.note} onChange={e => setFormData({ ...formData, note: e.target.value })} />
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={!formData.productId || !formData.qty}>تسجيل الحركة</Button>
+              </DialogFooter>
+            </form>
           </DialogContent>
         </Dialog>
       </div>
@@ -134,30 +149,30 @@ export default function StockPage() {
             <TableRow>
               <TableHead className="text-right">التاريخ</TableHead>
               <TableHead className="text-right">المنتج</TableHead>
-              <TableHead className="text-right">النوع</TableHead>
+              <TableHead className="text-right">نوع الحركة</TableHead>
               <TableHead className="text-right">الكمية</TableHead>
               <TableHead className="text-right">الملاحظات</TableHead>
-              <TableHead className="text-right">بواسطة</TableHead>
+              <TableHead className="text-right">المستخدم</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-                <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="animate-spin mx-auto text-blue-500"/></TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="animate-spin mx-auto text-blue-500" /></TableCell></TableRow>
             ) : movements.map(m => (
-                <TableRow key={m._id}>
-                    <TableCell className="text-xs text-slate-500 font-mono">
-                        {new Date(m.date).toLocaleString('ar-SA')}
-                    </TableCell>
-                    <TableCell className="font-medium">{m.productId?.name}</TableCell>
-                    <TableCell>
-                        <span className={`px-2 py-1 rounded text-xs font-bold ${getTypeStyle(m.type)}`}>
-                            {m.type === 'IN' ? 'وارد' : m.type === 'OUT' ? 'صادر' : 'تعديل'}
-                        </span>
-                    </TableCell>
-                    <TableCell className="font-bold">{m.qty}</TableCell>
-                    <TableCell className="text-sm text-slate-600">{m.note}</TableCell>
-                    <TableCell className="text-xs">{m.createdBy?.name || 'النظام'}</TableCell>
-                </TableRow>
+              <TableRow key={m._id}>
+                <TableCell className="text-xs text-slate-500 font-mono">
+                  {new Date(m.date).toLocaleString('ar-SA')}
+                </TableCell>
+                <TableCell className="font-medium">{m.productId?.name}</TableCell>
+                <TableCell>
+                  <span className={`px-2 py-1 rounded text-xs font-bold ${getTypeStyle(m.type)}`}>
+                    {getTypeName(m.type)}
+                  </span>
+                </TableCell>
+                <TableCell className="font-bold">{m.qty}</TableCell>
+                <TableCell className="text-sm text-slate-600">{m.note}</TableCell>
+                <TableCell className="text-xs">{m.createdBy?.name || 'النظام'}</TableCell>
+              </TableRow>
             ))}
           </TableBody>
         </Table>

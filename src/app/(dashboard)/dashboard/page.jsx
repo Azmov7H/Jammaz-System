@@ -8,7 +8,6 @@ import {
     DollarSign,
     Activity,
     ArrowUpRight,
-    ArrowDownRight,
     ShoppingCart
 } from 'lucide-react';
 import {
@@ -23,6 +22,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import SmartInsightsWidget from '@/components/SmartInsightsWidget';
 
 export default function DashboardPage() {
     const [data, setData] = useState({
@@ -157,7 +157,10 @@ export default function DashboardPage() {
 
                 {/* Side Widgets */}
                 <div className="space-y-8">
-                    {/* Recent Invoices Widget (Replaces Low Stock for variety, or keep Low Stock?) Let's keep Low Stock logic if we had API for it, but for now showing recent invoices is useful */}
+                    {/* Smart Insights Widget */}
+                    <SmartInsightsWidget />
+
+                    {/* Recent Invoices Widget */}
                     <Card className="border-none shadow-xl shadow-slate-200/50 rounded-2xl overflow-hidden">
                         <CardHeader className="bg-blue-50 border-b border-blue-100 pb-4">
                             <CardTitle className="text-lg font-bold text-[#1B3C73] flex items-center justify-between">

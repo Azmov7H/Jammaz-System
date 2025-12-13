@@ -15,9 +15,15 @@ const InvoiceSchema = new mongoose.Schema({
     total: { type: Number, required: true },
     customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
     customerName: String, // Snapshot of name in case customer is deleted or changed
-    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-});
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }
+}, { timestamps: true });
 
+// Performance Indices
+InvoiceSchema.index({ customer: 1 });
 InvoiceSchema.index({ date: -1 });
+InvoiceSchema.index({ number: 1 });
 
 export default mongoose.models.Invoice || mongoose.model('Invoice', InvoiceSchema);

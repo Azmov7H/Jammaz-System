@@ -9,6 +9,7 @@ import {
     SheetContent,
     SheetTrigger,
 } from "@/components/ui/sheet";
+import NotificationPopover from '@/components/NotificationPopover';
 import Sidebar from '@/components/Sidebar';
 
 export default function Header() {
@@ -59,10 +60,7 @@ export default function Header() {
             <div className="flex items-center gap-4">
                 <ThemeToggle />
 
-                <button className="relative p-2 text-muted-foreground hover:bg-muted rounded-full transition-colors">
-                    <Bell size={20} />
-                    <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-card"></span>
-                </button>
+                <NotificationPopover />
 
                 <div className="h-8 w-[1px] bg-border mx-1 hidden md:block"></div>
 
