@@ -31,6 +31,7 @@
     "cmdk": "^1.1.1",
     "dotenv": "^17.2.3",
     "framer-motion": "^12.23.22",
+    "google-auth-library": "^10.5.0",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.545.0",
     "mongoose": "^9.0.1",
