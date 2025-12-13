@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# نظام إدارة مخازن الجماز
 
-## Getting Started
+نظام متكامل لإدارة المخازن والمبيعات مبني باستخدام **Next.js (App Router)**، **Tailwind CSS**، و **MongoDB**.
 
-First, run the development server:
+## المميزات
+- 📦 إدارة المنتجات والمخزون
+- 🧾 نظام فواتير ومبيعات (POS مبسط)
+- 🔒 مصادقة Google OAuth وآمنة (JWT HttpOnly Cookies)
+- 📊 لوحة تحكم مع إحصائيات ورسوم بيانية
+- 🌍 واجهة عربية بالكامل (RTL)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## المتطلبات
+- Node.js 18+
+- MongoDB (محلي أو Atlas)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## تعليمات التشغيل
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+1. **تثبيت الاعتمادات**
+   ```bash
+   npm install
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. **إعداد البيئة (.env)**
+   - انسخ ملف الامثلة:
+     ```bash
+     cp EXAMPLE.env .env.local
+     ```
+   - املأ البيانات المطلوبة (`MONGODB_URI`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`).
 
-## Learn More
+3. **تجهيز قاعدة البيانات (Seeding)**
+   لتوليد بيانات تجريبية (منتجات، مستخدمين، فواتير):
+   ```bash
+   node scripts/seed.js
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+4. **تشغيل المشروع**
+   ```bash
+   npm run dev
+   ```
+   افتح [http://localhost:3000](http://localhost:3000) في المتصفح.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## هيكلية المشروع
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `src/app`: صفحات الموقع و API Routes (App Router).
+- `src/components`: مكونات الواجهة (Header, Sidebar, UI).
+- `src/lib`: دوال مساعدة (DB connection, Auth).
+- `src/models`: مخططات قاعدة البيانات (Mongoose Schemas).
+- `scripts`: سكربتات مساعدة (seed.js).
 
-## Deploy on Vercel
+## المصادقة (Authentication)
+يعتمد النظام على Google OAuth. عند تسجيل الدخول:
+1. يتم تحويل المستخدم لصفحة Google.
+2. عند العودة، يتم التحقق من المستخدم وإنشاءه في قاعدة البيانات إذا كان جديداً.
+3. يتم إصدار رمز **JWT** وتخزينه في **HttpOnly Cookie** آمن.
+4. يتم حماية المسارات (`middleware.js`) للتحقق من وجود الرمز.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+تم التطوير بواسطة مساعد الذكاء الاصطناعي للمطورين.
