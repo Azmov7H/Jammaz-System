@@ -5,11 +5,24 @@ module.exports = {
     "./src/app/**/*.{js,jsx}",
     "./src/components/**/*.{js,jsx}",
     "./src/pages/**/*.{js,jsx}",
-    "./node_modules/@shadcn/ui/dist/**/*.{js,jsx}",
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['var(--font-cairo)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
       colors: {
+        brand: {
+          primary: '#1B3C73',    // Navy Blue
+          secondary: '#E8C547',  // Gold
+          bg: '#F5F6FA',         // Light Gray Background
+          dark: '#111111',       // Dark Text
+          text: '#333333',       // Body Text
+          success: '#22C55E',
+          warning: '#F59E0B',
+          danger: '#EF4444',
+        },
+        // Keeping Shadcn vars for compatibility but overriding mainly
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -23,9 +36,25 @@ module.exports = {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
         },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
         accent: {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
         },
       },
       borderRadius: {
@@ -35,5 +64,5 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [require("tailwindcss-animate")],
 };
