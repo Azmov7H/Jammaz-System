@@ -21,4 +21,9 @@ const PurchaseOrderSchema = new mongoose.Schema({
     notes: String
 }, { timestamps: true });
 
+// Performance Indices
+PurchaseOrderSchema.index({ supplier: 1 });
+PurchaseOrderSchema.index({ status: 1 });
+PurchaseOrderSchema.index({ createdAt: -1 });
+
 export default mongoose.models.PurchaseOrder || mongoose.model('PurchaseOrder', PurchaseOrderSchema);

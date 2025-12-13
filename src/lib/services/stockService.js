@@ -25,27 +25,42 @@ export const StockService = {
      */
     async updateStock(productId, qty, type, note, refId, userId) {
         let delta = Number(qty);
+        let updateQuery = {};
 
-        // Determine sign based on type
-        if (type === 'OUT') {
-            delta = -delta;
+        // Validation first
+        const product = await Product.findById(productId);
+        if (!product) throw new Error('Product not found');
+
+        if (type === 'IN') {
+            // General purchase/add -> goes to Warehouse by default? Or Global Stock?
+            // Let's assume IN increases WarehouseQty + StockQty
+            updateQuery = { $inc: { stockQty: delta, warehouseQty: delta } };
+        } else if (type === 'OUT') {
+            // General damage/loss -> remove from ... where?
+            // Default OUT from Warehouse? 
+            // Let's assume OUT removes from Warehouse unless specified otherwise (simplification)
+            if (product.warehouseQty < delta) throw new Error(`Insufficient Warehouse Stock: ${product.warehouseQty}`);
+            updateQuery = { $inc: { stockQty: -delta, warehouseQty: -delta } };
+        } else if (type === 'TRANSFER_TO_SHOP') {
+            if (product.warehouseQty < delta) throw new Error(`R: ${product.warehouseQty} (مخزن) غير كافي للتحويل. المطلوب: ${delta}`);
+            // Move: Warehouse -> Shop. Total Stock stays same involved? No, Total stock is same.
+            updateQuery = { $inc: { warehouseQty: -delta, shopQty: delta } };
+        } else if (type === 'TRANSFER_TO_WAREHOUSE') {
+            if (product.shopQty < delta) throw new Error(`R: ${product.shopQty} (محل) غير كافي للإرجاع. المطلوب: ${delta}`);
+            // Move: Shop -> Warehouse
+            updateQuery = { $inc: { shopQty: -delta, warehouseQty: delta } };
+        } else if (type === 'ADJUST') {
+            // Manual Adjust of total stock? Or just set?
+            // Simple implementation: Just update total for now
+            updateQuery = { $inc: { stockQty: delta } };
         }
-        // For ADJUST, we assume the qty passed IS the delta (can be negative) 
-        // OR we follow strict convention. Let's assume manual adjust passes signed delta if needed, 
-        // BUT the prompt implies 'qty' is magnitude.
-        // Let's stick to: IN = +, OUT = -. ADJUST/TRANSFER = Let caller decide sign? 
-        // Or simpler: ADJUST adds the qty. Use negative qty to reduce.
 
-        // However, validation in `validateStock` is for OUT operations usually.
-
-        await Product.findByIdAndUpdate(productId, {
-            $inc: { stockQty: delta }
-        });
+        await Product.findByIdAndUpdate(productId, updateQuery);
 
         const movement = await StockMovement.create({
             productId,
             type,
-            qty: Math.abs(delta), // Store magnitude often, or signed? Schema didn't specify. Let's store magnitude and rely on Type.
+            qty: Math.abs(delta),
             note,
             refId,
             createdBy: userId,
