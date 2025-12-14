@@ -7,9 +7,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, UserCog, Trash2, Key } from 'lucide-react';
+import { Loader2, Plus, UserCog, Trash2, Key, Shield } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 export default function UsersPage() {
     const { role } = useUserRole();
@@ -30,7 +31,6 @@ export default function UsersPage() {
             setUsers(data);
         } catch (error) {
             console.error(error);
-            // toast.error('فشل جلب المستخدمين');
         } finally {
             setLoading(false);
         }
@@ -55,7 +55,7 @@ export default function UsersPage() {
             id: user._id,
             name: user.name,
             email: user.email,
-            password: '', // Should be empty
+            password: '',
             role: user.role
         });
         setEditMode(true);
@@ -69,7 +69,7 @@ export default function UsersPage() {
             const method = editMode ? 'PUT' : 'POST';
 
             const body = { ...formData };
-            if (editMode && !body.password) delete body.password; // Don't send empty password on edit
+            if (editMode && !body.password) delete body.password;
 
             const res = await fetch(url, {
                 method,
@@ -103,29 +103,41 @@ export default function UsersPage() {
     };
 
     const getRoleBadge = (r) => {
-        switch (r) {
-            case 'owner': return <Badge className="bg-purple-600">المالك</Badge>;
-            case 'manager': return <Badge className="bg-blue-600">مدير</Badge>;
-            case 'warehouse': return <Badge className="bg-orange-600">مخزن</Badge>;
-            default: return <Badge className="bg-slate-500">كاشير</Badge>;
-        }
+        const configs = {
+            owner: { variant: 'default', label: 'المالك', className: 'bg-purple-600 hover:bg-purple-700' },
+            manager: { variant: 'secondary', label: 'مدير' },
+            warehouse: { variant: 'outline', label: 'مخزن', className: 'bg-orange-50 text-orange-700 border-orange-300' },
+            cashier: { variant: 'outline', label: 'كاشير' }
+        };
+        const config = configs[r] || configs.cashier;
+        return <Badge variant={config.variant} className={cn(config.className)}>{config.label}</Badge>;
     };
 
-    if (!canManage && !loading) return <div className="p-8 text-center text-red-500">غير مصرح لك بالوصول لهذه الصفحة</div>;
+    if (!canManage && !loading) {
+        return (
+            <div className="p-8 text-center">
+                <Shield className="w-16 h-16 mx-auto mb-4 text-destructive" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">غير مصرح</h3>
+                <p className="text-muted-foreground">ليس لديك صلاحية للوصول لهذه الصفحة</p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-[#1B3C73]">إدارة المستخدمين</h1>
-                    <p className="text-sm text-slate-500">إضافة وتعديل صلاحيات المستخدمين</p>
+                    <h1 className="text-2xl md:text-3xl font-bold text-foreground">إدارة المستخدمين</h1>
+                    <p className="text-sm text-muted-foreground">إضافة وتعديل صلاحيات المستخدمين</p>
                 </div>
-                <Button onClick={handleOpenAdd} className="bg-[#1B3C73] gap-2"><Plus size={18} /> مستخدم جديد</Button>
+                <Button onClick={handleOpenAdd} className="gap-2">
+                    <Plus size={18} /> مستخدم جديد
+                </Button>
             </div>
 
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-card rounded-lg border shadow-sm overflow-x-auto">
                 <Table>
-                    <TableHeader className="bg-slate-50">
+                    <TableHeader>
                         <TableRow>
                             <TableHead className="text-right">الاسم</TableHead>
                             <TableHead className="text-right">البريد الإلكتروني</TableHead>
@@ -135,17 +147,30 @@ export default function UsersPage() {
                     </TableHeader>
                     <TableBody>
                         {loading ? (
-                            <TableRow><TableCell colSpan={4} className="h-24 text-center"><Loader2 className="animate-spin mx-auto" /></TableCell></TableRow>
+                            <TableRow>
+                                <TableCell colSpan={4} className="h-24 text-center">
+                                    <Loader2 className="animate-spin mx-auto text-primary" />
+                                </TableCell>
+                            </TableRow>
                         ) : users.map(user => (
                             <TableRow key={user._id}>
-                                <TableCell className="font-bold">{user.name}</TableCell>
-                                <TableCell className="font-mono text-xs">{user.email}</TableCell>
+                                <TableCell className="font-semibold">{user.name}</TableCell>
+                                <TableCell className="font-mono text-xs text-muted-foreground">{user.email}</TableCell>
                                 <TableCell>{getRoleBadge(user.role)}</TableCell>
                                 <TableCell>
                                     <div className="flex gap-2 justify-end">
-                                        <Button variant="ghost" size="sm" onClick={() => handleOpenEdit(user)}><UserCog size={16} /></Button>
+                                        <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(user)}>
+                                            <UserCog size={16} />
+                                        </Button>
                                         {canDelete && user.role !== 'owner' && (
-                                            <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(user._id)}><Trash2 size={16} /></Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                onClick={() => handleDelete(user._id)}
+                                            >
+                                                <Trash2 size={16} />
+                                            </Button>
                                         )}
                                     </div>
                                 </TableCell>
@@ -172,25 +197,25 @@ export default function UsersPage() {
                         <div className="space-y-2">
                             <Label>كلمة المرور {editMode && '(اتركها فارغة لعدم التغيير)'}</Label>
                             <div className="relative">
-                                <Key className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                <Key className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                                 <Input type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="pr-10" required={!editMode} />
                             </div>
                         </div>
                         <div className="space-y-2">
                             <Label>الصلاحية / الدور</Label>
                             <select
-                                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                                 value={formData.role}
                                 onChange={e => setFormData({ ...formData, role: e.target.value })}
                             >
                                 <option value="cashier">كاشير (مبيعات فقط)</option>
                                 <option value="warehouse">أمين مخزن (مخزون فقط)</option>
-                                <option value="manager">مدير (صلاحيات كاملة عدا الحذف الحساس)</option>
+                                <option value="manager">مدير (صلاحيات كاملة)</option>
                                 {role === 'owner' && <option value="owner">مالك (Owner)</option>}
                             </select>
                         </div>
                         <DialogFooter>
-                            <Button type="submit" className="bg-[#1B3C73] w-full">حفظ البيانات</Button>
+                            <Button type="submit" className="w-full">حفظ البيانات</Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>

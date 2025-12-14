@@ -14,19 +14,16 @@ import { useProducts } from '@/hooks/useProducts';
 import Link from 'next/link';
 
 export default function PurchaseOrdersPage() {
-    // Hooks
     const { data: pos = [], isLoading: posLoading } = usePurchaseOrders();
     const { data: suppliers = [] } = useSuppliers();
     const { data: products = [] } = useProducts({ limit: 100 });
     const createMutation = useCreatePO();
     const updateMutation = useUpdatePOStatus();
 
-    // UI State
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [supplierId, setSupplierId] = useState('');
     const [poItems, setPoItems] = useState([]);
 
-    // Temp Item State
     const [selectedProduct, setSelectedProduct] = useState('');
     const [qty, setQty] = useState('');
     const [cost, setCost] = useState('');
@@ -67,18 +64,22 @@ export default function PurchaseOrdersPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-[#1B3C73] flex items-center gap-2">
-                    <ShoppingCart className="w-8 h-8" /> أوامر الشراء
-                </h1>
-                <Button onClick={() => setIsDialogOpen(true)} className="bg-[#1B3C73] gap-2">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex items-center gap-3">
+                    <ShoppingCart className="w-6 h-6 md:w-8 md:h-8 text-primary" />
+                    <div>
+                        <h1 className="text-2xl md:text-3xl font-bold text-foreground">أوامر الشراء</h1>
+                        <p className="text-sm text-muted-foreground">طلبات التوريد من الموردين</p>
+                    </div>
+                </div>
+                <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
                     <Plus size={18} /> طلب جديد
                 </Button>
             </div>
 
-            <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+            <div className="bg-card rounded-lg border shadow-sm overflow-x-auto">
                 <Table>
-                    <TableHeader className="bg-slate-50">
+                    <TableHeader>
                         <TableRow>
                             <TableHead className="text-right">رقم الطلب</TableHead>
                             <TableHead className="text-right">المورد</TableHead>
@@ -90,31 +91,48 @@ export default function PurchaseOrdersPage() {
                     </TableHeader>
                     <TableBody>
                         {posLoading ? (
-                            <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="animate-spin mx-auto text-[#1B3C73]" /></TableCell></TableRow>
+                            <TableRow>
+                                <TableCell colSpan={6} className="text-center py-8">
+                                    <Loader2 className="animate-spin mx-auto text-primary" />
+                                </TableCell>
+                            </TableRow>
                         ) : pos.length === 0 ? (
-                            <TableRow><TableCell colSpan={6} className="text-center py-8">لا توجد أوامر شراء</TableCell></TableRow>
+                            <TableRow>
+                                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                    لا توجد أوامر شراء
+                                </TableCell>
+                            </TableRow>
                         ) : (
                             pos.map(po => (
                                 <TableRow key={po._id}>
-                                    <TableCell className="font-mono">{po.poNumber}</TableCell>
+                                    <TableCell className="font-mono font-semibold">{po.poNumber}</TableCell>
                                     <TableCell>{po.supplier?.name}</TableCell>
-                                    <TableCell className="text-center text-sm">{new Date(po.createdAt).toLocaleDateString()}</TableCell>
-                                    <TableCell className="text-center font-bold">{po.totalCost.toLocaleString()} ج.م</TableCell>
+                                    <TableCell className="text-center text-sm text-muted-foreground">
+                                        {new Date(po.createdAt).toLocaleDateString('ar-SA')}
+                                    </TableCell>
+                                    <TableCell className="text-center font-bold">
+                                        {po.totalCost.toLocaleString()} ج.م
+                                    </TableCell>
                                     <TableCell className="text-center">
-                                        <Badge className={po.status === 'RECEIVED' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}>
+                                        <Badge variant={po.status === 'RECEIVED' ? 'default' : 'secondary'}>
                                             {po.status === 'RECEIVED' ? 'تم الاستلام' : 'قيد الانتظار'}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-center">
                                         <div className="flex items-center justify-center gap-2">
                                             <Link href={`/purchase-orders/${po._id}`}>
-                                                <Button size="sm" variant="ghost" className="text-blue-600 hover:bg-blue-50">
-                                                    <Eye size={16} className="mr-1" /> عرض
+                                                <Button size="sm" variant="ghost">
+                                                    <Eye size={16} className="ml-1" /> عرض
                                                 </Button>
                                             </Link>
                                             {po.status === 'PENDING' && (
-                                                <Button size="sm" variant="ghost" className="text-green-600 hover:bg-green-50" onClick={() => handleReceive(po._id)}>
-                                                    <CheckCircle size={16} className="mr-1" /> استلام
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="text-green-600 hover:bg-green-50"
+                                                    onClick={() => handleReceive(po._id)}
+                                                >
+                                                    <CheckCircle size={16} className="ml-1" /> استلام
                                                 </Button>
                                             )}
                                         </div>
@@ -128,13 +146,15 @@ export default function PurchaseOrdersPage() {
 
             {/* Create Dialog */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent className="max-w-2xl">
-                    <DialogHeader><DialogTitle>إنشاء طلب شراء جديد</DialogTitle></DialogHeader>
+                <DialogContent className="max-w-2xl" dir="rtl">
+                    <DialogHeader>
+                        <DialogTitle>إنشاء طلب شراء جديد</DialogTitle>
+                    </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div>
                             <Label>المورد</Label>
                             <select
-                                className="w-full p-2 border rounded bg-white"
+                                className="w-full p-2 border rounded-md bg-background"
                                 value={supplierId}
                                 onChange={e => setSupplierId(e.target.value)}
                             >
@@ -142,11 +162,11 @@ export default function PurchaseOrdersPage() {
                                 {suppliers.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
                             </select>
                         </div>
-                        <div className="bg-slate-50 p-4 rounded-lg space-y-3 border">
-                            <h4 className="font-bold text-sm text-slate-700">إضافة منتجات</h4>
-                            <div className="flex gap-2">
+                        <div className="bg-muted/30 p-4 rounded-lg space-y-3 border">
+                            <h4 className="font-semibold text-sm">إضافة منتجات</h4>
+                            <div className="flex flex-wrap gap-2">
                                 <select
-                                    className="flex-1 p-2 border rounded bg-white text-sm"
+                                    className="flex-1 min-w-[150px] p-2 border rounded-md bg-background text-sm"
                                     value={selectedProduct}
                                     onChange={e => setSelectedProduct(e.target.value)}
                                 >
@@ -159,9 +179,9 @@ export default function PurchaseOrdersPage() {
                             </div>
                             <div className="max-h-32 overflow-y-auto space-y-1">
                                 {poItems.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between text-sm bg-white p-2 border rounded">
-                                        <span>{item.name}</span>
-                                        <span className="text-slate-500">{item.quantity} × {item.costPrice} ج.م</span>
+                                    <div key={idx} className="flex justify-between text-sm bg-background p-2 border rounded-md">
+                                        <span className="font-medium">{item.name}</span>
+                                        <span className="text-muted-foreground">{item.quantity} × {item.costPrice} ج.م</span>
                                     </div>
                                 ))}
                             </div>
@@ -169,7 +189,9 @@ export default function PurchaseOrdersPage() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsDialogOpen(false)}>إلغاء</Button>
-                        <Button onClick={handleCreate} disabled={poItems.length === 0 || createMutation.isPending} className="bg-[#1B3C73]">{createMutation.isPending ? 'جاري الإنشاء...' : 'إنشاء الطلب'}</Button>
+                        <Button onClick={handleCreate} disabled={poItems.length === 0 || createMutation.isPending}>
+                            {createMutation.isPending ? 'جاري الإنشاء...' : 'إنشاء الطلب'}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

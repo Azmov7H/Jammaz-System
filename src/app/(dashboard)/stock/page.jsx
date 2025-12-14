@@ -1,23 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { ArrowLeftRight, Archive, Loader2 } from 'lucide-react';
-
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeftRight, Loader2 } from 'lucide-react';
 import { hasPermission } from '@/lib/permissions';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useStockMovements, useAddStockMovement } from '@/hooks/useStock';
 import { useProducts } from '@/hooks/useProducts';
+import { cn } from '@/lib/utils';
 
 export default function StockPage() {
   const { role } = useUserRole();
   const canManage = hasPermission(role, 'stock:manage') || hasPermission(role, 'transfers:manage');
 
-  // Use React Query Hooks
   const { data: movements = [], isLoading: loadingMovements } = useStockMovements();
   const { data: productsData, isLoading: loadingProducts } = useProducts({ limit: 100 });
   const products = productsData || [];
@@ -41,99 +41,108 @@ export default function StockPage() {
     });
   };
 
-  const getTypeStyle = (type) => {
-    switch (type) {
-      case 'IN': return 'text-green-600 bg-green-50';
-      case 'OUT': return 'text-red-600 bg-red-50';
-      case 'TRANSFER_TO_SHOP': return 'text-blue-600 bg-blue-50';
-      case 'TRANSFER_TO_WAREHOUSE': return 'text-amber-600 bg-amber-50';
-      case 'ADJUST': return 'text-purple-600 bg-purple-50 font-bold border border-purple-200';
-      default: return 'text-slate-600 bg-slate-50';
-    }
-  };
+  const getTypeBadge = (type) => {
+    const variants = {
+      'IN': { variant: "default", label: 'إدخال (شراء)', className: "bg-green-600" },
+      'OUT': { variant: "destructive", label: 'إخراج' },
+      'TRANSFER_TO_SHOP': { variant: "secondary", label: 'تحويل للمحل' },
+      'TRANSFER_TO_WAREHOUSE': { variant: "outline", label: 'إرجاع للمخزن' },
+      'ADJUST': { variant: "outline", label: 'تسوية جردية', className: "bg-purple-100 text-purple-800 border-purple-300" },
+    };
 
-  const getTypeName = (type) => {
-    switch (type) {
-      case 'IN': return 'إدخال (شراء)';
-      case 'OUT': return 'إخراج';
-      case 'TRANSFER_TO_SHOP': return 'تحويل للمحل';
-      case 'TRANSFER_TO_WAREHOUSE': return 'إرجاع للمخزن';
-      case 'ADJUST': return 'تسوية جردية (تصحِيح)';
-      default: return type;
-    }
+    const config = variants[type] || variants['IN'];
+    return (
+      <Badge variant={config.variant} className={cn("whitespace-nowrap", config.className)}>
+        {config.label}
+      </Badge>
+    );
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-startmd:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">حركة المخزون</h1>
-          <p className="text-sm text-slate-500">سجل عمليات الإدخال والإخراج</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">حركة المخزون</h1>
+          <p className="text-sm text-muted-foreground">سجل عمليات الإدخال والإخراج</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          {canManage && (
+        {canManage && (
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2 bg-slate-900">
+              <Button className="gap-2">
                 <ArrowLeftRight size={18} />
                 حركة يدوية
               </Button>
             </DialogTrigger>
-          )}
-          <DialogContent dir="rtl">
-            <DialogHeader>
-              <DialogTitle className="text-right">تسجيل حركة مخزون</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label>المنتج</Label>
-                <select
-                  className="w-full p-2 border rounded-md bg-white"
-                  value={formData.productId}
-                  onChange={e => setFormData({ ...formData, productId: e.target.value })}
-                  required
-                >
-                  <option value="">اختر المنتج...</option>
-                  {products.map(p => (
-                    <option key={p._id} value={p._id}>
-                      {p.name} (مخزن: {p.warehouseQty || 0} | محل: {p.shopQty || 0})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+            <DialogContent dir="rtl" className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>تسجيل حركة مخزون</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label>العملية</Label>
+                  <Label>المنتج</Label>
                   <select
-                    className="w-full p-2 border rounded-md bg-white"
-                    value={formData.type}
-                    onChange={e => setFormData({ ...formData, type: e.target.value })}
+                    className="w-full p-2 border rounded-md bg-background"
+                    value={formData.productId}
+                    onChange={e => setFormData({ ...formData, productId: e.target.value })}
+                    required
                   >
-                    <option value="IN">شراء / توريد (للمخزن)</option>
-                    <option value="OUT">صرف / تالف (من المخزن)</option>
-                    <option value="TRANSFER_TO_SHOP">تحويل للمحل (عرض)</option>
-                    <option value="TRANSFER_TO_WAREHOUSE">إرجاع للمخزن (تخزين)</option>
+                    <option value="">اختر المنتج...</option>
+                    {products.map(p => (
+                      <option key={p._id} value={p._id}>
+                        {p.name} (مخزن: {p.warehouseQty || 0} | محل: {p.shopQty || 0})
+                      </option>
+                    ))}
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <Label>الكمية</Label>
-                  <Input type="number" required min="1" value={formData.qty} onChange={e => setFormData({ ...formData, qty: e.target.value })} />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>العملية</Label>
+                    <select
+                      className="w-full p-2 border rounded-md bg-background"
+                      value={formData.type}
+                      onChange={e => setFormData({ ...formData, type: e.target.value })}
+                    >
+                      <option value="IN">شراء / توريد (للمخزن)</option>
+                      <option value="OUT">صرف / تالف (من المخزن)</option>
+                      <option value="TRANSFER_TO_SHOP">تحويل للمحل (عرض)</option>
+                      <option value="TRANSFER_TO_WAREHOUSE">إرجاع للمخزن (تخزين)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>الكمية</Label>
+                    <Input
+                      type="number"
+                      required
+                      min="1"
+                      value={formData.qty}
+                      onChange={e => setFormData({ ...formData, qty: e.target.value })}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label>ملاحظات</Label>
-                <Input value={formData.note} onChange={e => setFormData({ ...formData, note: e.target.value })} />
-              </div>
-              <DialogFooter>
-                <Button type="submit" disabled={!formData.productId || !formData.qty || isSubmitting}>
-                  {isSubmitting ? <Loader2 className="animate-spin" /> : 'تسجيل الحركة'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <div className="space-y-2">
+                  <Label>ملاحظات</Label>
+                  <Input
+                    value={formData.note}
+                    onChange={e => setFormData({ ...formData, note: e.target.value })}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button
+                    type="submit"
+                    disabled={!formData.productId || !formData.qty || isSubmitting}
+                  >
+                    {isSubmitting ? <Loader2 className="animate-spin" /> : 'تسجيل الحركة'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* Movements Table */}
+      <div className="bg-card rounded-lg border shadow-sm overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -141,29 +150,41 @@ export default function StockPage() {
               <TableHead className="text-right">المنتج</TableHead>
               <TableHead className="text-right">نوع الحركة</TableHead>
               <TableHead className="text-right">الكمية</TableHead>
-              <TableHead className="text-right">الملاحظات</TableHead>
-              <TableHead className="text-right">المستخدم</TableHead>
+              <TableHead className="text-right hidden md:table-cell">الملاحظات</TableHead>
+              <TableHead className="text-right hidden lg:table-cell">المستخدم</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="animate-spin mx-auto text-blue-500" /></TableCell></TableRow>
-            ) : movements.map(m => (
-              <TableRow key={m._id}>
-                <TableCell className="text-xs text-slate-500 font-mono">
-                  {new Date(m.date).toLocaleString('ar-SA')}
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center">
+                  <Loader2 className="animate-spin mx-auto text-primary" />
                 </TableCell>
-                <TableCell className="font-medium">{m.productId?.name}</TableCell>
-                <TableCell>
-                  <span className={`px-2 py-1 rounded text-xs font-bold ${getTypeStyle(m.type)}`}>
-                    {getTypeName(m.type)}
-                  </span>
-                </TableCell>
-                <TableCell className="font-bold">{m.qty}</TableCell>
-                <TableCell className="text-sm text-slate-600">{m.note}</TableCell>
-                <TableCell className="text-xs">{m.createdBy?.name || 'النظام'}</TableCell>
               </TableRow>
-            ))}
+            ) : movements.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                  لا توجد حركات مسجلة
+                </TableCell>
+              </TableRow>
+            ) : (
+              movements.map(m => (
+                <TableRow key={m._id}>
+                  <TableCell className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                    {new Date(m.date).toLocaleString('ar-SA')}
+                  </TableCell>
+                  <TableCell className="font-medium">{m.productId?.name}</TableCell>
+                  <TableCell>{getTypeBadge(m.type)}</TableCell>
+                  <TableCell className="font-bold">{m.qty}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground hidden md:table-cell">
+                    {m.note || '-'}
+                  </TableCell>
+                  <TableCell className="text-xs hidden lg:table-cell">
+                    {m.createdBy?.name || 'النظام'}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>

@@ -37,6 +37,8 @@ export default function NewInvoicePage() {
     const [shortageDialog, setShortageDialog] = useState({ open: false, product: null });
     const [reportNote, setReportNote] = useState('');
 
+    const [currentPriceType, setCurrentPriceType] = useState('retail');
+
     // Debounced Customer Search
     useEffect(() => {
         const timeoutId = setTimeout(async () => {
@@ -48,9 +50,10 @@ export default function NewInvoicePage() {
             if (customerId && (customerQuery === customerName || customerQuery === customerPhone)) return;
 
             try {
-                const res = await fetch(`/api/customers?query=${customerQuery}`);
+                const res = await fetch(`/api/customers?search=${customerQuery}`); // Fixed query param name to match API
                 const data = await res.json();
-                setCustomerSuggestions(data.customers || []);
+                // API returns array directly now based on my previous implementation
+                setCustomerSuggestions(Array.isArray(data) ? data : (data.customers || []));
             } catch (error) {
                 console.error(error);
             }
@@ -81,6 +84,7 @@ export default function NewInvoicePage() {
             setCustomerId(null);
             setCustomerName('');
             setCustomerPhone('');
+            setCurrentPriceType('retail'); // Reset to retail
         }
     };
 
@@ -89,15 +93,52 @@ export default function NewInvoicePage() {
         setCustomerName(customer.name);
         setCustomerPhone(customer.phone);
         setCustomerQuery(customer.name);
+        setCurrentPriceType(customer.priceType || 'retail'); // Set user price type
         setCustomerSuggestions([]);
-        toast.success(`تم اختيار العميل: ${customer.name}`);
+        toast.success(`تم اختيار العميل: ${customer.name} (${customer.priceType === 'wholesale' ? 'سعر جملة' : customer.priceType === 'special' ? 'سعر خاص' : 'سعر قطاعي'})`);
     };
 
+    // Helper to get price based on type
+    const getProductPrice = (product, type) => {
+        if (type === 'wholesale') return product.wholesalePrice || product.retailPrice || 0;
+        if (type === 'special') return product.specialPrice || product.retailPrice || 0;
+        return product.retailPrice || product.sellPrice || 0;
+    };
+
+    // Effect: Recalculate prices when Customer/PriceType changes
+    useEffect(() => {
+        if (items.length > 0) {
+            setItems(prevItems => prevItems.map(item => {
+                // We need the original product data to recalculate. 
+                // Since we don't store full product object in items, we rely on what we have or need to fetch?
+                // Actually, 'items' should ideally store the available prices or we just accept that we might not have them?
+                // The search result 'product' had all prices. But 'items' state only kept 'unitPrice'.
+                // To fix this properly, we should store the price tiers in the item state.
+
+                // For now, if we don't have the full object, we can't switch perfectly without refetching.
+                // BUT, let's assume 'item' has the fields if we passed them.
+                // Let's modify 'addItem' to store all prices.
+
+                // If the item has the price fields (which we will add in addItem), we can switch.
+                if (item.retailPrice) {
+                    return {
+                        ...item,
+                        unitPrice: getProductPrice(item, currentPriceType)
+                    };
+                }
+                return item;
+            }));
+
+            if (items.some(i => i.retailPrice)) {
+                toast.info('تم تحديث أسعار المنتجات بناءً على نوع العميل');
+            }
+        }
+    }, [currentPriceType]);
+
     const addItem = (product) => {
-        const stockToCheck = product.shopQty !== undefined ? product.shopQty : product.stockQty; // Use shopQty if avail
+        const stockToCheck = product.shopQty !== undefined ? product.shopQty : product.stockQty;
 
         if (stockToCheck <= 0) {
-            // Trigger Shortage Report
             setShortageDialog({ open: true, product });
             return;
         }
@@ -108,13 +149,19 @@ export default function NewInvoicePage() {
             return;
         }
 
+        const price = getProductPrice(product, currentPriceType);
+
         setItems([...items, {
             productId: product._id,
             name: product.name,
             code: product.code,
-            unitPrice: product.sellPrice,
+            unitPrice: price,
             qty: 1,
-            maxQty: stockToCheck
+            maxQty: stockToCheck,
+            // Store all tier prices for dynamic switching
+            retailPrice: product.retailPrice || product.sellPrice,
+            wholesalePrice: product.wholesalePrice,
+            specialPrice: product.specialPrice
         }]);
         setSearchTerm('');
         setSearchResults([]);
@@ -129,7 +176,7 @@ export default function NewInvoicePage() {
                 body: JSON.stringify({
                     productId: shortageDialog.product._id,
                     productName: shortageDialog.product.name,
-                    requestedQty: 1, // Default assumption
+                    requestedQty: 1,
                     availableQty: shortageDialog.product.shopQty || shortageDialog.product.stockQty || 0,
                     notes: reportNote
                 })
@@ -167,9 +214,18 @@ export default function NewInvoicePage() {
     const subtotal = items.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0);
     const total = subtotal - Number(discount);
 
+    // Payment State
+    const [paymentType, setPaymentType] = useState('cash');
+    const [dueDate, setDueDate] = useState('');
+
     const handleSubmit = async () => {
         if (items.length === 0) {
             toast.error('الفاتورة فارغة');
+            return;
+        }
+
+        if (paymentType === 'credit' && !customerId) {
+            toast.error('يجب اختيار عميل للفاتورة الآجلة');
             return;
         }
 
@@ -183,7 +239,9 @@ export default function NewInvoicePage() {
                     customerName: customerName || 'Walk-in',
                     customerPhone,
                     customerId,
-                    discount: Number(discount)
+                    discount: Number(discount),
+                    paymentType,
+                    dueDate
                 })
             });
 
@@ -322,6 +380,49 @@ export default function NewInvoicePage() {
                         <CardContent className="pt-6 space-y-3">
                             <div className="flex justify-between text-sm"><span className="text-muted-foreground">المجموع الفرعي:</span><span className="font-bold">{subtotal.toLocaleString()} ج.م</span></div>
                             <div className="flex justify-between items-center gap-4"><span className="text-muted-foreground text-sm">الخصم:</span><Input type="number" className="w-24 h-8 text-left" value={discount} onChange={e => setDiscount(e.target.value)} /></div>
+
+                            <div className="pt-2 space-y-2">
+                                <Label>نوع الفاتورة</Label>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant={paymentType === 'cash' ? 'default' : 'outline'}
+                                        onClick={() => setPaymentType('cash')}
+                                        className="flex-1"
+                                        size="sm"
+                                    >
+                                        نقدي
+                                    </Button>
+                                    <Button
+                                        variant={paymentType === 'bank' ? 'default' : 'outline'}
+                                        onClick={() => setPaymentType('bank')}
+                                        className="flex-1 gap-1"
+                                        size="sm"
+                                    >
+                                        تحويل بنكي
+                                    </Button>
+                                    <Button
+                                        variant={paymentType === 'credit' ? 'default' : 'outline'}
+                                        onClick={() => setPaymentType('credit')}
+                                        className="flex-1"
+                                        size="sm"
+                                    >
+                                        آجل
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {paymentType === 'credit' && (
+                                <div className="pt-2">
+                                    <Label>تاريخ الاستحقاق</Label>
+                                    <Input
+                                        type="date"
+                                        value={dueDate}
+                                        onChange={e => setDueDate(e.target.value)}
+                                        className="bg-slate-50"
+                                    />
+                                </div>
+                            )}
+
                             <div className="border-t border-slate-300 my-2"></div>
                             <div className="flex justify-between text-xl font-bold text-primary"><span>الإجمالي النهائي:</span><span>{total.toLocaleString()} ج.م</span></div>
                         </CardContent>

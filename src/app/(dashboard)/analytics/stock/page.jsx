@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, AlertTriangle, PackageCheck } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, AlertTriangle, PackageCheck, BarChart3 } from 'lucide-react';
 
 export default function StockAnalyticsPage() {
     const [loading, setLoading] = useState(true);
@@ -13,7 +14,7 @@ export default function StockAnalyticsPage() {
     useEffect(() => {
         async function load() {
             try {
-                const res = await fetch('/api/products?limit=500'); // Fetch ample products
+                const res = await fetch('/api/products?limit=500');
                 const data = await res.json();
                 const prods = data.products || [];
 
@@ -29,83 +30,111 @@ export default function StockAnalyticsPage() {
 
                 setProducts(prods);
                 setMetrics({ totalValue: value, lowStockCount: low, outOfStockCount: out });
-            } catch (e) { console.error(e); }
-            finally { setLoading(false); }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setLoading(false);
+            }
         }
         load();
     }, []);
 
-    if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div>;
+    if (loading) {
+        return (
+            <div className="flex justify-center py-20">
+                <Loader2 className="animate-spin text-primary" size={40} />
+            </div>
+        );
+    }
 
     const lowStockItems = products.filter(p => p.stockQty <= p.minLevel || p.stockQty === 0);
 
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-[#1B3C73]">تحليل المخزون</h1>
+            <div className="flex items-center gap-3">
+                <BarChart3 className="w-6 h-6 md:w-8 md:h-8 text-primary" />
+                <div>
+                    <h1 className="text-2xl md:text-3xl font-bold text-foreground">تحليل المخزون</h1>
+                    <p className="text-sm text-muted-foreground">إحصائيات ورؤى شاملة</p>
+                </div>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="bg-blue-50 border-blue-100">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                <Card className="border shadow-sm">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-blue-800">قيمة المخزون (بالتكلفة)</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground">قيمة المخزون (بالتكلفة)</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-blue-900">{metrics.totalValue.toLocaleString()} ج.م</div>
+                        <div className="text-2xl md:text-3xl font-bold text-primary">
+                            {metrics.totalValue.toLocaleString()} ج.م
+                        </div>
                     </CardContent>
                 </Card>
-                <Card className="bg-yellow-50 border-yellow-100">
+
+                <Card className="border shadow-sm">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-yellow-800">منتجات منخفضة</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground">منتجات منخفضة</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-yellow-900 flex items-center gap-2">
+                        <div className="text-2xl md:text-3xl font-bold flex items-center gap-2 text-amber-600 dark:text-amber-400">
                             {metrics.lowStockCount} <AlertTriangle size={20} />
                         </div>
                     </CardContent>
                 </Card>
-                <Card className="bg-red-50 border-red-100">
+
+                <Card className="border shadow-sm">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-red-800">نواقص (رصيد صفري)</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground">نواقص (رصيد صفري)</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-red-900 flex items-center gap-2">
+                        <div className="text-2xl md:text-3xl font-bold flex items-center gap-2 text-destructive">
                             {metrics.outOfStockCount} <PackageCheck size={20} />
                         </div>
                     </CardContent>
                 </Card>
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-red-600 flex items-center gap-2"><AlertTriangle size={20} /> تنبيهات النواقص</CardTitle>
+            <Card className="border shadow-sm">
+                <CardHeader className="border-b">
+                    <CardTitle className="text-lg md:text-xl flex items-center gap-2 text-destructive">
+                        <AlertTriangle size={20} /> تنبيهات النواقص
+                    </CardTitle>
                 </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="text-right">المنتج</TableHead>
-                                <TableHead className="text-center">المتوفر</TableHead>
-                                <TableHead className="text-center">حد الطلب</TableHead>
-                                <TableHead className="text-center">الحالة</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {lowStockItems.slice(0, 10).map(p => (
-                                <TableRow key={p._id}>
-                                    <TableCell className="font-medium">{p.name}</TableCell>
-                                    <TableCell className="text-center font-bold">{p.stockQty}</TableCell>
-                                    <TableCell className="text-center text-slate-500">{p.minLevel}</TableCell>
-                                    <TableCell className="text-center">
-                                        <span className={`px-2 py-1 rounded text-xs font-bold ${p.stockQty === 0 ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                            {p.stockQty === 0 ? 'نفذت الكمية' : 'منخفض'}
-                                        </span>
-                                    </TableCell>
+                <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="text-right">المنتج</TableHead>
+                                    <TableHead className="text-center">المتوفر</TableHead>
+                                    <TableHead className="text-center">حد الطلب</TableHead>
+                                    <TableHead className="text-center">الحالة</TableHead>
                                 </TableRow>
-                            ))}
-                            {lowStockItems.length === 0 && (
-                                <TableRow><TableCell colSpan={4} className="text-center text-green-600 font-bold py-8">المخزون بوضع ممتاز</TableCell></TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {lowStockItems.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="text-center py-8 text-green-600 dark:text-green-400 font-semibold">
+                                            المخزون بوضع ممتاز ✓
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    lowStockItems.slice(0, 10).map(p => (
+                                        <TableRow key={p._id}>
+                                            <TableCell className="font-medium">{p.name}</TableCell>
+                                            <TableCell className="text-center font-bold">{p.stockQty}</TableCell>
+                                            <TableCell className="text-center text-muted-foreground">{p.minLevel}</TableCell>
+                                            <TableCell className="text-center">
+                                                <Badge variant={p.stockQty === 0 ? 'destructive' : 'warning'}>
+                                                    {p.stockQty === 0 ? 'نفذت الكمية' : 'منخفض'}
+                                                </Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </CardContent>
             </Card>
         </div>

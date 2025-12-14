@@ -35,6 +35,13 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221 68% 23%;
     --radius: 0.5rem;
+
+    /* Sidebar Variables */
+    --sidebar: 221 68% 23%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-border: 221 68% 20%;
+    --sidebar-accent: 210 40% 96.1%;
+    --sidebar-accent-foreground: 222.2 84% 4.9%;
   }
 
   .dark {
@@ -71,6 +78,13 @@
     --border: 164 50% 20%;
     --input: 164 50% 20%;
     --ring: 151 55% 42%;
+
+    /* Sidebar Variables */
+    --sidebar: 164 90% 11%;
+    --sidebar-foreground: 160 50% 98%;
+    --sidebar-border: 164 50% 15%;
+    --sidebar-accent: 164 50% 20%;
+    --sidebar-accent-foreground: 160 50% 98%;
   }
 }
 
@@ -81,5 +95,29 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Custom Scrollbar Styles */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-muted/30;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-md;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) hsl(var(--muted) / 0.3);
   }
 }

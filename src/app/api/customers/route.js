@@ -1,56 +1,82 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
-import Customer from '@/models/Customer';
-import { verifyToken } from '@/lib/auth';
-import { cookies } from 'next/headers';
+import Customer from '@/models/Customer'; // Ensuring we use the existing model
+import { getCurrentUser } from '@/lib/auth';
 
-// GET: Search Customers
 export async function GET(request) {
-    const { searchParams } = new URL(request.url);
-    const query = searchParams.get('query');
-
     try {
         await dbConnect();
 
-        // Auth check (Optional: decide if public or protected)
-        // const cookieStore = await cookies();
-        // const token = cookieStore.get('token')?.value;
-        // if (!verifyToken(token)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-        let filter = {};
-        if (query) {
-            filter = {
-                $or: [
-                    { name: { $regex: query, $options: 'i' } },
-                    { phone: { $regex: query, $options: 'i' } }
-                ]
-            };
+        // Security Check
+        const user = await getCurrentUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const customers = await Customer.find(filter).limit(20).sort({ updatedAt: -1 });
-        return NextResponse.json({ customers });
+        const { searchParams } = new URL(request.url);
+        const search = searchParams.get('search');
+        const limit = parseInt(searchParams.get('limit')) || 20;
+
+        const query = {};
+        if (search) {
+            query.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { phone: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        // Active only by default, unless specified? Let's just show active for now.
+        // query.isActive = true; 
+
+        const customers = await Customer.find(query)
+            .sort({ updatedAt: -1 })
+            .limit(limit)
+            .lean(); // Faster
+
+        return NextResponse.json(customers);
+
     } catch (error) {
-        return NextResponse.json({ error: 'Server Error' }, { status: 500 });
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
 
-// POST: Create Customer
 export async function POST(request) {
     try {
         await dbConnect();
-        const body = await request.json();
 
-        if (!body.name || !body.phone) {
+        // Security Check - Owner/Manager/Cashier can create?
+        // Let's restrict creation to Owner/Manager/Cashier
+        const user = await getCurrentUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const body = await request.json();
+        const { name, phone, priceType, creditLimit, address, notes } = body;
+
+        // Validation
+        if (!name || !phone) {
             return NextResponse.json({ error: 'الاسم ورقم الهاتف مطلوبان' }, { status: 400 });
         }
 
-        const existing = await Customer.findOne({ phone: body.phone });
+        // Check Unique Phone
+        const existing = await Customer.findOne({ phone });
         if (existing) {
-            return NextResponse.json({ error: 'العميل مسجل مسبقاً' }, { status: 400 });
+            return NextResponse.json({ error: 'رقم الهاتف مستخدم بالفعل لعميل آخر' }, { status: 400 });
         }
 
-        const customer = await Customer.create(body);
-        return NextResponse.json({ customer }, { status: 201 });
+        const newCustomer = await Customer.create({
+            name,
+            phone,
+            priceType: priceType || 'retail',
+            creditLimit: creditLimit || 0,
+            address,
+            notes,
+            isActive: true
+        });
+
+        return NextResponse.json(newCustomer, { status: 201 });
+
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }

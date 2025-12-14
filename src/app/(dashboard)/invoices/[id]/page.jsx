@@ -2,17 +2,28 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Printer, ArrowRight, Trash2 } from 'lucide-react';
+import { Printer, ArrowRight, Trash2, ArrowRightLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { use } from 'react';
 import QRCode from "react-qr-code";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function InvoiceViewPage({ params }) {
     const { id } = use(params);
     const router = useRouter();
     const [invoice, setInvoice] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    // Return State
+    const [showReturnDialog, setShowReturnDialog] = useState(false);
+    const [returnItems, setReturnItems] = useState({});
+    const [returnType, setReturnType] = useState('cash');
+    const [isReturning, setIsReturning] = useState(false);
 
     useEffect(() => {
         fetch(`/api/invoices/${id}`)
@@ -26,6 +37,48 @@ export default function InvoiceViewPage({ params }) {
 
     const handlePrint = () => {
         window.print();
+    };
+
+    const handleReturnSubmit = async () => {
+        setIsReturning(true);
+        try {
+            // Transform returnItems object to array
+            const itemsToReturn = Object.entries(returnItems)
+                .filter(([_, qty]) => qty > 0)
+                .map(([productId, qty]) => ({ productId, qty }));
+
+            if (itemsToReturn.length === 0) {
+                toast.error('يجب تحديد كمية واحدة على الأقل');
+                setIsReturning(false);
+                return;
+            }
+
+            const res = await fetch(`/api/invoices/${id}/return`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    items: itemsToReturn,
+                    type: returnType
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                toast.success('تم استرجاع المنتجات بنجاح');
+                setShowReturnDialog(false);
+                // Refresh invoice data
+                // In a real app, maybe redirect to the "Return Invoice" view, but for now refresh
+                window.location.reload();
+            } else {
+                toast.error(data.error || 'حدث خطأ أثناء الارتجاع');
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error('خطأ في الاتصال');
+        } finally {
+            setIsReturning(false);
+        }
     };
 
     const handleDelete = async () => {
@@ -55,12 +108,95 @@ export default function InvoiceViewPage({ params }) {
                 <Button variant="outline" onClick={() => router.back()} className="gap-2">
                     <ArrowRight size={16} /> العودة
                 </Button>
-                <Button onClick={handlePrint} className="gap-2 bg-primary">
-                    <Printer size={16} /> طباعة / PDF
-                </Button>
-                <Button variant="destructive" onClick={handleDelete} className="gap-2 bg-red-600 hover:bg-red-700 text-white">
-                    <Trash2 size={16} /> حذف
-                </Button>
+
+                <div className="flex gap-2">
+                    {/* Return Button */}
+                    <Dialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>
+                        <DialogTrigger asChild>
+                            <Button variant="secondary" className="gap-2 bg-amber-100 text-amber-900 hover:bg-amber-200">
+                                <ArrowRightLeft size={16} /> استرجاع منتجات
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-3xl">
+                            <DialogHeader>
+                                <DialogTitle>استرجاع منتجات من الفاتورة #{invoice.number}</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>المنتج</TableHead>
+                                            <TableHead>الكمية المباعة</TableHead>
+                                            <TableHead>سعر الوحدة</TableHead>
+                                            <TableHead>كمية الارتجاع</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {invoice.items.map((item, i) => (
+                                            <TableRow key={i}>
+                                                <TableCell>{item.name || 'منتج'}</TableCell>
+                                                <TableCell>{item.qty}</TableCell>
+                                                <TableCell>{item.unitPrice}</TableCell>
+                                                <TableCell>
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        max={item.qty}
+                                                        className="w-24"
+                                                        placeholder="0"
+                                                        onChange={(e) => {
+                                                            const val = parseInt(e.target.value) || 0;
+                                                            setReturnItems(prev => ({
+                                                                ...prev,
+                                                                [item.productId || item._id]: val // Handle if productId is populated object or string
+                                                                // Note: API needs productId. In GET invoice, item.productId might be populated? 
+                                                                // Let's check logic below.
+                                                            }));
+                                                        }}
+                                                    />
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+
+                                <div className="flex gap-4">
+                                    <div className="flex-1">
+                                        <Label>نوع الاسترداد</Label>
+                                        <Select value={returnType} onValueChange={setReturnType}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="cash">نقدي (Cash Refund)</SelectItem>
+                                                <SelectItem value="credit">آجل / رصيد (Credit/Wallet)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="text-right font-bold text-lg mt-6">
+                                            إجمالي الاسترداد: {
+                                                invoice.items.reduce((sum, item) => {
+                                                    const qty = returnItems[item.productId?._id || item.productId] || 0;
+                                                    return sum + (qty * item.unitPrice);
+                                                }, 0).toLocaleString()
+                                            } ج.م
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <Button onClick={handleReturnSubmit} className="w-full mt-4" disabled={isReturning}>
+                                    {isReturning ? <Loader2 className="animate-spin" /> : 'تأكيد الارتجاع'}
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+
+                    <Button onClick={handlePrint} className="gap-2 bg-primary">
+                        <Printer size={16} /> طباعة / PDF
+                    </Button>
+                    <Button variant="destructive" onClick={handleDelete} className="gap-2 bg-red-600 hover:bg-red-700 text-white">
+                        <Trash2 size={16} /> حذف
+                    </Button>
+                </div>
             </div>
 
             {/* Invoice Container */}
@@ -117,6 +253,12 @@ export default function InvoiceViewPage({ params }) {
                         <h3 className="font-bold text-[#1B3C73] mb-3 text-left">تفاصيل الفاتورة</h3>
                         <div className="space-y-2 text-slate-700">
                             <p className="flex justify-between border-b border-white pb-1"><span className="text-slate-400">الحالة:</span> <span className="text-green-600 font-bold">مدفوعة</span></p>
+                            <p className="flex justify-between border-b border-white pb-1">
+                                <span className="text-slate-400">طريقة الدفع:</span>
+                                <span className="font-bold">
+                                    {invoice.paymentType === 'cash' ? 'نقدي' : invoice.paymentType === 'bank' ? 'تحويل بنكي' : 'آجل'}
+                                </span>
+                            </p>
                             <p className="flex justify-between border-b border-white pb-1"><span className="text-slate-400">بواسطة:</span> <span>{invoice.createdBy?.name || 'النظام'}</span></p>
                         </div>
                     </div>
