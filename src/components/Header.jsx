@@ -1,21 +1,20 @@
 'use client';
 
-import { LogOut, Bell, Search, User, Menu } from 'lucide-react';
+import { LogOut, Search, Menu } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import {
-    Sheet,
-    SheetContent,
-    SheetTrigger,
-} from "@/components/ui/sheet";
 import NotificationPopover from '@/components/NotificationPopover';
-import Sidebar from '@/components/Sidebar';
-
 import { useUserRole } from '@/hooks/useUserRole';
+import { useSidebar } from '@/providers/SidebarProvider';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
 
 export default function Header() {
     const router = useRouter();
     const { user } = useUserRole();
+    const { toggleSidebar, isMobile } = useSidebar();
 
     const handleLogout = async () => {
         await fetch('/api/auth/logout', { method: 'POST' });
@@ -23,60 +22,67 @@ export default function Header() {
     };
 
     return (
-        <header className="h-16 bg-card border-b border-border shadow-sm flex items-center justify-between px-6 z-10 transition-colors duration-300">
-            <div className="flex items-center gap-4">
-                {/* Mobile Menu Trigger */}
-                <div className="md:hidden">
-                    <Sheet>
-                        <SheetTrigger asChild>
-                            <button className="p-2 text-foreground hover:bg-muted rounded-lg transition-colors">
-                                <Menu size={24} />
-                            </button>
-                        </SheetTrigger>
-                        <SheetContent side="right" className="p-0 border-l border-border bg-primary w-72">
-                            <Sidebar isMobile={true} />
-                        </SheetContent>
-                    </Sheet>
-                </div>
+        <header className="sticky top-0 z-30 h-16 bg-card border-b border-border shadow-sm flex items-center justify-between px-4 md:px-6">
+            {/* Right section: Menu toggle + Search */}
+            <div className="flex items-center gap-3 flex-1">
+                {/* Mobile menu toggle */}
+                {isMobile && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={toggleSidebar}
+                        className="shrink-0"
+                    >
+                        <Menu size={20} />
+                    </Button>
+                )}
 
-                <div className="relative w-full max-w-xs hidden md:block">
+                {/* Search bar - hidden on mobile */}
+                <div className="relative w-full max-w-md hidden md:block">
                     <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-                    <input
+                    <Input
                         type="text"
                         placeholder="بحث سريع..."
-                        className="w-full pl-4 pr-10 py-2 bg-muted/50 border-none rounded-lg focus:ring-2 focus:ring-primary/50 text-sm outline-none transition-all text-foreground placeholder:text-muted-foreground"
+                        className="w-full pr-10 bg-muted/50 border-none focus-visible:ring-primary"
                     />
                 </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            {/* Left section: Theme + Notifications + User + Logout */}
+            <div className="flex items-center gap-2 md:gap-3">
+                {/* Theme toggle */}
                 <ThemeToggle />
 
+                {/* Notifications */}
                 <NotificationPopover />
 
-                <div className="h-8 w-[1px] bg-border mx-1 hidden md:block"></div>
+                {/* Separator */}
+                <Separator orientation="vertical" className="h-8 hidden md:block" />
 
+                {/* User info */}
                 <div className="flex items-center gap-3">
                     <div className="text-left hidden md:block">
                         <p className="text-sm font-semibold text-foreground">{user?.name || 'مستخدم'}</p>
                         <p className="text-xs text-muted-foreground">{user?.role || ''}</p>
                     </div>
-                    {user?.picture ? (
-                        <img src={user.picture} alt={user.name} className="w-10 h-10 rounded-full border border-border" />
-                    ) : (
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                            <User size={20} />
-                        </div>
-                    )}
+                    <Avatar className="h-9 w-9 border border-border">
+                        <AvatarImage src={user?.picture} alt={user?.name || 'User'} />
+                        <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                            {user?.name?.charAt(0) || 'م'}
+                        </AvatarFallback>
+                    </Avatar>
                 </div>
 
-                <button
+                {/* Logout button */}
+                <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={handleLogout}
-                    className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors ml-2"
+                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                     title="تسجيل الخروج"
                 >
-                    <LogOut size={20} />
-                </button>
+                    <LogOut size={18} />
+                </Button>
             </div>
         </header>
     );

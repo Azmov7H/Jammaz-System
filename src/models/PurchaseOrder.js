@@ -18,7 +18,8 @@ const PurchaseOrderSchema = new mongoose.Schema({
     expectedDate: Date,
     receivedDate: Date,
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    notes: String
+    notes: String,
+    paymentType: { type: String, enum: ['cash', 'credit', 'bank'], default: 'cash' }
 }, { timestamps: true });
 
 // Performance Indices

@@ -1,0 +1,59 @@
+import Log from '@/models/Log';
+import dbConnect from '@/lib/db';
+
+/**
+ * Log Service
+ * Handles centralized logging for all system actions
+ */
+export const LogService = {
+    /**
+     * Create a new log entry
+     * @param {string} userId - User performing the action
+     * @param {string} action - Action name (e.g., 'CREATE_INVOICE', 'UPDATE_STOCK')
+     * @param {string} entity - Entity modified (e.g., 'Invoice', 'Product')
+     * @param {string} entityId - ID of the entity
+     * @param {object} diff - Details of the change (optional)
+     * @param {string} note - Human readable note (optional)
+     */
+    async logAction({ userId, action, entity, entityId, diff, note }) {
+        try {
+            await dbConnect();
+
+            await Log.create({
+                userId,
+                action,
+                entity,
+                entityId,
+                diff,
+                note,
+                date: new Date()
+            });
+        } catch (error) {
+            // Non-blocking error logging
+            console.error('Failed to create system log:', error);
+        }
+    },
+
+    /**
+     * Get logs for an entity
+     */
+    async getEntityLogs(entity, entityId) {
+        await dbConnect();
+        return await Log.find({ entity, entityId })
+            .populate('userId', 'name')
+            .sort({ date: -1 })
+            .lean();
+    },
+
+    /**
+     * Get recent logs (system wide)
+     */
+    async getRecentLogs(limit = 50) {
+        await dbConnect();
+        return await Log.find({})
+            .populate('userId', 'name')
+            .sort({ date: -1 })
+            .limit(limit)
+            .lean();
+    }
+};

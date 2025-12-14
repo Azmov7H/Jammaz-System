@@ -1,90 +1,348 @@
 import Product from '@/models/Product';
 import StockMovement from '@/models/StockMovement';
+import Invoice from '@/models/Invoice';
+import PurchaseOrder from '@/models/PurchaseOrder';
 
+/**
+ * Stock Management Service
+ * Handles all stock operations with proper validation and logging
+ */
 export const StockService = {
     /**
-     * Validate if enough stock exists for a given product
+     * Reduce stock when creating a sale (invoice)
+     * Stock is ALWAYS reduced from SHOP
      */
-    async validateStock(productId, qty) {
-        const product = await Product.findById(productId);
-        if (!product) throw new Error('Product not found');
-        if (product.stockQty < qty) {
-            throw new Error(`Insufficient stock for ${product.name}. Available: ${product.stockQty}`);
+    async reduceStockForSale(items, invoiceId, userId) {
+        const results = [];
+
+        for (const item of items) {
+            const product = await Product.findById(item.productId);
+
+            if (!product) {
+                throw new Error(`المنتج غير موجود: ${item.productId}`);
+            }
+
+            // Validate shop stock availability
+            if (product.shopQty < item.qty) {
+                throw new Error(
+                    `كمية غير كافية في المحل: ${product.name}. ` +
+                    `المتوفر: ${product.shopQty}, المطلوب: ${item.qty}`
+                );
+            }
+
+            // Reduce shop quantity
+            product.shopQty -= item.qty;
+            product.stockQty = product.warehouseQty + product.shopQty;
+            await product.save();
+
+            // Log movement
+            const movement = await StockMovement.create({
+                productId: item.productId,
+                type: 'SALE',
+                qty: item.qty,
+                note: `بيع - فاتورة #${invoiceId}`,
+                refId: invoiceId,
+                createdBy: userId,
+                snapshot: {
+                    warehouseQty: product.warehouseQty,
+                    shopQty: product.shopQty
+                }
+            });
+
+            results.push({ product, movement });
         }
-        return product;
+
+        return results;
     },
 
     /**
-     * Update stock quantity and record movement
-     * @param {string} productId 
-     * @param {number} qty - Positive amount to change. Direction determined by type.
-     * @param {string} type - 'IN' | 'OUT' | 'ADJUST' | 'TRANSFER'
-     * @param {string} note 
-     * @param {string} refId - Optional reference ID (Invoice ID)
-     * @param {string} userId - User performing action
+     * Increase stock when receiving purchase order
+     * Stock is ALWAYS added to WAREHOUSE
+     * IMPLEMENTS: Weighted Average Cost (AVCO)
      */
-    async updateStock(productId, qty, type, note, refId, userId) {
-        let delta = Number(qty);
-        let updateQuery = {};
+    async increaseStockForPurchase(items, poId, userId) {
+        const results = [];
 
-        // Validation first
+        for (const item of items) {
+            const product = await Product.findById(item.productId);
+
+            if (!product) {
+                throw new Error(`المنتج غير موجود: ${item.productId}`);
+            }
+
+            // Calculate Weighted Average Cost
+            // Current Value = Current Stock * Current Buy Price
+            // New Value = New Qty * New Cost Price
+            // New Buy Price = (Current Value + New Value) / (Current Stock + New Qty)
+
+            const currentStock = product.stockQty || 0;
+            const currentCost = product.buyPrice || 0;
+            const newQty = item.quantity;
+            const newCost = item.costPrice || currentCost; // If no cost provided, assume current cost
+
+            // Protect against zero division or negative stock anomalies
+            let newAvgCost = currentCost;
+
+            if (currentStock + newQty > 0) {
+                const totalValue = (currentStock * currentCost) + (newQty * newCost);
+                newAvgCost = totalValue / (currentStock + newQty);
+            }
+
+            // Update Stock
+            product.warehouseQty = (product.warehouseQty || 0) + newQty;
+            product.stockQty = (product.warehouseQty || 0) + (product.shopQty || 0);
+
+            // Update Cost
+            // We round to 2 decimal places to avoid floating point weirdness, 
+            // but for high precision systems maybe keep more. 2 is standard for currency.
+            product.buyPrice = parseFloat(newAvgCost.toFixed(2));
+
+            await product.save();
+
+            // Log movement
+            const movement = await StockMovement.create({
+                productId: item.productId,
+                type: 'IN',
+                qty: newQty,
+                note: `شراء - أمر #${poId} (Cost: ${newCost}, NewAvg: ${product.buyPrice})`,
+                refId: poId,
+                createdBy: userId,
+                snapshot: {
+                    warehouseQty: product.warehouseQty,
+                    shopQty: product.shopQty
+                }
+            });
+
+            results.push({ product, movement, newAvgCost: product.buyPrice });
+        }
+
+        return results;
+    },
+
+    /**
+     * Transfer stock from warehouse to shop
+     */
+    async transferToShop(productId, quantity, userId, note = '') {
         const product = await Product.findById(productId);
-        if (!product) throw new Error('Product not found');
 
-        if (type === 'IN') {
-            // General purchase/add -> goes to Warehouse by default? Or Global Stock?
-            // Let's assume IN increases WarehouseQty + StockQty
-            updateQuery = { $inc: { stockQty: delta, warehouseQty: delta } };
-        } else if (type === 'OUT') {
-            // General damage/loss -> remove from ... where?
-            // Default OUT from Warehouse? 
-            // Let's assume OUT removes from Warehouse unless specified otherwise (simplification)
-            if (product.warehouseQty < delta) throw new Error(`Insufficient Warehouse Stock: ${product.warehouseQty}`);
-            updateQuery = { $inc: { stockQty: -delta, warehouseQty: -delta } };
-        } else if (type === 'OUT_SALE') {
-            // Sale -> remove from Shop
-            if (product.shopQty < delta) throw new Error(`الكمية غير متوفرة في المحل: ${product.shopQty}`);
-            updateQuery = { $inc: { stockQty: -delta, shopQty: -delta } };
-        } else if (type === 'TRANSFER_TO_SHOP') {
-            if (product.warehouseQty < delta) throw new Error(`R: ${product.warehouseQty} (مخزن) غير كافي للتحويل. المطلوب: ${delta}`);
-            // Move: Warehouse -> Shop. Total Stock stays same involved? No, Total stock is same.
-            updateQuery = { $inc: { warehouseQty: -delta, shopQty: delta } };
-        } else if (type === 'TRANSFER_TO_WAREHOUSE') {
-            if (product.shopQty < delta) throw new Error(`R: ${product.shopQty} (محل) غير كافي للإرجاع. المطلوب: ${delta}`);
-            // Move: Shop -> Warehouse
-            updateQuery = { $inc: { shopQty: -delta, warehouseQty: delta } };
-        } else if (type === 'ADJUST') {
-            // Adjust usually comes from "Audit" or "Manual Correction".
-            // We need to know WHICH quantity to adjust: Warehouse or Shop.
-            // Implicitly, we can infer from the note or require it in metadata?
-            // For now, let's assume if it comes from the product page edit, we handled it as separate calls.
-            // If it's generic, we default to Warehouse for safety.
+        if (!product) {
+            throw new Error('المنتج غير موجود');
+        }
 
-            // Better logic: The caller should pass specific type 'ADJUST_SHOP' or 'ADJUST_WAREHOUSE', or we misuse 'ADJUST' for global?
-            // Let's stick to the current "Stock" page which just calls "IN/OUT".
-            // If the user uses "Hand Movement" dialog, they pick IN/OUT/TRANSFER.
-            // "ADJUST" is internal from Product Edit.
-            // Let's check the Product Edit Route again... it sends 'ADJUST' with note "Manual from Product Page (Shop)".
+        if (product.warehouseQty < quantity) {
+            throw new Error(
+                `كمية غير كافية في المخزن. المتوفر: ${product.warehouseQty}, المطلوب: ${quantity}`
+            );
+        }
 
-            if (note && note.includes('محل')) {
-                updateQuery = { $inc: { shopQty: delta, stockQty: delta } };
+        // Transfer
+        product.warehouseQty -= quantity;
+        product.shopQty += quantity;
+        // Total stock remains same
+        await product.save();
+
+        // Log movement
+        const movement = await StockMovement.create({
+            productId,
+            type: 'TRANSFER_TO_SHOP',
+            qty: quantity,
+            note: note || 'تحويل من المخزن إلى المحل',
+            createdBy: userId,
+            snapshot: {
+                warehouseQty: product.warehouseQty,
+                shopQty: product.shopQty
+            }
+        });
+
+        return { product, movement };
+    },
+
+    /**
+     * Transfer stock from shop to warehouse
+     */
+    async transferToWarehouse(productId, quantity, userId, note = '') {
+        const product = await Product.findById(productId);
+
+        if (!product) {
+            throw new Error('المنتج غير موجود');
+        }
+
+        if (product.shopQty < quantity) {
+            throw new Error(
+                `كمية غير كافية في المحل. المتوفر: ${product.shopQty}, المطلوب: ${quantity}`
+            );
+        }
+
+        // Transfer
+        product.shopQty -= quantity;
+        product.warehouseQty += quantity;
+        await product.save();
+
+        // Log movement
+        const movement = await StockMovement.create({
+            productId,
+            type: 'TRANSFER_TO_WAREHOUSE',
+            qty: quantity,
+            note: note || 'تحويل من المحل إلى المخزن',
+            createdBy: userId,
+            snapshot: {
+                warehouseQty: product.warehouseQty,
+                shopQty: product.shopQty
+            }
+        });
+
+        return { product, movement };
+    },
+
+    /**
+     * Adjust stock quantities (for inventory audits)
+     */
+    async adjustStock(productId, newWarehouseQty, newShopQty, reason, userId) {
+        const product = await Product.findById(productId);
+
+        if (!product) {
+            throw new Error('المنتج غير موجود');
+        }
+
+        const oldWarehouseQty = product.warehouseQty;
+        const oldShopQty = product.shopQty;
+
+        // Set new quantities
+        product.warehouseQty = newWarehouseQty;
+        product.shopQty = newShopQty;
+        product.stockQty = newWarehouseQty + newShopQty;
+        await product.save();
+
+        const warehouseDiff = newWarehouseQty - oldWarehouseQty;
+        const shopDiff = newShopQty - oldShopQty;
+
+        // Log adjustment
+        const movement = await StockMovement.create({
+            productId,
+            type: 'ADJUST',
+            qty: Math.abs(warehouseDiff) + Math.abs(shopDiff),
+            note: `تصحيح جرد: ${reason}. مخزن: ${oldWarehouseQty}→${newWarehouseQty}, محل: ${oldShopQty}→${newShopQty}`,
+            createdBy: userId,
+            snapshot: {
+                warehouseQty: product.warehouseQty,
+                shopQty: product.shopQty
+            }
+        });
+
+        return { product, movement, warehouseDiff, shopDiff };
+    },
+
+    /**
+     * Get stock movement history for a product
+     */
+    async getProductHistory(productId, limit = 50) {
+        return await StockMovement.find({ productId })
+            .sort({ date: -1 })
+            .limit(limit)
+            .populate('createdBy', 'name')
+            .lean();
+    },
+
+    /**
+     * Get all stock movements for a date range
+     */
+    async getMovements(startDate, endDate, type = null) {
+        const query = {
+            date: {
+                $gte: startDate,
+                $lte: endDate
+            }
+        };
+
+        if (type) {
+            query.type = type;
+        }
+
+        return await StockMovement.find(query)
+            .sort({ date: -1 })
+            .populate('productId', 'name code')
+            .populate('createdBy', 'name')
+            .lean();
+    },
+
+    /**
+     * Validate stock availability for multiple items
+     */
+    async validateStockAvailability(items) {
+        const results = [];
+
+        for (const item of items) {
+            const product = await Product.findById(item.productId);
+
+            if (!product) {
+                results.push({
+                    productId: item.productId,
+                    available: false,
+                    reason: 'المنتج غير موجود'
+                });
+                continue;
+            }
+
+            if (product.shopQty < item.qty) {
+                results.push({
+                    productId: item.productId,
+                    name: product.name,
+                    available: false,
+                    requested: item.qty,
+                    inStock: product.shopQty,
+                    reason: 'كمية غير كافية'
+                });
             } else {
-                updateQuery = { $inc: { warehouseQty: delta, stockQty: delta } };
+                results.push({
+                    productId: item.productId,
+                    name: product.name,
+                    available: true,
+                    requested: item.qty,
+                    inStock: product.shopQty
+                });
             }
         }
 
-        await Product.findByIdAndUpdate(productId, updateQuery);
+        return results;
+    },
 
-        const movement = await StockMovement.create({
-            productId,
-            type,
-            qty: Math.abs(delta),
-            note,
-            refId,
-            createdBy: userId,
-            date: new Date()
-        });
+    /**
+     * Increase stock when returning items (Sales Return)
+     * Stock is added back to SHOP (assuming returns go to front desk/shop)
+     */
+    async increaseStockForReturn(items, returnId, userId) {
+        const results = [];
 
-        return movement;
+        for (const item of items) {
+            const product = await Product.findById(item.productId);
+
+            if (!product) {
+                console.warn(`المنتج غير موجود عند الارتجاع: ${item.productId}`);
+                continue;
+            }
+
+            // Increase shop quantity
+            product.shopQty += item.qty;
+            product.stockQty = product.warehouseQty + product.shopQty;
+            await product.save();
+
+            // Log movement
+            const movement = await StockMovement.create({
+                productId: item.productId,
+                type: 'IN', // Treated as IN but noted as Return
+                qty: item.qty,
+                note: `مرتجع مبيعات - إشعار ${returnId}`,
+                refId: returnId,
+                createdBy: userId,
+                snapshot: {
+                    warehouseQty: product.warehouseQty,
+                    shopQty: product.shopQty
+                }
+            });
+
+            results.push({ product, movement });
+        }
+
+        return results;
     }
 };

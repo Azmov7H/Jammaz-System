@@ -32,9 +32,12 @@ const ProductSchema = new mongoose.Schema({
         enum: ['pcs', 'kg', 'm', 'box']
     },
 
-    // Financials
-    sellPrice: { type: Number, required: true, min: 0 },
+    // Multi-Tier Pricing
     buyPrice: { type: Number, required: true, min: 0 },
+    retailPrice: { type: Number, required: true, min: 0 }, // Selling price for retail customers (قطاعي)
+    wholesalePrice: { type: Number, min: 0 }, // Selling price for wholesale customers (جملة)
+    specialPrice: { type: Number, min: 0 }, // Selling price for special pricing tier
+    lastPriceChange: { type: Date }, // Track when prices were last updated
 
     // Inventory - Separate Source of Truth
     stockQty: { type: Number, default: 0 }, // Should ideally be computed, but keeping as cached total
@@ -54,11 +57,52 @@ const ProductSchema = new mongoose.Schema({
 });
 
 // Middleware to ensure stockQty is always sync
-ProductSchema.pre('save', function (next) {
+ProductSchema.pre('save', async function () {
     if (this.isModified('warehouseQty') || this.isModified('shopQty')) {
         this.stockQty = (this.warehouseQty || 0) + (this.shopQty || 0);
     }
-    next();
+
+    // Debug log to confirm new middleware is loaded
+    // console.log(`Product pre-save: Updating stockQty to ${this.stockQty}`);
+
+    // Track price changes
+    if (this.isModified('retailPrice') || this.isModified('wholesalePrice') || this.isModified('specialPrice') || this.isModified('buyPrice')) {
+        this.lastPriceChange = new Date();
+    }
+
+    // Auto-set wholesale and special prices if not provided
+    if (this.isNew || this.isModified('retailPrice')) {
+        if (!this.wholesalePrice) {
+            this.wholesalePrice = this.retailPrice * 0.9; // 10% discount for wholesale
+        }
+        if (!this.specialPrice) {
+            this.specialPrice = this.retailPrice; // Default to retail price
+        }
+    }
 });
 
-export default mongoose.models.Product || mongoose.model('Product', ProductSchema);
+// Method to get price based on customer tier
+ProductSchema.methods.getPrice = function (priceType = 'retail') {
+    switch (priceType) {
+        case 'wholesale':
+            return this.wholesalePrice || this.retailPrice;
+        case 'special':
+            return this.specialPrice || this.retailPrice;
+        case 'retail':
+        default:
+            return this.retailPrice;
+    }
+};
+
+// Virtual for profit margin (retail)
+ProductSchema.virtual('profitMargin').get(function () {
+    if (this.buyPrice === 0) return 0;
+    return ((this.retailPrice - this.buyPrice) / this.buyPrice) * 100;
+});
+
+// Force model recompilation in dev to fix cache
+if (process.env.NODE_ENV !== 'production' && mongoose.models.Product) {
+    delete mongoose.models.Product;
+}
+
+export default mongoose.model('Product', ProductSchema);

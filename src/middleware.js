@@ -9,14 +9,36 @@ export function middleware(request) {
     const { pathname } = request.nextUrl;
 
     // Protect Dashboard
-    if (pathname.startsWith('/dashboard')) {
+    if (pathname.startsWith('/dashboard') || pathname === '/' || pathname.startsWith('/products') || pathname.startsWith('/invoices')) {
+        // Note: The original proxy.js only protected /dashboard. 
+        // But the app has many routes at root level (e.g. /products). 
+        // The Layout wraps them, but Middleware should probably protect them too to avoid flash.
+        // However, the proxy.js matcher was: matcher: ['/dashboard/:path*', '/api/:path*'],
+        // So it ONLY protected /dashboard and /api.
+        // If /products is NOT under /dashboard in the URL (it is physically in (dashboard) group, so it is /products),
+        // then the original middleware FAILED to protect /products.
+        // I MUST FIX THIS.
+    }
+
+    // Logic from proxy.js was:
+    // if (pathname.startsWith('/dashboard')) ...
+
+    // I need to be careful. The Sidebar links are: /products, /stock, etc.
+    // If these are NOT covered by middleware, they are public?
+    // Let's look at the matcher in proxy.js again.
+    // matcher: ['/dashboard/:path*', '/api/:path*'],
+
+    // This CONFIRMS that /products, /invoices, etc. were UNPROTECTED by the middleware logic proposal!
+    // They might be protected by Client Side checks (useUserRole hook).
+    // But for a "Senior Architect Audit", this is a flaw.
+    // I should update the matcher to include all protected routes.
+
+    if (pathname.startsWith('/dashboard') || pathname.startsWith('/products') || pathname.startsWith('/invoices') || pathname.startsWith('/stock') || pathname.startsWith('/accounting')) {
         if (!token) {
             return NextResponse.redirect(new URL('/login', request.url));
         }
     }
 
-    // Protect API (except auth)
-    // We double check here for presence, but API routes will verify signature
     if (pathname.startsWith('/api') && !pathname.startsWith('/api/auth')) {
         if (!token) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -27,5 +49,19 @@ export function middleware(request) {
 }
 
 export const config = {
-    matcher: ['/dashboard/:path*', '/api/:path*'],
+    // Updated matcher to cover all known routes
+    matcher: [
+        '/dashboard/:path*',
+        '/api/:path*',
+        '/products/:path*',
+        '/invoices/:path*',
+        '/stock/:path*',
+        '/receivables/:path*',
+        '/suppliers/:path*',
+        '/users/:path*',
+        '/settings/:path*',
+        '/accounting/:path*',
+        '/reports/:path*',
+        '/log/:path*'
+    ],
 };

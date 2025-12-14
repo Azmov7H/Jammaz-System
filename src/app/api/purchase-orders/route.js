@@ -75,46 +75,58 @@ export async function PUT(request) {
         const { id, status } = body;
 
         if (status === 'RECEIVED') {
-            const po = await PurchaseOrder.findById(id);
+            const po = await PurchaseOrder.findById(id).populate('items.productId');
             if (!po) return NextResponse.json({ error: 'PO not found' }, { status: 404 });
             if (po.status === 'RECEIVED') return NextResponse.json({ error: 'Already received' }, { status: 400 });
 
-            // Update Stock via StockService (IN)
+            // 1. Update Stock (AVCO)
             try {
-                await import('@/lib/services/stockService').then(async ({ StockService }) => {
-                    for (const item of po.items) {
-                        // NOTE: PO implies 'IN' to Warehouse usually. 
-                        await StockService.updateStock(
-                            item.productId,
-                            item.quantity,
-                            'IN',
-                            `استلام أمر شراء #${po.poNumber}`,
-                            po._id,
-                            decoded.userId
-                        );
-
-                        // Update Buy Price Only (Optional but good for ref)
-                        await Product.findByIdAndUpdate(item.productId, { buyPrice: item.costPrice });
-                    }
-                });
+                const { StockService } = await import('@/lib/services/stockService');
+                await StockService.increaseStockForPurchase(po.items, po._id, decoded.userId);
             } catch (stockErr) {
+                console.error('Stock update error:', stockErr);
                 return NextResponse.json({ error: `Stock Update Failed: ${stockErr.message}` }, { status: 500 });
             }
 
             po.status = 'RECEIVED';
             po.receivedDate = new Date();
+            po.paymentType = body.paymentType || 'cash';
             await po.save();
 
-            // Treasury Transaction (Expense)
-            const { processTreasuryTransaction } = await import('@/lib/treasury');
-            await processTreasuryTransaction({
-                amount: po.totalCost,
-                type: 'EXPENSE',
-                description: `أمر شراء #${po.poNumber}`,
-                referenceType: 'PurchaseOrder',
-                referenceId: po._id,
-                userId: decoded.userId
-            });
+            const paymentType = po.paymentType;
+
+            // 2. Accounting Entries
+            try {
+                const { AccountingService } = await import('@/lib/services/accountingService');
+                await AccountingService.createPurchaseEntries(po, decoded.userId, paymentType);
+            } catch (accErr) {
+                console.error('Accounting entry error:', accErr);
+                // Non-blocking but should be logged
+            }
+
+            // 3. Financial Handling
+            if (paymentType === 'cash') {
+                // CASH PURCHASE: Record Expense in Treasury
+                try {
+                    const { TreasuryService } = await import('@/lib/services/treasuryService');
+                    await TreasuryService.recordPurchaseExpense(po, decoded.userId);
+                } catch (treasuryErr) {
+                    console.error('Treasury error:', treasuryErr);
+                }
+            } else if (paymentType === 'bank') {
+                // BANK PURCHASE: No impact on physical cashbox
+            } else {
+                // CREDIT PURCHASE: Increase Supplier Balance (Liability)
+                if (po.supplier) {
+                    const supplier = await Supplier.findById(po.supplier);
+                    if (supplier) {
+                        supplier.balance = (supplier.balance || 0) + po.totalCost;
+                        supplier.lastSupplyDate = new Date();
+                        await supplier.save();
+                    }
+                }
+            }
+
             return NextResponse.json({ success: true, po });
         }
 
