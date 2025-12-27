@@ -14,7 +14,7 @@ export async function POST(request, { params }) {
         const user = await getCurrentUser();
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        const { id } = params; // Invoice ID
+        const { id } = await params; // Invoice ID - await params in Next.js 15+
         const body = await request.json();
         const { items, type, refundAmount } = body;
 

@@ -147,13 +147,13 @@ export default function Sidebar() {
                 !isOpen && (isMobile ? "translate-x-full" : "hidden")
             )}>
                 {/* Header */}
-                <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border shrink-0">
+                <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border shrink-0 bg-gradient-to-l from-primary/10 to-transparent">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-bold text-xl shadow-md">
+                        <div className="w-10 h-10 gradient-primary rounded-lg flex items-center justify-center text-primary-foreground font-bold text-xl shadow-colored animate-pulse-slow">
                             ج
                         </div>
                         <div>
-                            <h1 className="text-lg font-bold">مخازن الجماز</h1>
+                            <h1 className="text-lg font-bold animate-slide-in-right">مخازن الجماز</h1>
                             <p className="text-[10px] text-muted-foreground">v2.1 Smart System</p>
                         </div>
                     </div>
@@ -162,7 +162,7 @@ export default function Sidebar() {
                             variant="ghost"
                             size="icon"
                             onClick={closeSidebar}
-                            className="shrink-0"
+                            className="shrink-0 hover-scale hover:bg-primary/10"
                         >
                             <X size={20} />
                         </Button>
@@ -183,13 +183,13 @@ export default function Sidebar() {
                                     {/* Group header */}
                                     <button
                                         onClick={() => toggleGroup(group.title)}
-                                        className="flex items-center justify-between w-full px-2 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                                        className="flex items-center justify-between w-full px-2 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-all duration-300 rounded-md hover:bg-sidebar-accent/50 group"
                                     >
                                         <span>{group.title}</span>
                                         <ChevronRight
                                             size={14}
                                             className={cn(
-                                                "transition-transform duration-200",
+                                                "transition-all duration-300 group-hover:translate-x-[-2px]",
                                                 isExpanded && "rotate-90"
                                             )}
                                         />
@@ -209,20 +209,23 @@ export default function Sidebar() {
                                                         href={item.href}
                                                         onClick={() => isMobile && closeSidebar()}
                                                         className={cn(
-                                                            "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
+                                                            "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 group relative overflow-hidden",
                                                             isActive
-                                                                ? "bg-primary text-primary-foreground font-medium shadow-sm"
-                                                                : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                                                ? "gradient-primary text-primary-foreground font-medium shadow-colored hover-lift"
+                                                                : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-[-2px]"
                                                         )}
                                                     >
+                                                        {isActive && (
+                                                            <div className="absolute inset-0 bg-white/10 animate-shimmer" />
+                                                        )}
                                                         <Icon
                                                             size={18}
                                                             className={cn(
-                                                                "shrink-0",
+                                                                "shrink-0 relative z-10 transition-transform duration-300 group-hover:scale-110",
                                                                 isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
                                                             )}
                                                         />
-                                                        <span className="text-sm">{item.name}</span>
+                                                        <span className="text-sm relative z-10">{item.name}</span>
                                                     </Link>
                                                 );
                                             })}

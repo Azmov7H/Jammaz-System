@@ -32,9 +32,14 @@ export default function SmartInsightsWidget({ stats }) {
     ];
 
     return (
-        <div className="space-y-4">
-            <h3 className="text-lg font-bold text-slate-700 flex items-center gap-2">
-                <Lightbulb className="text-yellow-500" /> رؤى ذكية (Smart Insights)
+        <div className="space-y-4 animate-fade-in-up">
+            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <div className="p-2 bg-yellow-500/10 rounded-lg">
+                    <Lightbulb className="text-yellow-500" />
+                </div>
+                <span className="bg-gradient-to-r from-yellow-600 to-yellow-500 bg-clip-text text-transparent">
+                    رؤى ذكية (Smart Insights)
+                </span>
             </h3>
             <div className="grid gap-4">
                 {insights.map((insight, idx) => (
@@ -43,14 +48,15 @@ export default function SmartInsightsWidget({ stats }) {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: idx * 0.1 }}
-                        className="bg-white/60 backdrop-blur-md border border-white/20 p-4 rounded-xl shadow-sm flex items-start gap-4 hover:shadow-md transition-shadow"
+                        className="glass-card border p-4 rounded-xl shadow-custom-md hover:shadow-custom-xl transition-all duration-300 flex items-start gap-4 group hover-lift cursor-pointer overflow-hidden relative"
                     >
-                        <div className={`p-2 rounded-full ${insight.bg}`}>
+                        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <div className={`p-2 rounded-full ${insight.bg} group-hover:scale-110 transition-transform duration-300 relative z-10`}>
                             <insight.icon className={insight.color} size={20} />
                         </div>
-                        <div>
-                            <h4 className="font-bold text-slate-800 text-sm">{insight.title}</h4>
-                            <p className="text-xs text-slate-600 mt-1 leading-relaxed">{insight.message}</p>
+                        <div className="relative z-10">
+                            <h4 className="font-bold text-foreground text-sm group-hover:text-primary transition-colors">{insight.title}</h4>
+                            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{insight.message}</p>
                         </div>
                     </motion.div>
                 ))}

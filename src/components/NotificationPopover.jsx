@@ -73,12 +73,12 @@ export default function NotificationPopover() {
     return (
         <Popover>
             <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
-                    <Bell size={18} />
+                <Button variant="ghost" size="icon" className="relative hover-scale transition-all duration-300">
+                    <Bell size={18} className="transition-transform group-hover:animate-pulse" />
                     {unreadCount > 0 && (
                         <Badge
                             variant="destructive"
-                            className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px]"
+                            className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px] shadow-colored animate-pulse"
                         >
                             {unreadCount > 9 ? '9+' : unreadCount}
                         </Badge>
@@ -86,18 +86,21 @@ export default function NotificationPopover() {
                 </Button>
             </PopoverTrigger>
             <PopoverContent
-                className="w-80 p-0"
+                className="w-80 p-0 glass-card shadow-custom-xl border-0 animate-scale-in"
                 align="end"
                 sideOffset={8}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b">
-                    <h3 className="font-semibold text-sm">الإشعارات</h3>
+                <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-primary/5 to-transparent">
+                    <h3 className="font-semibold text-sm flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full gradient-primary"></div>
+                        الإشعارات
+                    </h3>
                     <div className="flex items-center gap-2">
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7"
+                            className="h-7 w-7 hover-scale"
                             onClick={fetchNotifications}
                             disabled={loading}
                         >
@@ -107,7 +110,7 @@ export default function NotificationPopover() {
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 text-xs"
+                                className="h-7 text-xs hover-scale gradient-primary border-0 text-primary-foreground shadow-sm"
                                 onClick={() => markAsRead('all')}
                             >
                                 قراءة الكل
@@ -119,34 +122,37 @@ export default function NotificationPopover() {
                 {/* Notifications List */}
                 <ScrollArea className="h-[300px]">
                     {notifications.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                            <Bell size={32} className="mb-2 opacity-20" />
+                        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground animate-fade-in-up">
+                            <div className="p-4 bg-muted/50 rounded-full mb-3">
+                                <Bell size={32} className="opacity-50" />
+                            </div>
                             <p className="text-sm">لا توجد إشعارات جديدة</p>
                         </div>
                     ) : (
                         <div className="divide-y">
-                            {notifications.map((notif) => (
+                            {notifications.map((notif, idx) => (
                                 <div
                                     key={notif._id}
                                     className={cn(
-                                        "p-3 hover:bg-muted/50 transition-colors",
-                                        !notif.isRead && "bg-primary/5"
+                                        "p-3 hover:bg-muted/50 transition-all duration-300 cursor-pointer group hover-lift",
+                                        !notif.isRead && "bg-primary/5 border-r-2 border-primary"
                                     )}
+                                    style={{ animationDelay: `${idx * 50}ms` }}
                                 >
                                     <div className="flex gap-3">
-                                        <div className="mt-1">
+                                        <div className="mt-1 group-hover:scale-110 transition-transform duration-300">
                                             {getTypeIcon(notif.type)}
                                         </div>
                                         <div className="flex-1 min-w-0 space-y-1">
                                             <div className="flex items-start justify-between gap-2">
                                                 <h4 className={cn(
-                                                    "text-sm font-medium truncate",
+                                                    "text-sm font-medium truncate transition-colors",
                                                     !notif.isRead ? "text-foreground" : "text-muted-foreground"
                                                 )}>
                                                     {notif.title}
                                                 </h4>
                                                 {!notif.isRead && (
-                                                    <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1" />
+                                                    <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1 animate-pulse shadow-glow" />
                                                 )}
                                             </div>
                                             <p className="text-xs text-muted-foreground line-clamp-2">
