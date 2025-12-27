@@ -31,7 +31,9 @@ export default function NewInvoicePage() {
     const [customerPhone, setCustomerPhone] = useState('');
     const [customerName, setCustomerName] = useState('');
     const [customerId, setCustomerId] = useState(null);
-    const [discount, setDiscount] = useState(0);
+    const [customerCredit, setCustomerCredit] = useState(0);
+    const [customerCreditLimit, setCustomerCreditLimit] = useState(0);
+    const [customerBalance, setCustomerBalance] = useState(0);
 
     // Shortage Reporting State
     const [shortageDialog, setShortageDialog] = useState({ open: false, product: null });
@@ -94,6 +96,9 @@ export default function NewInvoicePage() {
         setCustomerPhone(customer.phone);
         setCustomerQuery(customer.name);
         setCurrentPriceType(customer.priceType || 'retail'); // Set user price type
+        setCustomerCredit(customer.creditBalance || 0);
+        setCustomerCreditLimit(customer.creditLimit || 0);
+        setCustomerBalance(customer.balance || 0);
         setCustomerSuggestions([]);
         toast.success(`تم اختيار العميل: ${customer.name} (${customer.priceType === 'wholesale' ? 'سعر جملة' : customer.priceType === 'special' ? 'سعر خاص' : 'سعر قطاعي'})`);
     };
@@ -161,7 +166,10 @@ export default function NewInvoicePage() {
             // Store all tier prices for dynamic switching
             retailPrice: product.retailPrice || product.sellPrice,
             wholesalePrice: product.wholesalePrice,
-            specialPrice: product.specialPrice
+            specialPrice: product.specialPrice,
+            // Store cost and profit margin info for warnings
+            buyPrice: product.buyPrice || 0,
+            minProfitMargin: product.minProfitMargin || 0
         }]);
         setSearchTerm('');
         setSearchResults([]);
@@ -211,8 +219,35 @@ export default function NewInvoicePage() {
         setItems(newItems);
     };
 
+    // Update price with profit margin warnings
+    const updatePrice = (index, newPrice) => {
+        const item = items[index];
+        const price = Number(newPrice);
+
+        if (price <= 0) {
+            toast.error('السعر يجب أن يكون أكبر من صفر');
+            return;
+        }
+
+        // Check if selling below cost
+        if (price < item.buyPrice) {
+            toast.error('🔴 تحذير: السعر أقل من سعر الشراء! سيؤدي إلى خسارة');
+        }
+        // Check if below minimum profit margin
+        else if (item.minProfitMargin > 0) {
+            const profitMargin = ((price - item.buyPrice) / item.buyPrice) * 100;
+            if (profitMargin < item.minProfitMargin) {
+                toast.warning(`🟠 تحذير: هامش الربح (${profitMargin.toFixed(1)}%) أقل من الحد الأدنى (${item.minProfitMargin}%)`);
+            }
+        }
+
+        const newItems = [...items];
+        newItems[index].unitPrice = price;
+        setItems(newItems);
+    };
+
     const subtotal = items.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0);
-    const total = subtotal - Number(discount);
+    const total = subtotal;
 
     // Payment State
     const [paymentType, setPaymentType] = useState('cash');
@@ -239,7 +274,6 @@ export default function NewInvoicePage() {
                     customerName: customerName || 'Walk-in',
                     customerPhone,
                     customerId,
-                    discount: Number(discount),
                     paymentType,
                     dueDate
                 })
@@ -284,9 +318,48 @@ export default function NewInvoicePage() {
                                         autoComplete="off"
                                     />
                                     {customerId && (
-                                        <Button size="icon" variant="ghost" className="text-green-600" onClick={() => { setCustomerId(null); setCustomerQuery(''); setCustomerName(''); setCustomerPhone(''); }}>
-                                            <UserPlus size={20} />
-                                        </Button>
+                                        <div className="flex flex-col gap-1 w-full bg-slate-50 p-2 rounded-lg border border-slate-200">
+                                            <div className="flex justify-between items-center text-xs">
+                                                <span className="text-slate-500">الاسم:</span>
+                                                <span className="font-bold">{customerName}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-xs">
+                                                <span className="text-slate-500">حد الائتمان:</span>
+                                                <span className={customerCreditLimit === 0 ? "text-green-600 font-bold" : "font-mono font-bold"}>
+                                                    {customerCreditLimit === 0 ? 'مفتوح (غير محدود)' : `${customerCreditLimit.toLocaleString()} ج.م`}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-xs">
+                                                <span className="text-slate-500">المديونية الحالية:</span>
+                                                <span className={customerBalance > 0 ? "text-red-600 font-bold" : "text-green-600 font-bold"}>
+                                                    {customerBalance.toLocaleString()} ج.م
+                                                </span>
+                                            </div>
+                                            {customerCredit > 0 && (
+                                                <div className="flex justify-between items-center text-xs bg-green-50 px-1 rounded">
+                                                    <span className="text-green-700">رصيد متاح (استرداد):</span>
+                                                    <span className="text-green-700 font-bold">
+                                                        {customerCredit.toLocaleString()} ج.م
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="mt-2 h-7 text-[10px] text-red-500 border-red-200 hover:bg-red-50"
+                                                onClick={() => {
+                                                    setCustomerId(null);
+                                                    setCustomerQuery('');
+                                                    setCustomerName('');
+                                                    setCustomerPhone('');
+                                                    setCustomerCredit(0);
+                                                    setCustomerCreditLimit(0);
+                                                    setCustomerBalance(0);
+                                                }}
+                                            >
+                                                تغيير العميل
+                                            </Button>
+                                        </div>
                                     )}
                                 </div>
                                 {customerSuggestions.length > 0 && (
@@ -355,18 +428,38 @@ export default function NewInvoicePage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {items.length === 0 ? <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">لا توجد منتجات مضافة</TableCell></TableRow> : items.map((item, idx) => (
-                                        <TableRow key={idx}>
-                                            <TableCell>
-                                                <div className="font-medium">{item.name}</div>
-                                                <div className="text-xs text-muted-foreground">{item.code}</div>
-                                            </TableCell>
-                                            <TableCell><Input type="number" min="1" max={item.maxQty} value={item.qty} onChange={e => updateQty(idx, e.target.value)} className="h-8 text-center" /></TableCell>
-                                            <TableCell className="text-center">{item.unitPrice}</TableCell>
-                                            <TableCell className="text-center font-bold">{(item.qty * item.unitPrice).toLocaleString()}</TableCell>
-                                            <TableCell><Button size="icon" variant="ghost" className="text-red-500 hover:bg-red-50" onClick={() => removeItem(idx)}><Trash2 size={16} /></Button></TableCell>
-                                        </TableRow>
-                                    ))}
+                                    {items.length === 0 ? <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">لا توجد منتجات مضافة</TableCell></TableRow> : items.map((item, idx) => {
+                                        const profitMargin = item.buyPrice > 0 ? ((item.unitPrice - item.buyPrice) / item.buyPrice) * 100 : 0;
+                                        const isLoss = item.unitPrice < item.buyPrice;
+                                        const isLowMargin = item.minProfitMargin > 0 && profitMargin < item.minProfitMargin;
+
+                                        return (
+                                            <TableRow key={idx}>
+                                                <TableCell>
+                                                    <div className="font-medium">{item.name}</div>
+                                                    <div className="text-xs text-muted-foreground">{item.code}</div>
+                                                </TableCell>
+                                                <TableCell><Input type="number" min="1" max={item.maxQty} value={item.qty} onChange={e => updateQty(idx, e.target.value)} className="h-8 text-center" /></TableCell>
+                                                <TableCell>
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <Input
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.01"
+                                                            value={item.unitPrice}
+                                                            onChange={e => updatePrice(idx, e.target.value)}
+                                                            className={`h-8 text-center ${isLoss ? 'border-red-500 bg-red-50' : isLowMargin ? 'border-orange-400 bg-orange-50' : ''}`}
+                                                        />
+                                                        <span className={`text-xs ${isLoss ? 'text-red-600 font-bold' : isLowMargin ? 'text-orange-600' : 'text-green-600'}`}>
+                                                            {isLoss ? '🔴 خسارة' : `+${profitMargin.toFixed(1)}%`}
+                                                        </span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-center font-bold">{(item.qty * item.unitPrice).toLocaleString()}</TableCell>
+                                                <TableCell><Button size="icon" variant="ghost" className="text-red-500 hover:bg-red-50" onClick={() => removeItem(idx)}><Trash2 size={16} /></Button></TableCell>
+                                            </TableRow>
+                                        )
+                                    })}
                                 </TableBody>
                             </Table>
                         </div>
@@ -379,7 +472,13 @@ export default function NewInvoicePage() {
                     <Card className="bg-slate-50 border-slate-200">
                         <CardContent className="pt-6 space-y-3">
                             <div className="flex justify-between text-sm"><span className="text-muted-foreground">المجموع الفرعي:</span><span className="font-bold">{subtotal.toLocaleString()} ج.م</span></div>
-                            <div className="flex justify-between items-center gap-4"><span className="text-muted-foreground text-sm">الخصم:</span><Input type="number" className="w-24 h-8 text-left" value={discount} onChange={e => setDiscount(e.target.value)} /></div>
+
+                            {customerCredit > 0 && (
+                                <div className="flex justify-between text-sm text-green-600 font-bold bg-green-50 p-2 rounded-lg border border-green-200">
+                                    <span>خصم رصيد مرتجع سابق:</span>
+                                    <span>-{Math.min(subtotal, customerCredit).toLocaleString()} ج.م</span>
+                                </div>
+                            )}
 
                             <div className="pt-2 space-y-2">
                                 <Label>نوع الفاتورة</Label>
@@ -424,7 +523,10 @@ export default function NewInvoicePage() {
                             )}
 
                             <div className="border-t border-slate-300 my-2"></div>
-                            <div className="flex justify-between text-xl font-bold text-primary"><span>الإجمالي النهائي:</span><span>{total.toLocaleString()} ج.م</span></div>
+                            <div className="flex justify-between text-xl font-bold text-primary">
+                                <span>الإجمالي النهائي:</span>
+                                <span>{Math.max(0, subtotal - customerCredit).toLocaleString()} ج.م</span>
+                            </div>
                         </CardContent>
                     </Card>
                     <Button size="lg" className="w-full text-lg gap-2" onClick={handleSubmit} disabled={loading || items.length === 0}>

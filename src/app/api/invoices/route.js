@@ -23,7 +23,6 @@ export async function POST(request) {
             customerId,
             customerName,
             customerPhone,
-            discount = 0,
             tax = 0,
             paymentType = 'cash', // NEW: cash, credit, or bank
             dueDate = null // NEW: for credit invoices
@@ -57,10 +56,16 @@ export async function POST(request) {
 
         // 3. Check credit limit if credit sale
         if (paymentType === 'credit' && customer) {
-            const invoiceTotal = items.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0) + tax - discount;
-            if (!customer.canPurchaseOnCredit(invoiceTotal)) {
+            const invoiceTotal = items.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0) + tax;
+
+            // Explicit check for unlimited credit (0)
+            const limit = Number(customer.creditLimit) || 0;
+            const currentBalance = Number(customer.balance) || 0;
+            const isUnlimited = limit === 0;
+
+            if (!isUnlimited && (currentBalance + invoiceTotal) > limit) {
                 return NextResponse.json({
-                    error: `تجاوز حد الائتمان. الرصيد الحالي: ${customer.balance}, الحد المسموح: ${customer.creditLimit}`
+                    error: `تجاوز حد الائتمان. الرصيد الحالي: ${currentBalance}, الحد المسموح: ${limit}`
                 }, { status: 400 });
             }
         }
@@ -105,8 +110,16 @@ export async function POST(request) {
             });
         }
 
-        const total = subtotal + tax - discount;
+        const total = subtotal + tax;
         const totalProfit = total - totalCost;
+
+        // [NEW] Handle Customer Credit Balance (from returns)
+        let appliedCredit = 0;
+        if (customer && customer.creditBalance > 0) {
+            appliedCredit = Math.min(total, customer.creditBalance);
+            customer.creditBalance -= appliedCredit;
+            await customer.save();
+        }
 
         // 6. Create Invoice
         const invoice = await Invoice.create({
@@ -115,13 +128,13 @@ export async function POST(request) {
             items: processedItems,
             subtotal,
             tax,
-            discount,
             total,
+            usedCreditBalance: appliedCredit,
             totalCost,
             profit: totalProfit,
             paymentType,
-            paymentStatus: paymentType === 'cash' ? 'paid' : 'pending',
-            paidAmount: paymentType === 'cash' ? total : 0,
+            paymentStatus: (paymentType === 'cash' && (appliedCredit >= total)) ? 'paid' : (paymentType === 'cash' ? 'partial' : 'pending'),
+            paidAmount: paymentType === 'cash' ? total : appliedCredit, // If cash, we assume they pay the rest. If credit, only the applied credit is 'paid'
             dueDate: paymentType === 'credit' && dueDate ? new Date(dueDate) : null,
             customer: finalCustomerId,
             customerName: customerName || (customer ? customer.name : 'عميل'),
@@ -137,18 +150,24 @@ export async function POST(request) {
             // Create accounting entries
             if (paymentType === 'cash') {
                 await AccountingService.createSaleEntries(invoice, user.userId);
-                // Record income in treasury for cash sales only
-                if (paymentType === 'cash') {
-                    await TreasuryService.recordSaleIncome(invoice, user.userId);
-                } else if (paymentType === 'bank') {
-                    // Bank transactions don't affect physical cashbox
+                // Record income in treasury for the REMAINING cash portion only
+                const cashAmount = total - appliedCredit;
+                if (cashAmount > 0) {
+                    await TreasuryService.recordSaleIncome({
+                        ...invoice.toObject(),
+                        total: cashAmount,
+                        number: `${invoice.number} (بخَصم رصيد)`
+                    }, user.userId);
                 }
             } else {
                 await AccountingService.createCreditSaleEntries(invoice, user.userId);
-                // Update customer balance
+                // Update customer balance (debt) - only the part not covered by credit and not paid in cash
                 if (customer) {
-                    customer.balance += total;
-                    await customer.save();
+                    const remainingDebt = total - appliedCredit;
+                    if (remainingDebt > 0) {
+                        customer.balance += remainingDebt;
+                        await customer.save();
+                    }
                 }
             }
 

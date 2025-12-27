@@ -14,7 +14,16 @@ const CustomerSchema = new mongoose.Schema({
     },
 
     // Credit Management
-    balance: { type: Number, default: 0 }, // Running balance for credit sales
+    balance: {
+        type: Number,
+        default: 0
+    }, // Accounts Receivable (positive = customer owes us)
+
+    creditBalance: {
+        type: Number,
+        default: 0,
+        min: 0
+    }, // Customer's positive credit from refunds (can use for future purchases)ales
     creditLimit: { type: Number, default: 0 }, // Maximum credit allowed
 
     // Custom Product Pricing
@@ -50,7 +59,11 @@ CustomerSchema.methods.getPriceForProduct = function (productId) {
 
 // Method to check credit availability
 CustomerSchema.methods.canPurchaseOnCredit = function (amount) {
-    return (this.balance + amount) <= this.creditLimit;
+    const limit = Number(this.creditLimit) || 0;
+    const currentBalance = Number(this.balance) || 0;
+
+    if (limit === 0) return true; // 0 means open/unlimited credit
+    return (currentBalance + amount) <= limit;
 };
 
 export default mongoose.models.Customer || mongoose.model('Customer', CustomerSchema);
