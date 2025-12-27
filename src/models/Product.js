@@ -36,6 +36,13 @@ const ProductSchema = new mongoose.Schema({
     buyPrice: { type: Number, required: true, min: 0 },
     retailPrice: { type: Number, required: true, min: 0 }, // Selling price for retail customers (قطاعي)
     wholesalePrice: { type: Number, min: 0 }, // Selling price for wholesale customers (جملة)
+    // Profit margin settings
+    minProfitMargin: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100
+    }, // Minimum profit margin percentage set by owner
     specialPrice: { type: Number, min: 0 }, // Selling price for special pricing tier
     lastPriceChange: { type: Date }, // Track when prices were last updated
 

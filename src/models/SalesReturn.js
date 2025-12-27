@@ -20,10 +20,28 @@ const SalesReturnSchema = new mongoose.Schema({
     totalRefund: { type: Number, required: true },
 
     // Refund Method
+    refundMethod: {
+        type: String,
+        enum: ['cash', 'customerBalance'],
+        required: true,
+        default: 'cash'
+    },
+
+    // Tracking
+    customerBalanceAdded: {
+        type: Number,
+        default: 0
+    },
+    treasuryDeducted: {
+        type: Number,
+        default: 0
+    },
+
+    // Legacy field - kept for backward compatibility
     type: {
         type: String,
         enum: ['cash', 'credit'],
-        required: true
+        required: false
     },
 
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }

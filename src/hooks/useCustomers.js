@@ -12,7 +12,7 @@ export function useCustomers({ search } = {}) {
             if (search) params.append('search', search);
             return api.get(`/api/customers?${params.toString()}`);
         },
-        staleTime: 60 * 1000, // 1 minute
+        staleTime: 0, // Always fetch fresh data for financial accuracy
     });
 
     const addMutation = useMutation({

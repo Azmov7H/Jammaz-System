@@ -29,7 +29,7 @@ export default function ProductsPage() {
 
     const [addFormData, setAddFormData] = useState({
         name: '', code: '', sellPrice: '', buyPrice: '', minLevel: 10, brand: '', category: '',
-        warehouseQty: '', shopQty: ''
+        warehouseQty: '', shopQty: '', minProfitMargin: 0
     });
 
     const [editFormData, setEditFormData] = useState({});
@@ -59,7 +59,8 @@ export default function ProductsPage() {
             buyPrice: product.buyPrice || '',
             minLevel: product.minLevel || 10,
             brand: product.brand || '',
-            category: product.category || ''
+            category: product.category || '',
+            minProfitMargin: product.minProfitMargin || 0
         });
         setIsEditDialogOpen(true);
     };
@@ -74,7 +75,7 @@ export default function ProductsPage() {
         addMutation.mutate(addFormData, {
             onSuccess: () => {
                 setIsAddDialogOpen(false);
-                setAddFormData({ name: '', code: '', sellPrice: '', buyPrice: '', minLevel: 10, brand: '', category: '', warehouseQty: '', shopQty: '' });
+                setAddFormData({ name: '', code: '', sellPrice: '', buyPrice: '', minLevel: 10, brand: '', category: '', warehouseQty: '', shopQty: '', minProfitMargin: 0 });
             }
         });
     };
@@ -344,6 +345,17 @@ export default function ProductsPage() {
                                     onChange={e => setAddFormData({ ...addFormData, minLevel: e.target.value })}
                                 />
                             </div>
+                            <div>
+                                <Label className="text-xs">هامش ربح مسموح (%)</Label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={addFormData.minProfitMargin}
+                                    onChange={e => setAddFormData({ ...addFormData, minProfitMargin: e.target.value })}
+                                    placeholder="0"
+                                />
+                            </div>
                         </div>
 
                         <DialogFooter>
@@ -358,8 +370,154 @@ export default function ProductsPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Edit & View Dialogs - Similar pattern, omitted for brevity */}
-            {/* The edit and view dialogs follow the same pattern as add dialog */}
+            {/* Edit Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto" dir="rtl">
+                    <DialogHeader>
+                        <DialogTitle>تعديل المنتج: {selectedProduct?.name}</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleEditSubmit} className="grid gap-4 py-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Label>كود المنتج</Label>
+                                <Input
+                                    value={editFormData.code}
+                                    onChange={e => setEditFormData({ ...editFormData, code: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <Label>اسم المنتج *</Label>
+                                <Input
+                                    value={editFormData.name}
+                                    onChange={e => setEditFormData({ ...editFormData, name: e.target.value })}
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Label>الماركة</Label>
+                                <SmartCombobox
+                                    options={metadata.brands}
+                                    value={editFormData.brand}
+                                    onChange={(val) => setEditFormData({ ...editFormData, brand: val })}
+                                    onCreate={(val) => setEditFormData({ ...editFormData, brand: val })}
+                                />
+                            </div>
+                            <div>
+                                <Label>الفئة</Label>
+                                <SmartCombobox
+                                    options={metadata.categories}
+                                    value={editFormData.category}
+                                    onChange={(val) => setEditFormData({ ...editFormData, category: val })}
+                                    onCreate={(val) => setEditFormData({ ...editFormData, category: val })}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 bg-muted/30 rounded-lg border">
+                            <div>
+                                <Label className="text-xs">سعر البيع *</Label>
+                                <Input
+                                    type="number"
+                                    required
+                                    value={editFormData.sellPrice}
+                                    onChange={e => setEditFormData({ ...editFormData, sellPrice: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-xs">التكلفة</Label>
+                                <Input
+                                    type="number"
+                                    value={editFormData.buyPrice}
+                                    onChange={e => setEditFormData({ ...editFormData, buyPrice: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-xs">حد الطلب</Label>
+                                <Input
+                                    type="number"
+                                    value={editFormData.minLevel}
+                                    onChange={e => setEditFormData({ ...editFormData, minLevel: e.target.value })}
+                                />
+                            </div>
+                            <div className="md:col-span-3">
+                                <Label className="text-xs">هامش ربح مسموح (%)</Label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={editFormData.minProfitMargin}
+                                    onChange={e => setEditFormData({ ...editFormData, minProfitMargin: e.target.value })}
+                                />
+                                <p className="text-[10px] text-muted-foreground mt-1">
+                                    سيظهر تحذير عند البيع بسعر أقل من (التكلفة + {editFormData.minProfitMargin || 0}%)
+                                </p>
+                            </div>
+                        </div>
+
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                                إلغاء
+                            </Button>
+                            <Button type="submit" disabled={updateMutation.isPending}>
+                                {updateMutation.isPending ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* View Dialog */}
+            <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+                <DialogContent className="sm:max-w-[500px]" dir="rtl">
+                    <DialogHeader>
+                        <DialogTitle>تفاصيل المنتج</DialogTitle>
+                    </DialogHeader>
+                    {selectedProduct && (
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label className="text-muted-foreground">الاسم</Label>
+                                    <p className="font-bold">{selectedProduct.name}</p>
+                                </div>
+                                <div>
+                                    <Label className="text-muted-foreground">الكود</Label>
+                                    <p className="font-mono">{selectedProduct.code}</p>
+                                </div>
+                                <div>
+                                    <Label className="text-muted-foreground">الماركة</Label>
+                                    <p>{selectedProduct.brand || '-'}</p>
+                                </div>
+                                <div>
+                                    <Label className="text-muted-foreground">الفئة</Label>
+                                    <p>{selectedProduct.category || '-'}</p>
+                                </div>
+                                <div className="col-span-2 border-t pt-2 mt-2">
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <div>
+                                            <Label className="text-muted-foreground">سعر البيع</Label>
+                                            <p className="text-primary font-bold">{selectedProduct.sellPrice} ج.م</p>
+                                        </div>
+                                        <div>
+                                            <Label className="text-muted-foreground">التكلفة</Label>
+                                            <p>{selectedProduct.buyPrice} ج.م</p>
+                                        </div>
+                                        <div>
+                                            <Label className="text-muted-foreground">هامش الربح الأدنى</Label>
+                                            <p>{selectedProduct.minProfitMargin || 0}%</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button onClick={() => setIsViewDialogOpen(false)}>إغلاق</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

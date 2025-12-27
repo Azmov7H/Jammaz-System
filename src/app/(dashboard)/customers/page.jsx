@@ -114,7 +114,7 @@ export default function CustomersPage() {
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="glass-card p-4 rounded-lg border shadow-custom-sm hover-lift transition-all duration-300 group">
                     <div className="flex items-center justify-between">
                         <div>
@@ -142,13 +142,26 @@ export default function CustomersPage() {
                 <div className="glass-card p-4 rounded-lg border shadow-custom-sm hover-lift transition-all duration-300 group">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-muted-foreground">لديهم ديون</p>
+                            <p className="text-sm text-muted-foreground">في انتظار السداد</p>
                             <p className="text-2xl font-bold text-red-600 mt-1">
                                 {customers.filter(c => c.balance > 0).length}
                             </p>
                         </div>
                         <div className="p-3 bg-red-500/10 rounded-lg group-hover:scale-110 transition-transform">
                             <Wallet size={24} className="text-red-500" />
+                        </div>
+                    </div>
+                </div>
+                <div className="glass-card p-4 rounded-lg border shadow-custom-sm hover-lift transition-all duration-300 group">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-muted-foreground">لديهم رصيد مرتجع</p>
+                            <p className="text-2xl font-bold text-blue-600 mt-1">
+                                {customers.filter(c => c.creditBalance > 0).length}
+                            </p>
+                        </div>
+                        <div className="p-3 bg-blue-500/10 rounded-lg group-hover:scale-110 transition-transform">
+                            <Plus size={24} className="text-blue-500" />
                         </div>
                     </div>
                 </div>
@@ -237,13 +250,24 @@ export default function CustomersPage() {
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-center">
-                                        <div className="flex items-center gap-2 justify-center">
-                                            <div className={cn(
-                                                "font-bold font-mono text-base px-3 py-1 rounded-lg shadow-sm group-hover:scale-105 transition-transform inline-block",
-                                                customer.balance > 0 ? "text-red-600 bg-red-50 dark:bg-red-950/20" : "text-green-600 bg-green-50 dark:bg-green-950/20"
-                                            )}>
-                                                {customer.balance?.toLocaleString()} ج.م
-                                            </div>
+                                        <div className="flex flex-col items-center gap-2">
+                                            {customer.balance > 0 ? (
+                                                <div className="w-full max-w-[140px] flex items-center justify-between gap-2 font-black text-red-600 bg-red-50 dark:bg-red-950/20 px-3 py-1.5 rounded-lg border border-red-100 shadow-sm">
+                                                    <Wallet size={14} className="shrink-0" />
+                                                    <span className="font-mono text-sm">{customer.balance?.toLocaleString()}</span>
+                                                    <span className="text-[10px] opacity-70">دين</span>
+                                                </div>
+                                            ) : null}
+                                            {customer.creditBalance > 0 ? (
+                                                <div className="w-full max-w-[140px] flex items-center justify-between gap-2 font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 px-3 py-1.5 rounded-lg border border-emerald-100 shadow-sm">
+                                                    <Plus size={14} className="shrink-0" />
+                                                    <span className="font-mono text-sm">{customer.creditBalance?.toLocaleString()}</span>
+                                                    <span className="text-[10px] opacity-70">رصيد</span>
+                                                </div>
+                                            ) : null}
+                                            {(!customer.balance && !customer.creditBalance) && (
+                                                <span className="text-muted-foreground text-[10px] italic bg-slate-50 px-2 py-1 rounded">خالص</span>
+                                            )}
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-center">
@@ -341,12 +365,12 @@ export default function CustomersPage() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label>حد الائتمان (الديون)</Label>
+                                <Label>حد الائتمان (الديون) <span className="text-[10px] text-primary">(0 = مفتوح)</span></Label>
                                 <Input
                                     type="number"
                                     value={formData.creditLimit}
                                     onChange={e => setFormData({ ...formData, creditLimit: e.target.value })}
-                                    placeholder="0 = مفتوح"
+                                    placeholder="أدخل الحد الأقصى للديون (0 للمفتوح)"
                                 />
                             </div>
                         </div>

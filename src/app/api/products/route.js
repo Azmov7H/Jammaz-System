@@ -74,7 +74,13 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Product code already exists' }, { status: 400 });
         }
 
-        const { name, code, sellPrice, buyPrice, warehouseQty = 0, shopQty = 0, stockQty: initialStock, minLevel, brand, category } = body;
+        const {
+            name, code, sellPrice, buyPrice,
+            warehouseQty = 0, shopQty = 0,
+            stockQty: initialStock,
+            minLevel, brand, category,
+            minProfitMargin = 0
+        } = body;
 
         let finalWarehouse = Number(warehouseQty);
         let finalShop = Number(shopQty);
@@ -90,7 +96,8 @@ export async function POST(request) {
             warehouseQty: finalWarehouse,
             shopQty: finalShop,
             stockQty: totalStock,
-            minLevel, brand, category
+            minLevel, brand, category,
+            minProfitMargin
         });
         return NextResponse.json(product, { status: 201 });
     } catch (error) {
