@@ -22,7 +22,9 @@ const AccountingEntrySchema = new mongoose.Schema({
             'COGS',
             'EXPENSE',
             'INCOME',
-            'TRANSFER'
+            'TRANSFER',
+            'RETURN',
+            'RETURN_COGS'
         ],
         required: true
     },
@@ -51,7 +53,7 @@ const AccountingEntrySchema = new mongoose.Schema({
     },
     refType: {
         type: String,
-        enum: ['Invoice', 'PurchaseOrder', 'Payment', 'Adjustment', 'PhysicalInventory', 'Manual']
+        enum: ['Invoice', 'PurchaseOrder', 'Payment', 'Adjustment', 'PhysicalInventory', 'Manual', 'SalesReturn']
     },
     refId: {
         type: mongoose.Schema.Types.ObjectId

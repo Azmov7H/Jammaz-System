@@ -51,18 +51,18 @@ export default function DashboardPage() {
     const { kpis, monthSummary, recentActivity, lowStockProducts } = data;
 
     return (
-        <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-6 md:space-y-8 animate-fade-in-up">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-foreground">لوحة التحكم</h1>
+                <div className="animate-slide-in-right">
+                    <h1 className="text-2xl md:text-3xl font-bold text-foreground bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">لوحة التحكم</h1>
                     <p className="text-sm md:text-base text-muted-foreground mt-1">
                         نظرة شاملة على أداء المخزون والمبيعات
                     </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 animate-scale-in">
                     <Link href="/invoices/new">
-                        <Button className="gap-2 shadow-sm">
+                        <Button className="gap-2 shadow-colored hover-lift gradient-primary border-0">
                             <ShoppingCart className="h-4 w-4" />
                             <span className="hidden sm:inline">فاتورة جديدة</span>
                             <span className="sm:hidden">جديد</span>
@@ -148,39 +148,51 @@ export default function DashboardPage() {
             </div>
 
             {/* Month Summary */}
-            <div>
-                <h2 className="text-lg font-semibold mb-4 text-foreground">ملخص الشهر</h2>
+            <div className="animate-fade-in-up">
+                <h2 className="text-lg font-semibold mb-4 text-foreground flex items-center gap-2">
+                    <div className="h-1 w-8 gradient-primary rounded-full" />
+                    ملخص الشهر
+                </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
-                    <Card className="border shadow-sm">
-                        <CardContent className="p-6">
+                    <Card className="border shadow-custom-md hover-lift hover:shadow-custom-xl transition-all duration-300 group overflow-hidden relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <CardContent className="p-6 relative z-10">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-muted-foreground">إجمالي المبيعات</p>
-                                    <p className="text-2xl font-bold text-foreground">{monthSummary.totalRevenue.toLocaleString()} ج.م</p>
+                                    <p className="text-2xl font-bold text-foreground group-hover:scale-105 transition-transform duration-300 inline-block">{monthSummary.totalRevenue.toLocaleString()} ج.م</p>
                                 </div>
-                                <TrendingUp className="w-8 h-8 text-primary" />
+                                <div className="p-3 bg-primary/10 rounded-lg group-hover:scale-110 transition-transform duration-300">
+                                    <TrendingUp className="w-8 h-8 text-primary" />
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
-                    <Card className="border shadow-sm">
-                        <CardContent className="p-6">
+                    <Card className="border shadow-custom-md hover-lift hover:shadow-custom-xl transition-all duration-300 group overflow-hidden relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <CardContent className="p-6 relative z-10">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-muted-foreground">إجمالي الأرباح</p>
-                                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">{monthSummary.totalProfit.toLocaleString()} ج.م</p>
+                                    <p className="text-2xl font-bold text-green-600 dark:text-green-400 group-hover:scale-105 transition-transform duration-300 inline-block">{monthSummary.totalProfit.toLocaleString()} ج.م</p>
                                 </div>
-                                <TrendingUp className="w-8 h-8 text-green-600 dark:text-green-400" />
+                                <div className="p-3 bg-green-500/10 rounded-lg group-hover:scale-110 transition-transform duration-300">
+                                    <TrendingUp className="w-8 h-8 text-green-600 dark:text-green-400" />
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
-                    <Card className="border shadow-sm">
-                        <CardContent className="p-6">
+                    <Card className="border shadow-custom-md hover-lift hover:shadow-custom-xl transition-all duration-300 group overflow-hidden relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <CardContent className="p-6 relative z-10">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-muted-foreground">عدد الفواتير</p>
-                                    <p className="text-2xl font-bold text-foreground">{monthSummary.totalInvoices}</p>
+                                    <p className="text-2xl font-bold text-foreground group-hover:scale-105 transition-transform duration-300 inline-block">{monthSummary.totalInvoices}</p>
                                 </div>
-                                <FileText className="w-8 h-8 text-primary" />
+                                <div className="p-3 bg-secondary/10 rounded-lg group-hover:scale-110 transition-transform duration-300">
+                                    <FileText className="w-8 h-8 text-primary" />
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -188,45 +200,52 @@ export default function DashboardPage() {
             </div>
 
             {/* Alerts & Recent Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in-up">
                 {/* Stock Alerts */}
-                <Card className="border shadow-sm">
-                    <CardHeader className="border-b">
+                <Card className="border shadow-custom-md hover-lift hover:shadow-custom-xl transition-all duration-300 overflow-hidden">
+                    <CardHeader className="border-b bg-gradient-to-r from-destructive/5 to-transparent">
                         <CardTitle className="flex items-center gap-2 text-destructive">
-                            <AlertTriangle size={20} />
+                            <div className="p-2 bg-destructive/10 rounded-lg">
+                                <AlertTriangle size={20} />
+                            </div>
                             تنبيهات المخزون
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="p-4">
                         <div className="space-y-3">
-                            <div className="flex justify-between items-center p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                            <div className="flex justify-between items-center p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800 hover:scale-[1.02] transition-transform duration-300">
                                 <span className="text-sm font-medium">منتجات منخفضة</span>
-                                <Badge variant="warning">{kpis.lowStockCount}</Badge>
+                                <Badge variant="warning" className="shadow-sm">{kpis.lowStockCount}</Badge>
                             </div>
-                            <div className="flex justify-between items-center p-3 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">
+                            <div className="flex justify-between items-center p-3 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800 hover:scale-[1.02] transition-transform duration-300">
                                 <span className="text-sm font-medium">منتجات نفذت</span>
-                                <Badge variant="destructive">{kpis.outOfStockCount}</Badge>
+                                <Badge variant="destructive" className="shadow-sm">{kpis.outOfStockCount}</Badge>
                             </div>
                             {kpis.pendingPOs > 0 && (
-                                <div className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                <div className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 hover:scale-[1.02] transition-transform duration-300">
                                     <span className="text-sm font-medium">أوامر شراء معلقة</span>
-                                    <Badge variant="secondary">{kpis.pendingPOs}</Badge>
+                                    <Badge variant="secondary" className="shadow-sm">{kpis.pendingPOs}</Badge>
                                 </div>
                             )}
                             <Link href="/stock">
-                                <Button variant="outline" className="w-full mt-2">عرض المخزون</Button>
+                                <Button variant="outline" className="w-full mt-2 hover-lift">عرض المخزون</Button>
                             </Link>
                         </div>
                     </CardContent>
                 </Card>
 
                 {/* Recent Invoices */}
-                <Card className="border shadow-sm">
-                    <CardHeader className="border-b">
+                <Card className="border shadow-custom-md hover-lift hover:shadow-custom-xl transition-all duration-300 overflow-hidden">
+                    <CardHeader className="border-b bg-gradient-to-r from-primary/5 to-transparent">
                         <CardTitle className="flex items-center justify-between">
-                            <span>آخر الفواتير</span>
+                            <span className="flex items-center gap-2">
+                                <div className="p-2 bg-primary/10 rounded-lg">
+                                    <FileText size={20} className="text-primary" />
+                                </div>
+                                آخر الفواتير
+                            </span>
                             <Link href="/invoices">
-                                <Button variant="ghost" size="sm">عرض الكل</Button>
+                                <Button variant="ghost" size="sm" className="hover-scale">عرض الكل</Button>
                             </Link>
                         </CardTitle>
                     </CardHeader>
@@ -237,13 +256,13 @@ export default function DashboardPage() {
                             ) : (
                                 recentActivity.map((invoice) => (
                                     <Link key={invoice._id} href={`/invoices/${invoice._id}`}>
-                                        <div className="flex justify-between items-center p-3 hover:bg-muted/50 rounded-lg border transition-colors cursor-pointer">
+                                        <div className="flex justify-between items-center p-3 hover:bg-muted/50 rounded-lg border transition-all duration-300 cursor-pointer hover-lift hover:shadow-custom-md group">
                                             <div>
-                                                <p className="font-mono text-sm font-semibold">{invoice.number}</p>
+                                                <p className="font-mono text-sm font-semibold group-hover:text-primary transition-colors">{invoice.number}</p>
                                                 <p className="text-xs text-muted-foreground">{invoice.customerName}</p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="font-bold text-primary">{invoice.total.toLocaleString()} ج.م</p>
+                                                <p className="font-bold text-primary group-hover:scale-105 transition-transform inline-block">{invoice.total.toLocaleString()} ج.م</p>
                                                 <p className="text-xs text-muted-foreground">
                                                     {new Date(invoice.date).toLocaleDateString('ar-SA')}
                                                 </p>
@@ -306,12 +325,12 @@ export default function DashboardPage() {
 // KPI Card Component
 function KPICard({ title, value, unit, icon: Icon, subtitle, variant = 'default' }) {
     const variants = {
-        primary: 'border-primary/20 bg-primary/5',
-        success: 'border-green-500/20 bg-green-500/5',
-        warning: 'border-amber-500/20 bg-amber-500/5',
-        destructive: 'border-red-500/20 bg-red-500/5',
-        secondary: 'border-secondary/20 bg-secondary/5',
-        default: 'border-border bg-card'
+        primary: 'border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent hover:from-primary/15',
+        success: 'border-green-500/20 bg-gradient-to-br from-green-500/10 via-green-500/5 to-transparent hover:from-green-500/15',
+        warning: 'border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent hover:from-amber-500/15',
+        destructive: 'border-red-500/20 bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent hover:from-red-500/15',
+        secondary: 'border-secondary/20 bg-gradient-to-br from-secondary/10 via-secondary/5 to-transparent hover:from-secondary/15',
+        default: 'border-border bg-card hover:bg-muted/20'
     };
 
     const iconColors = {
@@ -323,15 +342,27 @@ function KPICard({ title, value, unit, icon: Icon, subtitle, variant = 'default'
         default: 'text-muted-foreground'
     };
 
+    const iconBgColors = {
+        primary: 'bg-primary/10',
+        success: 'bg-green-500/10',
+        warning: 'bg-amber-500/10',
+        destructive: 'bg-red-500/10',
+        secondary: 'bg-secondary/10',
+        default: 'bg-muted/20'
+    };
+
     return (
-        <Card className={cn('border shadow-sm', variants[variant])}>
-            <CardContent className="p-6">
+        <Card className={cn('border shadow-custom-md hover-lift hover:shadow-custom-xl transition-all duration-300 overflow-hidden relative group', variants[variant])}>
+            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <CardContent className="p-6 relative z-10">
                 <div className="flex items-center justify-between mb-4">
                     <p className="text-sm font-medium text-muted-foreground">{title}</p>
-                    <Icon className={cn('w-5 h-5', iconColors[variant])} />
+                    <div className={cn('p-2 rounded-lg transition-transform duration-300 group-hover:scale-110', iconBgColors[variant])}>
+                        <Icon className={cn('w-5 h-5', iconColors[variant])} />
+                    </div>
                 </div>
                 <div>
-                    <p className="text-2xl md:text-3xl font-bold text-foreground">
+                    <p className="text-2xl md:text-3xl font-bold text-foreground group-hover:scale-105 transition-transform duration-300 inline-block">
                         {value}
                         <span className="text-lg">{unit}</span>
                     </p>

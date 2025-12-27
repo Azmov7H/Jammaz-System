@@ -91,39 +91,93 @@ export default function CustomersPage() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fade-in-up">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">إدارة العملاء</h1>
+                <div className="animate-slide-in-right">
+                    <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">إدارة العملاء</h1>
                     <p className="text-muted-foreground">قائمة العملاء وبيانات الاتصال والأسعار</p>
                 </div>
-                <Button onClick={() => { resetForm(); setIsAddOpen(true); }} className="gap-2">
+                <Button onClick={() => { resetForm(); setIsAddOpen(true); }} className="gap-2 gradient-primary border-0 hover-lift shadow-colored animate-scale-in">
                     <Plus size={16} /> إضافة عميل جديد
                 </Button>
             </div>
 
             {/* Search Bar */}
-            <div className="relative">
-                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+            <div className="relative glass-card p-4 rounded-lg border shadow-custom-md hover-lift transition-all duration-300 group">
+                <Search className="absolute right-7 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-primary transition-colors duration-300" size={18} />
                 <Input
                     placeholder="بحث باسم العميل أو رقم الهاتف..."
-                    className="pr-10 max-w-md bg-card"
+                    className="pr-10 max-w-md bg-transparent border-none focus-visible:ring-2 focus-visible:ring-primary"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                 />
             </div>
 
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="glass-card p-4 rounded-lg border shadow-custom-sm hover-lift transition-all duration-300 group">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-muted-foreground">إجمالي العملاء</p>
+                            <p className="text-2xl font-bold text-foreground mt-1">{customers.length}</p>
+                        </div>
+                        <div className="p-3 bg-primary/10 rounded-lg group-hover:scale-110 transition-transform">
+                            <UserIcon size={24} className="text-primary" />
+                        </div>
+                    </div>
+                </div>
+                <div className="glass-card p-4 rounded-lg border shadow-custom-sm hover-lift transition-all duration-300 group">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-muted-foreground">عملاء نشطون</p>
+                            <p className="text-2xl font-bold text-green-600 mt-1">
+                                {customers.filter(c => c.isActive).length}
+                            </p>
+                        </div>
+                        <div className="p-3 bg-green-500/10 rounded-lg group-hover:scale-110 transition-transform">
+                            <UserIcon size={24} className="text-green-500" />
+                        </div>
+                    </div>
+                </div>
+                <div className="glass-card p-4 rounded-lg border shadow-custom-sm hover-lift transition-all duration-300 group">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-muted-foreground">لديهم ديون</p>
+                            <p className="text-2xl font-bold text-red-600 mt-1">
+                                {customers.filter(c => c.balance > 0).length}
+                            </p>
+                        </div>
+                        <div className="p-3 bg-red-500/10 rounded-lg group-hover:scale-110 transition-transform">
+                            <Wallet size={24} className="text-red-500" />
+                        </div>
+                    </div>
+                </div>
+                <div className="glass-card p-4 rounded-lg border shadow-custom-sm hover-lift transition-all duration-300 group">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-muted-foreground">عملاء خاصون</p>
+                            <p className="text-2xl font-bold text-purple-600 mt-1">
+                                {customers.filter(c => c.priceType === 'special').length}
+                            </p>
+                        </div>
+                        <div className="p-3 bg-purple-500/10 rounded-lg group-hover:scale-110 transition-transform">
+                            <span className="text-2xl">⭐</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* Table */}
-            <div className="border rounded-lg bg-card shadow-sm overflow-hidden">
+            <div className="border rounded-lg glass-card shadow-custom-md overflow-hidden hover-lift transition-all duration-300">
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>اسم العميل</TableHead>
-                            <TableHead>معلومات الاتصال</TableHead>
-                            <TableHead>نوع السعر</TableHead>
-                            <TableHead>الرصيد</TableHead>
-                            <TableHead>الحالة</TableHead>
-                            <TableHead>إجراءات</TableHead>
+                            <TableHead className="min-w-[200px]">اسم العميل</TableHead>
+                            <TableHead className="min-w-[180px]">معلومات الاتصال</TableHead>
+                            <TableHead className="text-center">نوع السعر</TableHead>
+                            <TableHead className="text-center min-w-[120px]">الرصيد</TableHead>
+                            <TableHead className="text-center">الحالة</TableHead>
+                            <TableHead className="text-center min-w-[140px]">إجراءات</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -141,55 +195,80 @@ export default function CustomersPage() {
                             </TableRow>
                         ) : (
                             customers.map((customer) => (
-                                <TableRow key={customer._id}>
+                                <TableRow key={customer._id} className="transition-all duration-300 hover:bg-muted/50 cursor-pointer group hover:shadow-sm">
                                     <TableCell>
-                                        <div className="font-semibold flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs">
-                                                <UserIcon size={14} />
+                                        <div className="font-semibold flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground text-sm font-bold shadow-colored group-hover:scale-110 transition-transform duration-300">
+                                                {customer.name.charAt(0)}
                                             </div>
-                                            {customer.name}
+                                            <span className="group-hover:text-primary transition-colors">{customer.name}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>
                                         <div className="space-y-1 text-sm">
-                                            <div className="flex items-center gap-2 text-muted-foreground">
-                                                <Phone size={12} /> {customer.phone}
+                                            <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground transition-colors">
+                                                <div className="p-1 bg-primary/10 rounded group-hover:bg-primary/20 transition-colors">
+                                                    <Phone size={12} className="text-primary" />
+                                                </div>
+                                                <span className="font-mono">{customer.phone}</span>
                                             </div>
                                             {customer.address && (
                                                 <div className="flex items-center gap-2 text-muted-foreground text-xs">
-                                                    <MapPin size={12} /> {customer.address}
+                                                    <div className="p-1 bg-muted rounded">
+                                                        <MapPin size={10} />
+                                                    </div>
+                                                    <span className="line-clamp-1">{customer.address}</span>
                                                 </div>
                                             )}
                                         </div>
                                     </TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline">
-                                            {customer.priceType === 'wholesale' ? 'جملة' :
-                                                customer.priceType === 'special' ? 'خاص' : 'قطاعي'}
+                                    <TableCell className="text-center">
+                                        <Badge
+                                            variant="outline"
+                                            className={cn(
+                                                "shadow-sm hover-scale transition-all",
+                                                customer.priceType === 'wholesale' && "bg-blue-50 text-blue-700 border-blue-300",
+                                                customer.priceType === 'special' && "bg-purple-50 text-purple-700 border-purple-300",
+                                                customer.priceType === 'retail' && "bg-green-50 text-green-700 border-green-300"
+                                            )}
+                                        >
+                                            {customer.priceType === 'wholesale' ? '🏪 جملة' :
+                                                customer.priceType === 'special' ? '⭐ خاص' : '🛒 قطاعي'}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell>
-                                        <div className={cn(
-                                            "font-bold font-mono",
-                                            customer.balance > 0 ? "text-red-500" : "text-green-600"
-                                        )}>
-                                            {customer.balance?.toLocaleString()}
+                                    <TableCell className="text-center">
+                                        <div className="flex items-center gap-2 justify-center">
+                                            <div className={cn(
+                                                "font-bold font-mono text-base px-3 py-1 rounded-lg shadow-sm group-hover:scale-105 transition-transform inline-block",
+                                                customer.balance > 0 ? "text-red-600 bg-red-50 dark:bg-red-950/20" : "text-green-600 bg-green-50 dark:bg-green-950/20"
+                                            )}>
+                                                {customer.balance?.toLocaleString()} ج.م
+                                            </div>
                                         </div>
                                     </TableCell>
-                                    <TableCell>
-                                        <Badge variant={customer.isActive ? "secondary" : "destructive"}>
-                                            {customer.isActive ? 'نشط' : 'متوقف'}
+                                    <TableCell className="text-center">
+                                        <Badge
+                                            variant={customer.isActive ? "secondary" : "destructive"}
+                                            className="shadow-sm hover-scale"
+                                        >
+                                            {customer.isActive ? '✓ نشط' : '✗ متوقف'}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-1">
-                                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(customer)}>
+                                    <TableCell className="text-center">
+                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => handleEditClick(customer)}
+                                                className="hover-scale hover:bg-primary/10 hover:text-primary"
+                                                title="تعديل"
+                                            >
                                                 <FileEdit size={16} />
                                             </Button>
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                className="hover-scale text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/20"
                                                 onClick={() => router.push(`/receivables?customerId=${customer._id}`)}
                                                 title="سجل الديون"
                                             >
@@ -198,8 +277,9 @@ export default function CustomersPage() {
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                className="hover-scale text-destructive hover:text-destructive hover:bg-destructive/10"
                                                 onClick={() => handleDelete(customer._id)}
+                                                title="حذف"
                                             >
                                                 <Trash2 size={16} />
                                             </Button>

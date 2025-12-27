@@ -29,15 +29,15 @@ export default function InvoicesPage() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fade-in-up">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-foreground">المبيعات</h1>
+                <div className="animate-slide-in-right">
+                    <h1 className="text-2xl md:text-3xl font-bold text-foreground bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">المبيعات</h1>
                     <p className="text-sm text-muted-foreground">إدارة الفواتير والمبيعات</p>
                 </div>
-                <Link href="/invoices/new">
-                    <Button className="gap-2">
+                <Link href="/invoices/new" className="animate-scale-in">
+                    <Button className="gap-2 gradient-primary border-0 hover-lift shadow-colored">
                         <Plus size={18} />
                         فاتورة جديدة
                     </Button>
@@ -45,13 +45,13 @@ export default function InvoicesPage() {
             </div>
 
             {/* Search Bar */}
-            <div className="bg-card p-4 rounded-lg border shadow-sm">
+            <div className="glass-card p-4 rounded-lg border shadow-custom-md hover-lift transition-all duration-300 group">
                 <div className="relative">
-                    <FileText className="absolute right-3 top-2.5 text-muted-foreground" size={20} />
+                    <FileText className="absolute right-3 top-2.5 text-muted-foreground group-hover:text-primary transition-colors duration-300" size={20} />
                     <Input
                         type="text"
                         placeholder="بحث برقم الفاتورة أو اسم العميل..."
-                        className="pr-10"
+                        className="pr-10 focus-visible:ring-2 focus-visible:ring-primary"
                         value={searchTerm}
                         onChange={handleSearch}
                     />
@@ -59,7 +59,7 @@ export default function InvoicesPage() {
             </div>
 
             {/* Invoices Table */}
-            <div className="bg-card rounded-lg border shadow-sm overflow-x-auto">
+            <div className="glass-card rounded-lg border shadow-custom-md overflow-x-auto hover-lift transition-all duration-300">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -86,16 +86,16 @@ export default function InvoicesPage() {
                             </TableRow>
                         ) : (
                             invoices.map((inv) => (
-                                <TableRow key={inv._id}>
-                                    <TableCell className="font-mono text-xs font-bold">
+                                <TableRow key={inv._id} className="transition-all duration-300 hover:bg-muted/50 cursor-pointer group">
+                                    <TableCell className="font-mono text-xs font-bold group-hover:text-primary transition-colors">
                                         {inv.number}
                                     </TableCell>
-                                    <TableCell className="text-sm">
+                                    <TableCell className="text-sm group-hover:text-foreground transition-colors">
                                         {new Date(inv.date).toLocaleDateString('ar-SA')}
                                     </TableCell>
-                                    <TableCell>{inv.customerName || inv.customer?.name || '-'}</TableCell>
+                                    <TableCell className="group-hover:text-foreground transition-colors">{inv.customerName || inv.customer?.name || '-'}</TableCell>
                                     <TableCell>
-                                        <Badge variant="secondary" className="font-bold">
+                                        <Badge variant="secondary" className="font-bold shadow-sm hover-scale group-hover:shadow-colored transition-all">
                                             {inv.total.toFixed(2)} ج.م
                                         </Badge>
                                     </TableCell>
@@ -105,14 +105,14 @@ export default function InvoicesPage() {
                                     <TableCell className="text-center">
                                         <div className="flex items-center justify-center gap-2">
                                             <Link href={`/invoices/${inv._id}`}>
-                                                <Button size="icon" variant="ghost">
+                                                <Button size="icon" variant="ghost" className="hover-scale opacity-0 group-hover:opacity-100 transition-all">
                                                     <FileText size={16} />
                                                 </Button>
                                             </Link>
                                             <Button
                                                 size="icon"
                                                 variant="ghost"
-                                                className="text-destructive hover:bg-destructive/10"
+                                                className="text-destructive hover:bg-destructive/10 hover-scale opacity-0 group-hover:opacity-100 transition-all"
                                                 onClick={() => handleDelete(inv._id)}
                                             >
                                                 <Trash2 size={16} />

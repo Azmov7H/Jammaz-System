@@ -22,7 +22,7 @@ export default function Header() {
     };
 
     return (
-        <header className="sticky top-0 z-30 h-16 bg-card border-b border-border shadow-sm flex items-center justify-between px-4 md:px-6">
+        <header className="sticky top-0 z-30 h-16 glass-header shadow-custom-md flex items-center justify-between px-4 md:px-6 animate-fade-in-up">
             {/* Right section: Menu toggle + Search */}
             <div className="flex items-center gap-3 flex-1">
                 {/* Mobile menu toggle */}
@@ -31,19 +31,19 @@ export default function Header() {
                         variant="ghost"
                         size="icon"
                         onClick={toggleSidebar}
-                        className="shrink-0"
+                        className="shrink-0 hover-scale hover:bg-primary/10 transition-all duration-300"
                     >
                         <Menu size={20} />
                     </Button>
                 )}
 
                 {/* Search bar - hidden on mobile */}
-                <div className="relative w-full max-w-md hidden md:block">
-                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                <div className="relative w-full max-w-md hidden md:block group">
+                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-primary transition-colors duration-300" size={18} />
                     <Input
                         type="text"
                         placeholder="بحث سريع..."
-                        className="w-full pr-10 bg-muted/50 border-none focus-visible:ring-primary"
+                        className="w-full pr-10 bg-muted/50 border-none focus-visible:ring-primary focus-visible:ring-2 focus-visible:shadow-colored transition-all duration-300 hover:bg-muted/70"
                     />
                 </div>
             </div>
@@ -51,23 +51,27 @@ export default function Header() {
             {/* Left section: Theme + Notifications + User + Logout */}
             <div className="flex items-center gap-2 md:gap-3">
                 {/* Theme toggle */}
-                <ThemeToggle />
+                <div className="hover-scale">
+                    <ThemeToggle />
+                </div>
 
                 {/* Notifications */}
-                <NotificationPopover />
+                <div className="hover-scale">
+                    <NotificationPopover />
+                </div>
 
                 {/* Separator */}
-                <Separator orientation="vertical" className="h-8 hidden md:block" />
+                <Separator orientation="vertical" className="h-8 hidden md:block bg-border/50" />
 
                 {/* User info */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 cursor-pointer hover-scale group">
                     <div className="text-left hidden md:block">
-                        <p className="text-sm font-semibold text-foreground">{user?.name || 'مستخدم'}</p>
+                        <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors duration-300">{user?.name || 'مستخدم'}</p>
                         <p className="text-xs text-muted-foreground">{user?.role || ''}</p>
                     </div>
-                    <Avatar className="h-9 w-9 border border-border">
+                    <Avatar className="h-9 w-9 border-2 border-primary/20 group-hover:border-primary group-hover:shadow-colored transition-all duration-300">
                         <AvatarImage src={user?.picture} alt={user?.name || 'User'} />
-                        <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                        <AvatarFallback className="bg-primary text-primary-foreground text-sm font-bold">
                             {user?.name?.charAt(0) || 'م'}
                         </AvatarFallback>
                     </Avatar>
@@ -78,7 +82,7 @@ export default function Header() {
                     variant="ghost"
                     size="icon"
                     onClick={handleLogout}
-                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 hover-scale transition-all duration-300"
                     title="تسجيل الخروج"
                 >
                     <LogOut size={18} />

@@ -7,7 +7,7 @@ import Customer from '@/models/Customer';
 export async function GET(request, { params }) {
     try {
         await dbConnect();
-        const { id } = params;
+        const { id } = await params;
         const prices = await PricingService.getCustomerPricing(id);
         return NextResponse.json({ prices });
     } catch (error) {
@@ -19,7 +19,7 @@ export async function GET(request, { params }) {
 export async function POST(request, { params }) {
     try {
         await dbConnect();
-        const { id } = params;
+        const { id } = await params;
         const { productId, price } = await request.json();
 
         const customer = await PricingService.setCustomPrice(id, productId, price);
@@ -33,7 +33,7 @@ export async function POST(request, { params }) {
 export async function DELETE(request, { params }) {
     try {
         await dbConnect();
-        const { id } = params;
+        const { id } = await params;
         const { searchParams } = new URL(request.url);
         const productId = searchParams.get('productId');
 

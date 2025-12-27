@@ -59,17 +59,17 @@ export default function StockPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-startmd:items-center gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">حركة المخزون</h1>
+        <div className="animate-slide-in-right">
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">حركة المخزون</h1>
           <p className="text-sm text-muted-foreground">سجل عمليات الإدخال والإخراج</p>
         </div>
         {canManage && (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2">
+              <Button className="gap-2 gradient-primary border-0 hover-lift shadow-colored animate-scale-in">
                 <ArrowLeftRight size={18} />
                 حركة يدوية
               </Button>
@@ -142,7 +142,7 @@ export default function StockPage() {
       </div>
 
       {/* Movements Table */}
-      <div className="bg-card rounded-lg border shadow-sm overflow-x-auto">
+      <div className="glass-card rounded-lg border shadow-custom-md overflow-x-auto hover-lift transition-all duration-300">
         <Table>
           <TableHeader>
             <TableRow>
@@ -169,7 +169,7 @@ export default function StockPage() {
               </TableRow>
             ) : (
               movements.map(m => (
-                <TableRow key={m._id}>
+                <TableRow key={m._id} className="transition-all duration-300 hover:bg-muted/50 cursor-pointer group">
                   <TableCell className="text-xs text-muted-foreground font-mono whitespace-nowrap">
                     {new Date(m.date).toLocaleString('ar-SA')}
                   </TableCell>
