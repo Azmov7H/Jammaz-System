@@ -11,13 +11,16 @@ export async function POST(request) {
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         const body = await request.json();
-        const { location } = body;
+        const { location, category, isBlind } = body;
 
         if (!location || !['warehouse', 'shop', 'both'].includes(location)) {
             return NextResponse.json({ error: 'الموقع غير صحيح' }, { status: 400 });
         }
 
-        const count = await PhysicalInventoryService.createCount(location, user.userId);
+        const count = await PhysicalInventoryService.createCount(location, user.userId, {
+            category,
+            isBlind
+        });
 
         return NextResponse.json({ count, success: true }, { status: 201 });
 

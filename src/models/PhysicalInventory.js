@@ -12,6 +12,14 @@ const PhysicalInventorySchema = new mongoose.Schema({
         enum: ['warehouse', 'shop', 'both'],
         required: true
     },
+    category: {
+        type: String,
+        trim: true
+    },
+    isBlind: {
+        type: Boolean,
+        default: false
+    },
     items: [{
         productId: {
             type: mongoose.Schema.Types.ObjectId,
