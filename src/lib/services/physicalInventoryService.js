@@ -3,6 +3,8 @@ import Product from '@/models/Product';
 import { StockService } from './stockService';
 import { AccountingService } from './accountingService';
 import { LogService } from './logService';
+import User from '@/models/User';
+import bcrypt from 'bcryptjs';
 import dbConnect from '@/lib/db';
 
 /**
@@ -13,12 +15,19 @@ export const PhysicalInventoryService = {
     /**
      * Create a new physical inventory count
      */
-    async createCount(location, userId) {
+    async createCount(location, userId, options = {}) {
         await dbConnect();
+        const { category, isBlind } = options;
 
-        // Load all products
-        const products = await Product.find({ isActive: true })
-            .select('_id name code warehouseQty shopQty buyPrice')
+        // Build product query
+        const productQuery = { isActive: true };
+        if (category && category !== 'all') {
+            productQuery.category = category;
+        }
+
+        // Load products
+        const products = await Product.find(productQuery)
+            .select('_id name code warehouseQty shopQty buyPrice category')
             .lean();
 
         // Prepare items based on location
@@ -38,7 +47,7 @@ export const PhysicalInventoryService = {
                 productName: product.name,
                 productCode: product.code,
                 systemQty,
-                actualQty: systemQty, // Default to system qty
+                actualQty: !!isBlind ? 0 : systemQty, // [FIX] Zero if blind, else system qty
                 buyPrice: product.buyPrice
             };
         });
@@ -46,6 +55,8 @@ export const PhysicalInventoryService = {
         const count = await PhysicalInventory.create({
             date: new Date(),
             location,
+            category: category === 'all' ? null : category,
+            isBlind: !!isBlind,
             items,
             status: 'draft',
             createdBy: userId
@@ -72,8 +83,11 @@ export const PhysicalInventoryService = {
 
         // Update actual quantities
         for (const update of itemUpdates) {
+            // Extract ID if it's an object (populated) or just use the ID string
+            const updateProductId = update.productId?._id ? update.productId._id.toString() : update.productId?.toString();
+
             const item = count.items.find(
-                i => i.productId.toString() === update.productId.toString()
+                i => i.productId.toString() === updateProductId
             );
 
             if (item) {
@@ -170,10 +184,18 @@ export const PhysicalInventoryService = {
                 } else if (count.location === 'shop') {
                     newShopQty = item.actualQty;
                 } else if (count.location === 'both') {
-                    // Proportional adjustment (simplified)
-                    const ratio = product.warehouseQty / (product.warehouseQty + product.shopQty);
-                    newWarehouseQty = Math.round(item.actualQty * ratio);
-                    newShopQty = item.actualQty - newWarehouseQty;
+                    // Proportional adjustment
+                    const totalStock = (product.warehouseQty || 0) + (product.shopQty || 0);
+
+                    if (totalStock > 0) {
+                        const ratio = (product.warehouseQty || 0) / totalStock;
+                        newWarehouseQty = Math.round(item.actualQty * ratio);
+                        newShopQty = item.actualQty - newWarehouseQty;
+                    } else {
+                        // If total stock was zero, put everything in warehouse by default
+                        newWarehouseQty = item.actualQty;
+                        newShopQty = 0;
+                    }
                 }
 
                 // Use stock service to adjust
@@ -295,5 +317,41 @@ export const PhysicalInventoryService = {
                 reason: item.reason
             }))
         };
+    },
+
+    /**
+     * Unlock a completed count for modification (Owner only)
+     */
+    async unlockCount(countId, password, userId) {
+        await dbConnect();
+
+        const count = await PhysicalInventory.findById(countId);
+        if (!count) throw new Error('سجل الجرد غير موجود');
+        if (count.status !== 'completed') throw new Error('الجرد غير مكتمل بالفعل');
+
+        // Find the owner user to verify password
+        const owner = await User.findOne({ role: 'owner' });
+        if (!owner) throw new Error('لا يوجد مالك مسجل في النظام');
+
+        // Verify password
+        const isValid = await bcrypt.compare(password, owner.password);
+        if (!isValid) throw new Error('كلمة المرور غير صحيحة');
+
+        // Revert status to draft
+        count.status = 'draft';
+        count.approvedBy = null;
+        count.approvedAt = null;
+        await count.save();
+
+        // Log action
+        await LogService.logAction({
+            userId,
+            action: 'UNLOCK_INVENTORY',
+            entity: 'PhysicalInventory',
+            entityId: count._id,
+            note: `Inventory count unlocked by owner for modification`
+        });
+
+        return count;
     }
 };
