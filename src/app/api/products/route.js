@@ -4,8 +4,10 @@ import Product from '@/models/Product';
 import Supplier from '@/models/Supplier';
 import { getCurrentUser } from '@/lib/auth';
 import { hasPermission, getProductFilterInternal } from '@/lib/permissions';
+import { StockService } from '@/lib/services/stockService';
 
 export async function GET(request) {
+    // ... existing GET remains unchanged ...
     try {
         await dbConnect();
         const user = await getCurrentUser();
@@ -77,30 +79,42 @@ export async function POST(request) {
         const {
             name, code, sellPrice, buyPrice,
             warehouseQty = 0, shopQty = 0,
-            stockQty: initialStock,
-            minLevel, brand, category,
+            minLevel, brand, category, subsection, size, color, gender, season, unit,
             minProfitMargin = 0
         } = body;
 
-        let finalWarehouse = Number(warehouseQty);
-        let finalShop = Number(shopQty);
-
-        if (initialStock && finalWarehouse === 0 && finalShop === 0) {
-            finalWarehouse = Number(initialStock);
-        }
-
+        const finalWarehouse = Number(warehouseQty);
+        const finalShop = Number(shopQty);
         const totalStock = finalWarehouse + finalShop;
 
         const product = await Product.create({
-            name, code, sellPrice, buyPrice,
+            name, code,
+            retailPrice: Number(sellPrice), // sellPrice mapped to retailPrice
+            buyPrice: Number(buyPrice),
             warehouseQty: finalWarehouse,
             shopQty: finalShop,
             stockQty: totalStock,
-            minLevel, brand, category,
+            openingWarehouseQty: finalWarehouse,
+            openingShopQty: finalShop,
+            openingBuyPrice: Number(buyPrice),
+            minLevel, brand, category, subsection, size, color, gender, season, unit,
             minProfitMargin
         });
+
+        // Register initial balance in stock movements if any quantity exists
+        if (totalStock > 0) {
+            await StockService.registerInitialBalance(
+                product._id,
+                finalWarehouse,
+                finalShop,
+                Number(buyPrice),
+                user.userId
+            );
+        }
+
         return NextResponse.json(product, { status: 201 });
     } catch (error) {
+        console.error('Error creating product:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
