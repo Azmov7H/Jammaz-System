@@ -41,3 +41,22 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Failed' }, { status: 500 });
     }
 }
+
+export async function DELETE(request) {
+    try {
+        await dbConnect();
+
+        const user = await getCurrentUser();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+        // Delete all notifications for this user OR system-wide
+        await Notification.deleteMany({
+            $or: [{ userId: user.userId }, { userId: null }]
+        });
+
+        return NextResponse.json({ success: true, message: 'All notifications deleted' });
+    } catch (error) {
+        console.error('Delete notifications error:', error);
+        return NextResponse.json({ error: 'Failed to delete notifications' }, { status: 500 });
+    }
+}
