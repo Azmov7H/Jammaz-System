@@ -30,39 +30,30 @@ export const DailySalesService = {
             });
         }
 
-        // Calculate total cost for this invoice
-        let invoiceCost = 0;
-        let invoiceItemCount = 0;
+        // Update totals using pre-calculated values from invoice
+        dailySales.totalRevenue += invoice.total;
+        dailySales.totalCost += (invoice.totalCost || 0);
 
         for (const item of invoice.items) {
-            // Get product to find buy price
-            const product = await Product.findById(item.productId);
-            if (product) {
-                invoiceCost += (product.buyPrice * item.qty);
-                invoiceItemCount += item.qty;
+            dailySales.itemsSold += item.qty;
 
-                // Update top products
-                const existingProduct = dailySales.topProducts.find(
-                    p => p.productId.toString() === item.productId.toString()
-                );
+            // Update top products using item snapshot
+            const existingProduct = dailySales.topProducts.find(
+                p => p.productId.toString() === item.productId.toString()
+            );
 
-                if (existingProduct) {
-                    existingProduct.quantitySold += item.qty;
-                    existingProduct.revenue += item.total;
-                } else {
-                    dailySales.topProducts.push({
-                        productId: item.productId,
-                        name: product.name,
-                        quantitySold: item.qty,
-                        revenue: item.total
-                    });
-                }
+            if (existingProduct) {
+                existingProduct.quantitySold += item.qty;
+                existingProduct.revenue += item.total;
+            } else {
+                dailySales.topProducts.push({
+                    productId: item.productId,
+                    name: item.name || 'Product', // Should be populated if possible, or we might need one lookup if name is missing
+                    quantitySold: item.qty,
+                    revenue: item.total
+                });
             }
         }
-
-        // Update totals
-        dailySales.totalRevenue += invoice.total;
-        dailySales.totalCost += invoiceCost;
 
         if (invoice.paymentType === 'credit') {
             dailySales.creditSales = (dailySales.creditSales || 0) + invoice.total;
@@ -71,7 +62,6 @@ export const DailySalesService = {
         }
 
         dailySales.invoiceCount += 1;
-        dailySales.itemsSold += invoiceItemCount;
         dailySales.invoices.push(invoice._id);
 
         // Sort top products by revenue

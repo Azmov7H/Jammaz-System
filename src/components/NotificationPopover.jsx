@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bell, Info, AlertTriangle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { Bell, Info, AlertTriangle, CheckCircle, XCircle, RefreshCw, HandCoins, CreditCard, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
     Popover,
@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 export default function NotificationPopover() {
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [actionLoading, setActionLoading] = useState(null); // ID of notification being processed
     const [unreadCount, setUnreadCount] = useState(0);
 
     const fetchNotifications = async () => {
@@ -57,6 +58,30 @@ export default function NotificationPopover() {
             }
         } catch (error) {
             toast.error('فشل التحديث');
+        }
+    };
+
+    const handleAction = async (notifId) => {
+        setActionLoading(notifId);
+        try {
+            const res = await fetch('/api/notifications/action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notificationId: notifId })
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                toast.success(data.message || 'تمت العملية بنجاح');
+                // Refresh list to update UI
+                fetchNotifications();
+            } else {
+                toast.error(data.error || 'فشلت العملية');
+            }
+        } catch (error) {
+            toast.error('خطأ في الاتصال بالخادم');
+        } finally {
+            setActionLoading(null);
         }
     };
 
@@ -164,6 +189,28 @@ export default function NotificationPopover() {
                                                     minute: 'numeric'
                                                 })}
                                             </span>
+
+                                            {/* Quick Actions */}
+                                            {notif.actionType && !notif.isRead && (
+                                                <div className="pt-2 flex gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        className="h-7 text-[10px] px-3 gap-1.5 gradient-primary border-0"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleAction(notif._id);
+                                                        }}
+                                                        disabled={actionLoading === notif._id}
+                                                    >
+                                                        {actionLoading === notif._id ? (
+                                                            <Loader2 size={10} className="animate-spin" />
+                                                        ) : (
+                                                            notif.actionType === 'COLLECT_DEBT' ? <HandCoins size={12} /> : <CreditCard size={12} />
+                                                        )}
+                                                        {notif.actionType === 'COLLECT_DEBT' ? 'تأكيد تحصيل القيمة' : 'تأكيد التوريد والسداد'}
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

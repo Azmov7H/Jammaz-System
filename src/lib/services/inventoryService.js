@@ -101,6 +101,23 @@ export const InventoryService = {
 
         return updatedProduct;
     },
+    async bulkMoveStock({ items, type, userId }) {
+        await dbConnect();
+        const results = [];
+
+        for (const item of items) {
+            const result = await this.moveStock({
+                productId: item.productId,
+                qty: item.qty,
+                type,
+                userId,
+                note: item.note || `Bulk ${type}`
+            });
+            results.push(result);
+        }
+
+        return results;
+    },
 
     /**
      * Direct Adjustment (Admin force override)

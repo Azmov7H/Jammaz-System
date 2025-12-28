@@ -46,26 +46,16 @@ export async function PATCH(request, { params }) {
         // If marking as RECEIVED, execute business logic
         if (status === 'RECEIVED' && purchaseOrder.status !== 'RECEIVED') {
             try {
-                // Increase stock in warehouse
-                await StockService.increaseStockForPurchase(
-                    purchaseOrder.items,
-                    purchaseOrder._id,
-                    user.userId
-                );
-
-                // Record expense in treasury
-                await TreasuryService.recordPurchaseExpense(purchaseOrder, user.userId);
-
-                // Update PO status
-                purchaseOrder.status = 'RECEIVED';
-                purchaseOrder.receivedDate = new Date();
-                await purchaseOrder.save();
+                // Execute business logic via FinanceService
+                const { FinanceService } = await import('@/lib/services/financeService');
+                // Note: Patch route doesn't specify paymentType in the body in the original code, 
+                // but usually POs are cash or credit. We'll default to cash for this quick patch if not specified.
+                await FinanceService.recordPurchaseReceive(purchaseOrder, user.userId, 'cash');
 
                 return NextResponse.json({
-                    message: 'تم استلام الطلب وتحديث المخزون والخزينة',
+                    message: 'تم استلام الطلب وتحديث المخزون والخزينة والحسابات',
                     purchaseOrder
                 });
-
             } catch (businessLogicError) {
                 console.error('❌ PO Receiving Error:', businessLogicError);
                 return NextResponse.json({

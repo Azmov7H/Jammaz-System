@@ -10,7 +10,16 @@ const SupplierSchema = new mongoose.Schema({
     balance: { type: Number, default: 0 }, // Positive = You owe them (Credit)
     isActive: { type: Boolean, default: true },
 
-    lastSupplyDate: Date
+    lastSupplyDate: Date,
+
+    // Financial Tracking / Debt Control
+    financialTrackingEnabled: { type: Boolean, default: true },
+    paymentDay: {
+        type: String,
+        enum: ['None', 'Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+        default: 'None'
+    },
+    supplyTerms: { type: Number, default: 0 } // 0 means use global default
 });
 
 export default mongoose.models.Supplier || mongoose.model('Supplier', SupplierSchema);

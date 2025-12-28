@@ -32,6 +32,27 @@ export const TreasuryService = {
     },
 
     /**
+     * Record collection of a payment for an invoice (Debt repayment)
+     */
+    async recordPaymentCollection(invoice, amount, userId) {
+        const transaction = await TreasuryTransaction.create({
+            type: 'INCOME',
+            amount: amount,
+            description: `تحصيل دفعة - فاتورة #${invoice.number}`,
+            referenceType: 'Invoice',
+            referenceId: invoice._id,
+            date: new Date(),
+            createdBy: userId
+        });
+
+        await this.updateDailyCashbox(new Date(), {
+            salesIncome: amount
+        });
+
+        return transaction;
+    },
+
+    /**
      * Record expense from a purchase
      */
     async recordPurchaseExpense(purchaseOrder, userId) {
@@ -49,6 +70,27 @@ export const TreasuryService = {
         // Update daily cashbox
         await this.updateDailyCashbox(purchaseOrder.receivedDate || new Date(), {
             purchaseExpenses: purchaseOrder.totalCost
+        });
+
+        return transaction;
+    },
+
+    /**
+     * Record payment made to a supplier (Debt repayment)
+     */
+    async recordSupplierPayment(supplier, amount, poNumber, poId, userId) {
+        const transaction = await TreasuryTransaction.create({
+            type: 'EXPENSE',
+            amount: amount,
+            description: `سداد للمورد: ${supplier.name} - أمر #${poNumber}`,
+            referenceType: 'PurchaseOrder',
+            referenceId: poId,
+            date: new Date(),
+            createdBy: userId
+        });
+
+        await this.updateDailyCashbox(new Date(), {
+            purchaseExpenses: amount
         });
 
         return transaction;

@@ -6,7 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Phone, MapPin, Loader2, Pencil } from 'lucide-react';
+import { Plus, Phone, MapPin, Loader2, Pencil, Settings2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useSuppliers, useAddSupplier, useUpdateSupplier } from '@/hooks/useSuppliers';
 
@@ -18,13 +21,23 @@ export default function SuppliersPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [currentId, setCurrentId] = useState(null);
-    const [formData, setFormData] = useState({ name: '', phone: '', address: '' });
+    const [formData, setFormData] = useState({
+        name: '',
+        phone: '',
+        address: '',
+        financialTrackingEnabled: true,
+        paymentDay: 'None',
+        supplyTerms: 0
+    });
 
     const handleEdit = (supplier) => {
         setFormData({
             name: supplier.name,
             phone: supplier.phone || '',
-            address: supplier.address || ''
+            address: supplier.address || '',
+            financialTrackingEnabled: supplier.financialTrackingEnabled !== undefined ? supplier.financialTrackingEnabled : true,
+            paymentDay: supplier.paymentDay || 'None',
+            supplyTerms: supplier.supplyTerms || 0
         });
         setCurrentId(supplier._id);
         setIsEditing(true);
@@ -38,14 +51,28 @@ export default function SuppliersPage() {
                 onSuccess: () => {
                     setIsDialogOpen(false);
                     setIsEditing(false);
-                    setFormData({ name: '', phone: '', address: '' });
+                    setFormData({
+                        name: '',
+                        phone: '',
+                        address: '',
+                        financialTrackingEnabled: true,
+                        paymentDay: 'None',
+                        supplyTerms: 0
+                    });
                 }
             });
         } else {
             addMutation.mutate(formData, {
                 onSuccess: () => {
                     setIsDialogOpen(false);
-                    setFormData({ name: '', phone: '', address: '' });
+                    setFormData({
+                        name: '',
+                        phone: '',
+                        address: '',
+                        financialTrackingEnabled: true,
+                        paymentDay: 'None',
+                        supplyTerms: 0
+                    });
                 }
             });
         }
@@ -63,7 +90,14 @@ export default function SuppliersPage() {
                 <Dialog open={isDialogOpen} onOpenChange={(open) => {
                     setIsDialogOpen(open);
                     if (!open) {
-                        setFormData({ name: '', phone: '', address: '' });
+                        setFormData({
+                            name: '',
+                            phone: '',
+                            address: '',
+                            financialTrackingEnabled: true,
+                            paymentDay: 'None',
+                            supplyTerms: 0
+                        });
                         setIsEditing(false);
                     }
                 }}>
@@ -89,6 +123,58 @@ export default function SuppliersPage() {
                             <div className="space-y-2">
                                 <Label>العنوان</Label>
                                 <Input value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} />
+                            </div>
+
+                            <Separator />
+                            <div className="bg-primary/5 p-4 rounded-xl space-y-4 border border-primary/10">
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-2">
+                                    <Settings2 size={14} /> التحكم المالي والمدفوعات
+                                </h4>
+
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <Label className="text-sm">تفعيل التتبع المالي</Label>
+                                        <p className="text-[10px] text-muted-foreground">توليد إشعارات سداد لهذا المورد</p>
+                                    </div>
+                                    <Switch
+                                        checked={formData.financialTrackingEnabled}
+                                        onCheckedChange={checked => setFormData({ ...formData, financialTrackingEnabled: checked })}
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-xs">يوم السداد المفضل</Label>
+                                        <Select
+                                            value={formData.paymentDay}
+                                            onValueChange={val => setFormData({ ...formData, paymentDay: val })}
+                                        >
+                                            <SelectTrigger className="h-9 text-xs">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="None">غير محدد</SelectItem>
+                                                <SelectItem value="Saturday">السبت</SelectItem>
+                                                <SelectItem value="Sunday">الأحد</SelectItem>
+                                                <SelectItem value="Monday">الاثنين</SelectItem>
+                                                <SelectItem value="Tuesday">الثلاثاء</SelectItem>
+                                                <SelectItem value="Wednesday">الأربعاء</SelectItem>
+                                                <SelectItem value="Thursday">الخميس</SelectItem>
+                                                <SelectItem value="Friday">الجمعة</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs">فترة التوريد الخاصة (يوم)</Label>
+                                        <Input
+                                            type="number"
+                                            className="h-9 text-xs"
+                                            value={formData.supplyTerms}
+                                            onChange={e => setFormData({ ...formData, supplyTerms: parseInt(e.target.value) || 0 })}
+                                            placeholder="0 = الافتراضي"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                             <DialogFooter className="gap-2">
                                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>إلغاء</Button>

@@ -40,7 +40,19 @@ const CustomerSchema = new mongoose.Schema({
 
     // Additional Info
     notes: String,
-    isActive: { type: Boolean, default: true }
+    isActive: { type: Boolean, default: true },
+
+    // Financial Tracking / Debt Control
+    financialTrackingEnabled: { type: Boolean, default: true },
+    collectionDay: {
+        type: String,
+        enum: ['None', 'Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+        default: 'None'
+    },
+    paymentTerms: { type: Number, default: 0 }, // 0 means use global default
+
+    // Loyalty Program
+    loyaltyPoints: { type: Number, default: 0, min: 0 }
 }, { timestamps: true });
 
 // Indexes for search and performance

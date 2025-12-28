@@ -10,6 +10,7 @@ import { TreasuryService } from '@/lib/services/treasuryService';
 import { DailySalesService } from '@/lib/services/dailySalesService';
 import { getCurrentUser } from '@/lib/auth';
 import { LogService } from '@/lib/services/logService';
+import InvoiceSettings from '@/models/InvoiceSettings';
 
 export async function POST(request) {
     try {
@@ -24,9 +25,33 @@ export async function POST(request) {
             customerName,
             customerPhone,
             tax = 0,
-            paymentType = 'cash', // NEW: cash, credit, or bank
-            dueDate = null // NEW: for credit invoices
+            paymentType = 'cash', // cash, credit, or bank
         } = body;
+
+        let { dueDate = null } = body;
+
+        // Auto-set Due Date for credit invoices if missing
+        if (paymentType === 'credit' && !dueDate) {
+            let terms = 0;
+
+            // Check for customer-specific terms
+            if (customerId) {
+                const customer = await Customer.findById(customerId);
+                if (customer && customer.paymentTerms > 0) {
+                    terms = customer.paymentTerms;
+                }
+            }
+
+            // Fallback to global settings if no customer terms
+            if (terms === 0) {
+                const settings = await InvoiceSettings.getSettings();
+                terms = settings.defaultCustomerTerms || 15;
+            }
+
+            const date = new Date();
+            date.setDate(date.getDate() + terms);
+            dueDate = date;
+        }
 
         // 1. Validation
         if (!items || items.length === 0) {
@@ -142,61 +167,14 @@ export async function POST(request) {
             createdBy: user.userId
         });
 
-        // 7. Execute Business Logic (Stock + Accounting + Treasury + Daily Sales)
+        // 7. Execute Business Logic via centralized FinanceService
         try {
-            // Reduce stock from shop
-            await StockService.reduceStockForSale(items, invoice._id, user.userId);
-
-            // Create accounting entries
-            if (paymentType === 'cash') {
-                await AccountingService.createSaleEntries(invoice, user.userId);
-                // Record income in treasury for the REMAINING cash portion only
-                const cashAmount = total - appliedCredit;
-                if (cashAmount > 0) {
-                    await TreasuryService.recordSaleIncome({
-                        ...invoice.toObject(),
-                        total: cashAmount,
-                        number: `${invoice.number} (بخَصم رصيد)`
-                    }, user.userId);
-                }
-            } else {
-                await AccountingService.createCreditSaleEntries(invoice, user.userId);
-                // Update customer balance (debt) - only the part not covered by credit and not paid in cash
-                if (customer) {
-                    const remainingDebt = total - appliedCredit;
-                    if (remainingDebt > 0) {
-                        customer.balance += remainingDebt;
-                        await customer.save();
-                    }
-                }
-            }
-
-            // Update daily sales summary
-            await DailySalesService.updateDailySales(invoice, user.userId);
-
-            // Update Customer Stats
-            if (finalCustomerId) {
-                await Customer.findByIdAndUpdate(finalCustomerId, {
-                    $inc: { totalPurchases: total },
-                    lastPurchaseDate: new Date()
-                });
-            }
-
-            // [NEW] Centralized Logging
-            await LogService.logAction({
-                userId: user.userId,
-                action: 'CREATE_INVOICE',
-                entity: 'Invoice',
-                entityId: invoice._id,
-                diff: { total, paymentType, itemsCount: items.length },
-                note: `Invoice #${invoice.number} created (${paymentType})`
-            });
-
+            const { FinanceService } = await import('@/lib/services/financeService');
+            await FinanceService.recordSale(invoice, user.userId);
         } catch (postProcessError) {
             console.error('❌ Post-Invoice Processing Error:', postProcessError);
-            // In production, consider voiding the invoice or implementing compensating transactions
             return NextResponse.json({
-                warning: 'تم إنشاء الفاتورة ولكن حدث خطأ في تحديث البيانات',
+                warning: 'تم إنشاء الفاتورة ولكن حدث خطأ في تحديث البيانات المالية',
                 invoice,
                 error: postProcessError.message
             }, { status: 201 });

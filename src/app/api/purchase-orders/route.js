@@ -5,6 +5,7 @@ import Product from '@/models/Product';
 import Supplier from '@/models/Supplier';
 import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
+import InvoiceSettings from '@/models/InvoiceSettings';
 
 // GET: List POs
 export async function GET(request) {
@@ -36,7 +37,31 @@ export async function POST(request) {
         if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         const body = await request.json();
-        const { supplierId, items, notes, expectedDate } = body;
+        const { supplierId, items, notes } = body;
+        let { expectedDate } = body;
+
+        // Auto-set Expected Date if missing
+        if (!expectedDate) {
+            let terms = 0;
+
+            // Check for supplier-specific terms
+            if (supplier) {
+                const sup = await Supplier.findById(supplier);
+                if (sup && sup.supplyTerms > 0) {
+                    terms = sup.supplyTerms;
+                }
+            }
+
+            // Fallback to global settings
+            if (terms === 0) {
+                const settings = await InvoiceSettings.getSettings();
+                terms = settings.defaultSupplierTerms || 15;
+            }
+
+            const date = new Date();
+            date.setDate(date.getDate() + terms);
+            expectedDate = date;
+        }
 
         let totalCost = 0;
         items.forEach(item => {
@@ -79,52 +104,17 @@ export async function PUT(request) {
             if (!po) return NextResponse.json({ error: 'PO not found' }, { status: 404 });
             if (po.status === 'RECEIVED') return NextResponse.json({ error: 'Already received' }, { status: 400 });
 
-            // 1. Update Stock (AVCO)
+            // 1. Execute Business Logic via centralized FinanceService
             try {
-                const { StockService } = await import('@/lib/services/stockService');
-                await StockService.increaseStockForPurchase(po.items, po._id, decoded.userId);
-            } catch (stockErr) {
-                console.error('Stock update error:', stockErr);
-                return NextResponse.json({ error: `Stock Update Failed: ${stockErr.message}` }, { status: 500 });
-            }
-
-            po.status = 'RECEIVED';
-            po.receivedDate = new Date();
-            po.paymentType = body.paymentType || 'cash';
-            await po.save();
-
-            const paymentType = po.paymentType;
-
-            // 2. Accounting Entries
-            try {
-                const { AccountingService } = await import('@/lib/services/accountingService');
-                await AccountingService.createPurchaseEntries(po, decoded.userId, paymentType);
-            } catch (accErr) {
-                console.error('Accounting entry error:', accErr);
-                // Non-blocking but should be logged
-            }
-
-            // 3. Financial Handling
-            if (paymentType === 'cash') {
-                // CASH PURCHASE: Record Expense in Treasury
-                try {
-                    const { TreasuryService } = await import('@/lib/services/treasuryService');
-                    await TreasuryService.recordPurchaseExpense(po, decoded.userId);
-                } catch (treasuryErr) {
-                    console.error('Treasury error:', treasuryErr);
-                }
-            } else if (paymentType === 'bank') {
-                // BANK PURCHASE: No impact on physical cashbox
-            } else {
-                // CREDIT PURCHASE: Increase Supplier Balance (Liability)
-                if (po.supplier) {
-                    const supplier = await Supplier.findById(po.supplier);
-                    if (supplier) {
-                        supplier.balance = (supplier.balance || 0) + po.totalCost;
-                        supplier.lastSupplyDate = new Date();
-                        await supplier.save();
-                    }
-                }
+                const { FinanceService } = await import('@/lib/services/financeService');
+                await FinanceService.recordPurchaseReceive(po, decoded.userId, body.paymentType || 'cash');
+            } catch (procErr) {
+                console.error('❌ Post-Purchase Processing Error:', procErr);
+                return NextResponse.json({
+                    warning: 'تم استلام الطلب ولكن حدث خطأ في تحديث البيانات المالية',
+                    po,
+                    error: procErr.message
+                }, { status: 201 });
             }
 
             return NextResponse.json({ success: true, po });
