@@ -13,18 +13,21 @@ export async function PUT(request) {
 
         if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        const { ids } = await request.json(); // Array of IDs or 'all'
+        const { ids } = await request.json(); // Array of IDs, single ID string, or 'all'
 
         if (ids === 'all') {
             await Notification.updateMany(
                 { $or: [{ userId: decoded.userId }, { userId: null }], isRead: false },
                 { isRead: true }
             );
-        } else {
+        } else if (Array.isArray(ids)) {
             await Notification.updateMany(
                 { _id: { $in: ids } },
                 { isRead: true }
             );
+        } else {
+            // Single ID as string
+            await Notification.findByIdAndUpdate(ids, { isRead: true });
         }
 
         return NextResponse.json({ success: true });
