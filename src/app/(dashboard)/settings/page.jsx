@@ -27,7 +27,10 @@ import {
     Mail,
     MapPin,
     Check,
-    Image as ImageIcon
+    Image as ImageIcon,
+    Sparkles,
+    TrendingUp,
+    Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -52,7 +55,10 @@ export default function SettingsPage() {
         customerCollectionAlertDays: 3,
         defaultCustomerTerms: 15,
         defaultSupplierTerms: 15,
-        minDebtNotificationAmount: 10
+        minDebtNotificationAmount: 10,
+        inactiveCustomerThresholdDays: 30,
+        pointsPerEGP: 0.01,
+        egpPerPoint: 0.1
     });
 
     useEffect(() => {
@@ -130,7 +136,7 @@ export default function SettingsPage() {
             </div>
 
             <Tabs defaultValue="general" className="w-full" onValueChange={setActiveTab}>
-                <TabsList className="grid grid-cols-2 md:grid-cols-4 h-auto p-1 bg-muted/50 rounded-2xl glass-card mb-8">
+                <TabsList className="grid grid-cols-2 md:grid-cols-5 h-auto p-1 bg-muted/50 rounded-2xl glass-card mb-8">
                     <TabsTrigger value="general" className="rounded-xl py-3 data-[state=active]:gradient-primary data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
                         <Building2 className="w-4 h-4 ml-2" /> البيانات العامة
                     </TabsTrigger>
@@ -139,6 +145,9 @@ export default function SettingsPage() {
                     </TabsTrigger>
                     <TabsTrigger value="alerts" className="rounded-xl py-3 data-[state=active]:gradient-primary data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
                         <Bell className="w-4 h-4 ml-2" /> التنبيهات والأمان
+                    </TabsTrigger>
+                    <TabsTrigger value="growth" className="rounded-xl py-3 data-[state=active]:gradient-primary data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
+                        <Sparkles className="w-4 h-4 ml-2" /> النمو والولاء
                     </TabsTrigger>
                     <TabsTrigger value="defaults" className="rounded-xl py-3 data-[state=active]:gradient-primary data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
                         <Settings2 className="w-4 h-4 ml-2" /> القيم الافتراضية
@@ -406,6 +415,107 @@ export default function SettingsPage() {
                             </div>
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                {/* Smart Growth & Loyalty Tab */}
+                <TabsContent value="growth">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in slide-in-from-bottom-4 duration-500">
+                        <Card className="glass-card border-0 shadow-custom-xl overflow-hidden rounded-[2rem]">
+                            <CardContent className="p-8">
+                                <TabHeader
+                                    icon={Sparkles}
+                                    title="نظام ولاء العملاء"
+                                    description="إدارة كيفية اكتساب واستبدال النقاط"
+                                />
+
+                                <div className="space-y-8 mt-6">
+                                    <div className="group space-y-4 p-6 rounded-3xl bg-amber-500/5 border border-amber-500/10 hover:bg-amber-500/10 transition-all duration-300">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <Label className="text-base font-bold text-amber-900">معدل الاكتساب</Label>
+                                            <Zap size={20} className="text-amber-500 animate-pulse" />
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-xs font-bold text-muted-foreground w-20">نقطة لكل</span>
+                                            <Input
+                                                type="number"
+                                                value={1 / (invoiceSettings.pointsPerEGP || 0.01)}
+                                                onChange={e => {
+                                                    const val = parseFloat(e.target.value) || 100;
+                                                    setInvoiceSettings({ ...invoiceSettings, pointsPerEGP: 1 / val });
+                                                }}
+                                                className="h-12 text-lg font-black text-center border-amber-500/20 bg-white/50 rounded-2xl"
+                                            />
+                                            <span className="font-bold text-amber-700/60 uppercase text-xs tracking-widest">ج.م</span>
+                                        </div>
+                                        <p className="text-[10px] text-amber-800/70 font-medium leading-relaxed">
+                                            على سبيل المثال: القيمة 100 تعني أن العميل يحصل على نقطة واحدة مقابل كل 100 جنيه من قيمة الفاتورة.
+                                        </p>
+                                    </div>
+
+                                    <div className="group space-y-4 p-6 rounded-3xl bg-emerald-500/5 border border-emerald-500/10 hover:bg-emerald-500/10 transition-all duration-300">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <Label className="text-base font-bold text-emerald-900">قيمة الاستبدال</Label>
+                                            <TrendingUp size={20} className="text-emerald-500" />
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-xs font-bold text-muted-foreground w-20">النقطة تساوي</span>
+                                            <Input
+                                                type="number"
+                                                step="0.01"
+                                                value={invoiceSettings.egpPerPoint || 0.1}
+                                                onChange={e => setInvoiceSettings({ ...invoiceSettings, egpPerPoint: parseFloat(e.target.value) || 0 })}
+                                                className="h-12 text-lg font-black text-center border-emerald-500/20 bg-white/50 rounded-2xl"
+                                            />
+                                            <span className="font-bold text-emerald-700/60 uppercase text-xs tracking-widest">ج.م</span>
+                                        </div>
+                                        <p className="text-[10px] text-emerald-800/70 font-medium leading-relaxed">
+                                            القيمة النقدية التي سيتم إضافتها لرصيد العميل مقابل كل نقطة ولاء يستبدلها.
+                                        </p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="glass-card border-0 shadow-custom-xl overflow-hidden rounded-[2rem]">
+                            <CardContent className="p-8">
+                                <TabHeader
+                                    icon={AlertTriangle}
+                                    title="تنبيهات انقطاع العملاء"
+                                    description="إعادة جذب العملاء الذين لم يشتروا منذ فترة"
+                                />
+
+                                <div className="space-y-8 mt-6">
+                                    <div className="group space-y-4 p-6 rounded-3xl bg-rose-500/5 border border-rose-500/10 hover:bg-rose-500/10 transition-all duration-300">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <Label className="text-base font-bold text-rose-900">فترة الانقطاع الحرجة</Label>
+                                            <Clock size={20} className="text-rose-500" />
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <Input
+                                                type="number"
+                                                value={invoiceSettings.inactiveCustomerThresholdDays || 30}
+                                                onChange={e => setInvoiceSettings({ ...invoiceSettings, inactiveCustomerThresholdDays: parseInt(e.target.value) || 0 })}
+                                                className="h-12 text-lg font-black text-center border-rose-500/20 bg-white/50 rounded-2xl"
+                                            />
+                                            <span className="font-bold text-rose-700/60 uppercase text-xs tracking-widest">يوم</span>
+                                        </div>
+                                        <p className="text-[10px] text-rose-800/70 font-medium leading-relaxed">
+                                            سيظهر تنبيه بجانب اسم العميل في القائمة إذا لم يقم بأي عملية شراء خلال هذه الفترة.
+                                        </p>
+                                    </div>
+
+                                    <div className="p-6 rounded-3xl bg-primary/5 border border-dashed border-primary/30 space-y-3">
+                                        <div className="flex items-center gap-2 text-primary font-bold text-sm">
+                                            <Zap size={16} /> معلومة ذكية
+                                        </div>
+                                        <p className="text-[11px] leading-relaxed text-muted-foreground font-medium">
+                                            يتم تذكيرك تلقائياً في صفحة "الإشعارات" عند وصول العميل لهذا الحد، مما يساعدك على التواصل معهم وتقديم عروض تحفيزية.
+                                        </p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
                 </TabsContent>
 
                 {/* Defaults & Debt Tab */}

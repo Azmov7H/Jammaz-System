@@ -148,7 +148,7 @@ export default function ReceivablesPage() {
                                 <TableBody>
                                     {filteredInvoices.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={8} className="text-center h-24 text-muted-foreground">
+                                            <TableCell colSpan={8} className="text-left h-24 text-muted-foreground">
                                                 لا توجد ديون مستحقة
                                             </TableCell>
                                         </TableRow>

@@ -58,10 +58,11 @@ const menuGroups = [
         items: [
             { name: 'فاتورة جديدة', href: '/invoices/new', icon: Plus, permission: 'invoices:create' },
             { name: 'سجل الفواتير', href: '/invoices', icon: FileText, permission: 'invoices:view' },
-            { name: 'العملاء', href: '/customers', icon: Users, permission: 'invoices:view' }, // NEW
-            { name: 'ذمم العملاء', href: '/receivables', icon: Wallet, permission: 'invoices:view' }, // Updated Icon and Position
-            { name: 'الخزينة اليومية', href: '/cashbox-daily', icon: Wallet, permission: 'financial:view' }, // Updated
-            { name: 'المحاسبة العامة', href: '/accounting', icon: DollarSign, permission: 'financial:view' }, // NEW
+            { name: 'العملاء', href: '/customers', icon: Users, permission: 'invoices:view' },
+            { name: 'ذمم العملاء', href: '/receivables', icon: Wallet, permission: 'invoices:view' },
+            { name: 'نفقات التشغيل', href: '/financial/expenses', icon: DollarSign, permission: 'financial:view' },
+            { name: 'الخزينة اليومية', href: '/cashbox-daily', icon: Wallet, permission: 'financial:view' },
+            { name: 'المحاسبة العامة', href: '/accounting', icon: DollarSign, permission: 'financial:view' },
         ]
     },
     {
