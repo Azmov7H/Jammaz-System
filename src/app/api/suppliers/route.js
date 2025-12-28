@@ -26,11 +26,16 @@ export async function POST(req) {
         if (!verifyToken(token)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         const body = await req.json();
-        const { name, phone, address, email } = body;
+        const { name, phone, address, email, financialTrackingEnabled, paymentDay, supplyTerms } = body;
 
         if (!name) return NextResponse.json({ error: 'Supplier name is required' }, { status: 400 });
 
-        const newSupplier = await Supplier.create({ name, phone, address, email });
+        const newSupplier = await Supplier.create({
+            name, phone, address, email,
+            financialTrackingEnabled: financialTrackingEnabled !== undefined ? financialTrackingEnabled : true,
+            paymentDay: paymentDay || 'None',
+            supplyTerms: supplyTerms || 0
+        });
         return NextResponse.json(newSupplier, { status: 201 });
     } catch (error) {
         return NextResponse.json({ error: 'Failed to create supplier' }, { status: 500 });
@@ -43,13 +48,13 @@ export async function PUT(req) {
         await dbConnect();
         // Check auth if needed
         const body = await req.json();
-        const { _id, name, phone, address, email } = body;
+        const { _id, name, phone, address, email, financialTrackingEnabled, paymentDay, supplyTerms } = body;
 
         if (!_id) return NextResponse.json({ error: 'Supplier ID is required' }, { status: 400 });
 
         const updatedSupplier = await Supplier.findByIdAndUpdate(
             _id,
-            { name, phone, address, email },
+            { name, phone, address, email, financialTrackingEnabled, paymentDay, supplyTerms },
             { new: true }
         );
 

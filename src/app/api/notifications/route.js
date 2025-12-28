@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import Notification from '@/models/Notification';
-import { getCurrentUser } from '@/lib/auth';
+import { NotificationService } from '@/lib/services/notificationService';
 
 export async function GET(request) {
     try {
@@ -9,6 +9,9 @@ export async function GET(request) {
 
         const user = await getCurrentUser();
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+        // Auto-sync alerts before fetching
+        await NotificationService.syncAllAlerts();
 
         // Fetch notifications for this user OR system-wide (null userId)
         const notifications = await Notification.find({

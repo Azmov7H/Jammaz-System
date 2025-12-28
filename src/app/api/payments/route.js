@@ -41,23 +41,14 @@ export async function POST(request) {
             }, { status: 400 });
         }
 
-        // Record payment on invoice
-        await invoice.recordPayment(amount, method, note, user.userId);
-
-        // Create accounting entry (Debit Cash, Credit Receivables)
-        await AccountingService.createPaymentEntries(invoice, amount, user.userId);
-
-        // Update customer balance
-        if (invoice.customer) {
-            const customer = await Customer.findById(invoice.customer);
-            if (customer) {
-                customer.balance -= amount;
-                await customer.save();
-            }
+        // 5. Execute Business Logic via centralized FinanceService
+        try {
+            const { FinanceService } = await import('@/lib/services/financeService');
+            await FinanceService.recordCustomerPayment(invoice, amount, method, note, user.userId);
+        } catch (procErr) {
+            console.error('❌ Post-Payment Processing Error:', procErr);
+            return NextResponse.json({ error: 'حدث خطأ أثناء تحديث البيانات المالية' }, { status: 500 });
         }
-
-        // Record in treasury
-        await TreasuryService.recordPaymentCollection(invoice, amount, user.userId);
 
         return NextResponse.json({
             success: true,

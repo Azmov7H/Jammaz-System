@@ -73,7 +73,19 @@ export default function NewInvoicePage() {
         try {
             const res = await fetch(`/api/products?search=${term}`);
             const data = await res.json();
-            setSearchResults(data.products || []);
+            const foundProducts = data.products || [];
+            setSearchResults(foundProducts);
+
+            // Optimization for Barcode Scanning
+            // If we find exactly one product and the term matches the code exactly, or name
+            if (foundProducts.length === 1) {
+                const p = foundProducts[0];
+                if (p.code === term || p.name === term) {
+                    addItem(p);
+                    setSearchTerm(''); // Clear for next scan
+                    setSearchResults([]);
+                }
+            }
         } catch (error) {
             console.error(error);
         }

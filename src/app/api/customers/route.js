@@ -52,7 +52,7 @@ export async function POST(request) {
         }
 
         const body = await request.json();
-        const { name, phone, priceType, creditLimit, address, notes } = body;
+        const { name, phone, priceType, creditLimit, address, notes, financialTrackingEnabled, collectionDay, paymentTerms } = body;
 
         // Validation
         if (!name || !phone) {
@@ -72,7 +72,10 @@ export async function POST(request) {
             creditLimit: creditLimit || 0,
             address,
             notes,
-            isActive: true
+            isActive: true,
+            financialTrackingEnabled: financialTrackingEnabled !== undefined ? financialTrackingEnabled : true,
+            collectionDay: collectionDay || 'None',
+            paymentTerms: paymentTerms || 0
         });
 
         return NextResponse.json(newCustomer, { status: 201 });

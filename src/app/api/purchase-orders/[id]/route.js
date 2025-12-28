@@ -45,44 +45,34 @@ export async function PATCH(request, { params }) {
 
         // If marking as RECEIVED, execute business logic
         if (status === 'RECEIVED' && purchaseOrder.status !== 'RECEIVED') {
-            try {
-                // Increase stock in warehouse
-                await StockService.increaseStockForPurchase(
-                    purchaseOrder.items,
-                    purchaseOrder._id,
-                    user.userId
-                );
+            // Execute business logic via FinanceService
+            const { FinanceService } = await import('@/lib/services/financeService');
+            // Note: Patch route doesn't specify paymentType in the body in the original code, 
+            // but usually POs are cash or credit. We'll default to cash for this quick patch if not specified.
+            await FinanceService.recordPurchaseReceive(purchaseOrder, user.userId, 'cash');
 
-                // Record expense in treasury
-                await TreasuryService.recordPurchaseExpense(purchaseOrder, user.userId);
+            return NextResponse.json({
+                message: 'تم استلام الطلب وتحديث المخزون والخزينة والحسابات',
+                purchaseOrder
+            });
 
-                // Update PO status
-                purchaseOrder.status = 'RECEIVED';
-                purchaseOrder.receivedDate = new Date();
-                await purchaseOrder.save();
-
-                return NextResponse.json({
-                    message: 'تم استلام الطلب وتحديث المخزون والخزينة',
-                    purchaseOrder
-                });
-
-            } catch (businessLogicError) {
-                console.error('❌ PO Receiving Error:', businessLogicError);
-                return NextResponse.json({
-                    error: 'فشل في معالجة الاستلام',
-                    details: businessLogicError.message
-                }, { status: 500 });
-            }
+        } catch (businessLogicError) {
+            console.error('❌ PO Receiving Error:', businessLogicError);
+            return NextResponse.json({
+                error: 'فشل في معالجة الاستلام',
+                details: businessLogicError.message
+            }, { status: 500 });
         }
+    }
 
         // Other status updates
         purchaseOrder.status = status;
-        await purchaseOrder.save();
+    await purchaseOrder.save();
 
-        return NextResponse.json({ purchaseOrder });
+    return NextResponse.json({ purchaseOrder });
 
-    } catch (error) {
-        console.error('PO PATCH Error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+} catch (error) {
+    console.error('PO PATCH Error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+}
 }

@@ -62,6 +62,48 @@ const InvoiceSettingsSchema = new mongoose.Schema({
         default: 'modern'
     },
 
+    // Notification Settings
+    stockAlertThreshold: {
+        type: Number,
+        default: 5
+    },
+    supplierPaymentAlertDays: {
+        type: Number,
+        default: 3
+    },
+    customerCollectionAlertDays: {
+        type: Number,
+        default: 3
+    },
+    defaultCustomerTerms: {
+        type: Number,
+        default: 15
+    },
+    defaultSupplierTerms: {
+        type: Number,
+        default: 15
+    },
+    minDebtNotificationAmount: {
+        type: Number,
+        default: 10
+    },
+
+    // Inactivity Alerts
+    inactiveCustomerThresholdDays: {
+        type: Number,
+        default: 30
+    },
+
+    // Loyalty Settings
+    pointsPerEGP: {
+        type: Number,
+        default: 0.01 // Default: 1 point per 100 EGP
+    },
+    egpPerPoint: {
+        type: Number,
+        default: 0.1 // Default: 100 points = 10 EGP
+    },
+
     // Only one settings document should exist
     isActive: {
         type: Boolean,

@@ -3,14 +3,38 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import { Settings as SettingsIcon, Package, DollarSign, Users, Palette, CreditCard, QrCode, Loader2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+    Settings as SettingsIcon,
+    Package,
+    DollarSign,
+    Users,
+    Palette,
+    CreditCard,
+    QrCode,
+    Loader2,
+    Bell,
+    Clock,
+    Calendar,
+    HandCoins,
+    Settings2,
+    Building2,
+    Globe,
+    Phone,
+    Mail,
+    MapPin,
+    Check,
+    Image as ImageIcon
+} from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 export default function SettingsPage() {
     const [loading, setLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState('general');
     const [invoiceSettings, setInvoiceSettings] = useState({
         companyName: '',
         phone: '',
@@ -22,7 +46,13 @@ export default function SettingsPage() {
         showLogo: true,
         showQRCode: true,
         footerText: '',
-        invoiceTemplate: 'modern'
+        invoiceTemplate: 'modern',
+        stockAlertThreshold: 5,
+        supplierPaymentAlertDays: 3,
+        customerCollectionAlertDays: 3,
+        defaultCustomerTerms: 15,
+        defaultSupplierTerms: 15,
+        minDebtNotificationAmount: 10
     });
 
     useEffect(() => {
@@ -49,7 +79,7 @@ export default function SettingsPage() {
                 body: JSON.stringify(invoiceSettings)
             });
             if (res.ok) {
-                toast.success('تم حفظ إعدادات الفاتورة بنجاح');
+                toast.success('تم حفظ الإعدادات بنجاح');
             } else {
                 toast.error('فشل في حفظ الإعدادات');
             }
@@ -60,173 +90,209 @@ export default function SettingsPage() {
         }
     };
 
-    return (
-        <div className="space-y-6 max-w-4xl pb-10">
-            <div className="flex items-center gap-3">
-                <SettingsIcon className="w-6 h-6 md:w-8 md:h-8 text-primary" />
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-foreground">الإعدادات</h1>
-                    <p className="text-sm text-muted-foreground">تخصيص خصائص النظام وتصاميم الفواتير</p>
+    const TabHeader = ({ icon: Icon, title, description }) => (
+        <div className="flex flex-col gap-1 mb-6 animate-fade-in-up">
+            <div className="flex items-center gap-2">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                    <Icon className="w-5 h-5 text-primary" />
                 </div>
+                <h2 className="text-xl font-bold">{title}</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mr-9">{description}</p>
+        </div>
+    );
+
+    return (
+        <div className="container max-w-5xl mx-auto space-y-8 pb-20 animate-fade-in">
+            {/* Page Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-2xl gradient-primary flex items-center justify-center shadow-lg transform -rotate-3">
+                        <SettingsIcon className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                        <h1 className="text-3xl font-black tracking-tight">الإعدادات</h1>
+                        <p className="text-muted-foreground font-medium">تحكم في هوية مؤسستك وقواعد النظام</p>
+                    </div>
+                </div>
+                <Button
+                    onClick={handleSaveInvoiceSettings}
+                    disabled={loading}
+                    className="gradient-primary border-0 shadow-lg hover-scale group h-11 px-6 text-white"
+                >
+                    {loading ? (
+                        <Loader2 className="w-4 h-4 animate-spin ml-2" />
+                    ) : (
+                        <Check className="w-4 h-4 ml-2 group-hover:scale-125 transition-transform" />
+                    )}
+                    حفظ كافة التغييرات
+                </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Stock Settings */}
-                <Card className="border shadow-sm">
-                    <CardHeader className="border-b bg-muted/30">
-                        <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                            <Package className="w-5 h-5 text-primary" />
-                            حدود المخزون
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 md:p-6 space-y-4">
-                        <div className="space-y-2">
-                            <Label className="text-sm">الحد الأدنى الافتراضي للطلب</Label>
-                            <Input type="number" defaultValue={5} />
-                            <p className="text-xs text-muted-foreground">عدد الوحدات التي تُطلق تنبيه النقص</p>
-                        </div>
-                        <div className="space-y-2">
-                            <Label className="text-sm">فترة التوريد المتوقعة (أيام)</Label>
-                            <Input type="number" defaultValue={3} />
-                            <p className="text-xs text-muted-foreground">الوقت المتوقع لوصول الطلبيات</p>
-                        </div>
-                        <Separator />
-                        <Button className="w-full">حفظ إعدادات المخزون</Button>
-                    </CardContent>
-                </Card>
+            <Tabs defaultValue="general" className="w-full" onValueChange={setActiveTab}>
+                <TabsList className="grid grid-cols-2 md:grid-cols-4 h-auto p-1 bg-muted/50 rounded-2xl glass-card mb-8">
+                    <TabsTrigger value="general" className="rounded-xl py-3 data-[state=active]:gradient-primary data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
+                        <Building2 className="w-4 h-4 ml-2" /> البيانات العامة
+                    </TabsTrigger>
+                    <TabsTrigger value="design" className="rounded-xl py-3 data-[state=active]:gradient-primary data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
+                        <Palette className="w-4 h-4 ml-2" /> هوية الفاتورة
+                    </TabsTrigger>
+                    <TabsTrigger value="alerts" className="rounded-xl py-3 data-[state=active]:gradient-primary data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
+                        <Bell className="w-4 h-4 ml-2" /> التنبيهات والأمان
+                    </TabsTrigger>
+                    <TabsTrigger value="defaults" className="rounded-xl py-3 data-[state=active]:gradient-primary data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
+                        <Settings2 className="w-4 h-4 ml-2" /> القيم الافتراضية
+                    </TabsTrigger>
+                </TabsList>
 
-                {/* Financial Settings */}
-                <Card className="border shadow-sm">
-                    <CardHeader className="border-b bg-muted/30">
-                        <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                            <DollarSign className="w-5 h-5 text-primary" />
-                            الإعدادات المالية
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 md:p-6 space-y-4">
-                        <div className="space-y-2">
-                            <Label className="text-sm">العملة الافتراضية</Label>
-                            <Input defaultValue="ج.م" disabled />
-                            <p className="text-xs text-muted-foreground">الجنيه المصري</p>
-                        </div>
-                        <div className="space-y-2">
-                            <Label className="text-sm">الضريبة (٪)</Label>
-                            <Input type="number" defaultValue={0} min={0} max={100} />
-                            <p className="text-xs text-muted-foreground">نسبة الضريبة المضافة على المبيعات</p>
-                        </div>
-                        <Separator />
-                        <Button className="w-full">حفظ الإعدادات المالية</Button>
-                    </CardContent>
-                </Card>
+                {/* General Settings Tab */}
+                <TabsContent value="general">
+                    <Card className="glass-card border-0 shadow-custom-xl overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
+                        <CardContent className="p-8">
+                            <TabHeader
+                                icon={Building2}
+                                title="بيانات المؤسسة"
+                                description="تظهر هذه البيانات في ترويسة الفاتورة والتقارير الرسمية"
+                            />
 
-                {/* Invoice Design Settings */}
-                <Card className="border shadow-sm md:col-span-2">
-                    <CardHeader className="border-b bg-muted/30">
-                        <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                            <Palette className="w-5 h-5 text-primary" />
-                            تصميم الفاتورة المطبوعة
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 md:p-6 space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                            <div className="space-y-4">
-                                <h3 className="font-bold flex items-center gap-2 text-primary border-b pb-2">
-                                    <Users className="w-4 h-4" /> معلومات المؤسسة
-                                </h3>
-                                <div className="space-y-2">
-                                    <Label className="text-sm">اسم المؤسسة في الفاتورة</Label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
+                                <div className="space-y-3">
+                                    <Label className="text-sm font-bold flex items-center gap-2">
+                                        <Users size={14} className="text-primary" /> اسم المؤسسة
+                                    </Label>
                                     <Input
-                                        value={invoiceSettings.companyName}
+                                        value={invoiceSettings.companyName || ''}
                                         onChange={e => setInvoiceSettings({ ...invoiceSettings, companyName: e.target.value })}
-                                        placeholder="مثال: مخازن الجماز"
+                                        className="h-11 bg-muted/30 border-muted-foreground/10 focus:border-primary/30 transition-all rounded-xl shadow-sm"
+                                        placeholder="اسم شركتك أو مخزنك"
                                     />
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label className="text-sm">رقم الهاتف</Label>
-                                        <Input
-                                            value={invoiceSettings.phone}
-                                            onChange={e => setInvoiceSettings({ ...invoiceSettings, phone: e.target.value })}
-                                            placeholder="+20 xxx xxx xxxx"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-sm">البريد الإلكتروني</Label>
-                                        <Input
-                                            value={invoiceSettings.email}
-                                            onChange={e => setInvoiceSettings({ ...invoiceSettings, email: e.target.value })}
-                                            placeholder="info@example.com"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-sm">العنوان</Label>
+                                <div className="space-y-3">
+                                    <Label className="text-sm font-bold flex items-center gap-2">
+                                        <Phone size={14} className="text-primary" /> الهاتف
+                                    </Label>
                                     <Input
-                                        value={invoiceSettings.address}
+                                        value={invoiceSettings.phone || ''}
+                                        onChange={e => setInvoiceSettings({ ...invoiceSettings, phone: e.target.value })}
+                                        className="h-11 bg-muted/30 border-muted-foreground/10 focus:border-primary/30 transition-all rounded-xl shadow-sm"
+                                        placeholder="+20 xxx xxx xxxx"
+                                    />
+                                </div>
+                                <div className="space-y-3">
+                                    <Label className="text-sm font-bold flex items-center gap-2">
+                                        <Mail size={14} className="text-primary" /> البريد الإلكتروني
+                                    </Label>
+                                    <Input
+                                        value={invoiceSettings.email || ''}
+                                        onChange={e => setInvoiceSettings({ ...invoiceSettings, email: e.target.value })}
+                                        className="h-11 bg-muted/30 border-muted-foreground/10 focus:border-primary/30 transition-all rounded-xl shadow-sm"
+                                        placeholder="info@example.com"
+                                    />
+                                </div>
+                                <div className="space-y-3">
+                                    <Label className="text-sm font-bold flex items-center gap-2">
+                                        <Globe size={14} className="text-primary" /> الموقع الإلكتروني
+                                    </Label>
+                                    <Input
+                                        value={invoiceSettings.website || ''}
+                                        onChange={e => setInvoiceSettings({ ...invoiceSettings, website: e.target.value })}
+                                        className="h-11 bg-muted/30 border-muted-foreground/10 focus:border-primary/30 transition-all rounded-xl shadow-sm"
+                                        placeholder="www.example.com"
+                                    />
+                                </div>
+                                <div className="space-y-3 md:col-span-2">
+                                    <Label className="text-sm font-bold flex items-center gap-2">
+                                        <MapPin size={14} className="text-primary" /> العنوان بالكامل
+                                    </Label>
+                                    <Input
+                                        value={invoiceSettings.address || ''}
                                         onChange={e => setInvoiceSettings({ ...invoiceSettings, address: e.target.value })}
-                                        placeholder="القاهرة، مدينة نصر..."
+                                        className="h-11 bg-muted/30 border-muted-foreground/10 focus:border-primary/30 transition-all rounded-xl shadow-sm"
+                                        placeholder="القاهرة، مدينة نصر، شارع..."
                                     />
                                 </div>
                             </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
-                            <div className="space-y-4">
-                                <h3 className="font-bold flex items-center gap-2 text-primary border-b pb-2">
-                                    <Palette className="w-4 h-4" /> التخصيص البصري
-                                </h3>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label className="text-sm">اللون الأساسي</Label>
-                                        <div className="flex gap-2">
-                                            <Input
-                                                type="color"
-                                                className="w-12 h-10 p-1"
-                                                value={invoiceSettings.primaryColor}
-                                                onChange={e => setInvoiceSettings({ ...invoiceSettings, primaryColor: e.target.value })}
+                {/* Identity & Design Tab */}
+                <TabsContent value="design">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <Card className="glass-card border-0 shadow-lg md:col-span-2 h-fit">
+                            <CardContent className="p-8">
+                                <TabHeader
+                                    icon={Palette}
+                                    title="تخصيص الهوية البصرية"
+                                    description="اختر الألوان التي تميز علامتك التجارية في المطبوعات"
+                                />
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
+                                    <div className="space-y-4 p-4 rounded-2xl bg-muted/20 border border-muted-foreground/5">
+                                        <Label className="text-sm font-bold block mb-2">اللون الأساسي للعلامة</Label>
+                                        <div className="flex gap-3 items-center">
+                                            <div
+                                                className="w-14 h-14 rounded-xl shadow-inner border-2 border-white"
+                                                style={{ backgroundColor: invoiceSettings.primaryColor }}
                                             />
-                                            <Input
-                                                value={invoiceSettings.primaryColor}
-                                                onChange={e => setInvoiceSettings({ ...invoiceSettings, primaryColor: e.target.value })}
-                                                className="flex-1 font-mono text-xs uppercase"
-                                            />
+                                            <div className="flex-1 space-y-2">
+                                                <Input
+                                                    type="color"
+                                                    value={invoiceSettings.primaryColor || '#3b82f6'}
+                                                    onChange={e => setInvoiceSettings({ ...invoiceSettings, primaryColor: e.target.value })}
+                                                    className="w-full h-8 p-0 border-0 bg-transparent cursor-pointer"
+                                                />
+                                                <Input
+                                                    value={invoiceSettings.primaryColor || ''}
+                                                    onChange={e => setInvoiceSettings({ ...invoiceSettings, primaryColor: e.target.value })}
+                                                    className="font-mono text-xs h-9 uppercase text-center rounded-lg"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-sm">لون ترويسة الجدول</Label>
-                                        <div className="flex gap-2">
-                                            <Input
-                                                type="color"
-                                                className="w-12 h-10 p-1"
-                                                value={invoiceSettings.headerBgColor}
-                                                onChange={e => setInvoiceSettings({ ...invoiceSettings, headerBgColor: e.target.value })}
+                                    <div className="space-y-4 p-4 rounded-2xl bg-muted/20 border border-muted-foreground/5">
+                                        <Label className="text-sm font-bold block mb-2">لون خلفية الترويسة</Label>
+                                        <div className="flex gap-3 items-center">
+                                            <div
+                                                className="w-14 h-14 rounded-xl shadow-inner border-2 border-white"
+                                                style={{ backgroundColor: invoiceSettings.headerBgColor }}
                                             />
-                                            <Input
-                                                value={invoiceSettings.headerBgColor}
-                                                onChange={e => setInvoiceSettings({ ...invoiceSettings, headerBgColor: e.target.value })}
-                                                className="flex-1 font-mono text-xs uppercase"
-                                            />
+                                            <div className="flex-1 space-y-2">
+                                                <Input
+                                                    type="color"
+                                                    value={invoiceSettings.headerBgColor || '#f8fafc'}
+                                                    onChange={e => setInvoiceSettings({ ...invoiceSettings, headerBgColor: e.target.value })}
+                                                    className="w-full h-8 p-0 border-0 bg-transparent cursor-pointer"
+                                                />
+                                                <Input
+                                                    value={invoiceSettings.headerBgColor || ''}
+                                                    onChange={e => setInvoiceSettings({ ...invoiceSettings, headerBgColor: e.target.value })}
+                                                    className="font-mono text-xs h-9 uppercase text-center rounded-lg"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="space-y-4 pt-2">
-                                    <div className="flex items-center justify-between">
-                                        <div className="space-y-0.5">
-                                            <Label className="text-sm flex items-center gap-2">
-                                                <QrCode className="w-4 h-4 text-muted-foreground" /> إظهار QR Code
+                                <div className="mt-10 space-y-6">
+                                    <div className="flex items-center justify-between p-4 rounded-2xl bg-primary/5 border border-primary/10">
+                                        <div className="space-y-1">
+                                            <Label className="text-sm font-bold flex items-center gap-2">
+                                                <QrCode size={16} className="text-primary" /> تضمين رمز الاستجابة السريع (QR)
                                             </Label>
-                                            <p className="text-xs text-muted-foreground">للعرض السريع لبيانات الفاتورة</p>
+                                            <p className="text-xs text-muted-foreground">يسمح بالتحقق الفوري من صحة الفاتورة</p>
                                         </div>
                                         <Switch
                                             checked={invoiceSettings.showQRCode}
                                             onCheckedChange={checked => setInvoiceSettings({ ...invoiceSettings, showQRCode: checked })}
                                         />
                                     </div>
-                                    <div className="flex items-center justify-between">
-                                        <div className="space-y-0.5">
-                                            <Label className="text-sm flex items-center gap-2">
-                                                <CreditCard className="w-4 h-4 text-muted-foreground" /> إظهار الشعار
+                                    <div className="flex items-center justify-between p-4 rounded-2xl bg-primary/5 border border-primary/10">
+                                        <div className="space-y-1">
+                                            <Label className="text-sm font-bold flex items-center gap-2">
+                                                <ImageIcon size={16} className="text-primary" /> عرض الشعار الرسمي
                                             </Label>
-                                            <p className="text-xs text-muted-foreground">عرض شعار المؤسسة في الأعلى</p>
+                                            <p className="text-xs text-muted-foreground">إظهار شعار المؤسسة المرفوع في النظام</p>
                                         </div>
                                         <Switch
                                             checked={invoiceSettings.showLogo}
@@ -234,55 +300,218 @@ export default function SettingsPage() {
                                         />
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label className="text-sm">نص تذييل الفاتورة</Label>
-                                    <Input
-                                        value={invoiceSettings.footerText}
-                                        onChange={e => setInvoiceSettings({ ...invoiceSettings, footerText: e.target.value })}
-                                        placeholder="مثال: شكراً لثقتكم بنا"
-                                    />
+                            </CardContent>
+                        </Card>
+
+                        <div className="space-y-6">
+                            <Card className="glass-card border-0 shadow-lg h-fit overflow-hidden">
+                                <CardHeader className="bg-primary/10 border-b-0 pb-2">
+                                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                                        <Palette size={14} className="text-primary" /> تذييل الفاتورة
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-6">
+                                    <div className="space-y-4">
+                                        <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">نص ختامي مخصص</Label>
+                                        <textarea
+                                            value={invoiceSettings.footerText || ''}
+                                            onChange={e => setInvoiceSettings({ ...invoiceSettings, footerText: e.target.value })}
+                                            className="w-full min-h-[120px] p-4 bg-muted/30 border border-muted-foreground/10 rounded-2xl text-sm focus:ring-2 ring-primary/20 outline-none transition-all resize-none"
+                                            placeholder="مثل: البضاعة المباعة لا ترد ولا تستبدل بعد 14 يوم..."
+                                        />
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <div className="p-6 rounded-3xl gradient-primary text-white space-y-2 shadow-custom-xl relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-white/20 transition-all duration-500"></div>
+                                <h4 className="font-black text-lg">معاينة مباشرة</h4>
+                                <p className="text-white/80 text-xs leading-relaxed font-medium">سيتم تطبيق هذه التغييرات على كافة الفواتير الجديدة فور الحفظ.</p>
+                                <div className="pt-2 border-t border-white/20 mt-4 flex justify-between items-center">
+                                    <span className="text-[10px] font-bold uppercase tracking-widest">v2.5 Design</span>
+                                    <Palette size={18} className="animate-pulse" />
                                 </div>
                             </div>
                         </div>
-                        <Separator />
-                        <div className="flex justify-end">
-                            <Button
-                                onClick={handleSaveInvoiceSettings}
-                                disabled={loading}
-                                className="gradient-primary border-0"
-                            >
-                                {loading && <Loader2 className="w-4 h-4 animate-spin ml-2" />}
-                                حفظ إعدادات التصميم
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                </TabsContent>
 
-                {/* System Settings */}
-                <Card className="border shadow-sm md:col-span-2">
-                    <CardHeader className="border-b bg-muted/30">
-                        <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                            <Users className="w-5 h-5 text-primary" />
-                            إعدادات النظام العامة
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 md:p-6 space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label className="text-sm">اسم النظام</Label>
-                                <Input defaultValue="نظام مبيعات الجماز" />
+                {/* Notifications Tab */}
+                <TabsContent value="alerts">
+                    <Card className="glass-card border-0 shadow-custom-xl animate-in slide-in-from-bottom-4 duration-500">
+                        <CardContent className="p-8">
+                            <TabHeader
+                                icon={Bell}
+                                title="إشعارات النظام الذكية"
+                                description="إدارة حدود المخزون وتذكيرات السداد التلقائي"
+                            />
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-6">
+                                <div className="group space-y-4 p-6 rounded-[2.5rem] bg-amber-500/5 border border-amber-500/10 hover:bg-amber-500/10 transition-all duration-300">
+                                    <div className="h-14 w-14 rounded-2xl bg-amber-500/20 flex items-center justify-center text-amber-600 mb-4 group-hover:scale-110 transition-transform">
+                                        <Package size={28} />
+                                    </div>
+                                    <Label className="text-base font-bold text-amber-900 block">حد المخزون الحرج</Label>
+                                    <div className="flex items-center gap-3">
+                                        <Input
+                                            type="number"
+                                            value={invoiceSettings.stockAlertThreshold || 0}
+                                            onChange={e => setInvoiceSettings({ ...invoiceSettings, stockAlertThreshold: parseInt(e.target.value) || 0 })}
+                                            className="h-12 text-lg font-black text-center border-amber-500/20 bg-white/50 rounded-2xl"
+                                        />
+                                        <span className="font-bold text-amber-700/60 uppercase text-xs tracking-widest">وحدة</span>
+                                    </div>
+                                    <p className="text-xs text-amber-800/70 font-medium leading-relaxed">
+                                        أقل كمية للمنتج قبل إطلاق تنبيه "نقص المخزون" في الصفحة الرئيسية.
+                                    </p>
+                                </div>
+
+                                <div className="group space-y-4 p-6 rounded-[2.5rem] bg-blue-500/5 border border-blue-500/10 hover:bg-blue-500/10 transition-all duration-300">
+                                    <div className="h-14 w-14 rounded-2xl bg-blue-500/20 flex items-center justify-center text-blue-600 mb-4 group-hover:scale-110 transition-transform">
+                                        <Calendar size={28} />
+                                    </div>
+                                    <Label className="text-base font-bold text-blue-900 block">تنبيه توريد الموردين</Label>
+                                    <div className="flex items-center gap-3">
+                                        <Input
+                                            type="number"
+                                            value={invoiceSettings.supplierPaymentAlertDays || 0}
+                                            onChange={e => setInvoiceSettings({ ...invoiceSettings, supplierPaymentAlertDays: parseInt(e.target.value) || 0 })}
+                                            className="h-12 text-lg font-black text-center border-blue-500/20 bg-white/50 rounded-2xl"
+                                        />
+                                        <span className="font-bold text-blue-700/60 uppercase text-xs tracking-widest">أيام</span>
+                                    </div>
+                                    <p className="text-xs text-blue-800/70 font-medium leading-relaxed">
+                                        عدد الأيام المتبقية على موعد وصول الشحنة لإرسال تنبيه تذكيري.
+                                    </p>
+                                </div>
+
+                                <div className="group space-y-4 p-6 rounded-[2.5rem] bg-emerald-500/5 border border-emerald-500/10 hover:bg-emerald-500/10 transition-all duration-300">
+                                    <div className="h-14 w-14 rounded-2xl bg-emerald-500/20 flex items-center justify-center text-emerald-600 mb-4 group-hover:scale-110 transition-transform">
+                                        <Users size={28} />
+                                    </div>
+                                    <Label className="text-base font-bold text-emerald-900 block">تنبيه تحصيل العملاء</Label>
+                                    <div className="flex items-center gap-3">
+                                        <Input
+                                            type="number"
+                                            value={invoiceSettings.customerCollectionAlertDays || 0}
+                                            onChange={e => setInvoiceSettings({ ...invoiceSettings, customerCollectionAlertDays: parseInt(e.target.value) || 0 })}
+                                            className="h-12 text-lg font-black text-center border-emerald-500/20 bg-white/50 rounded-2xl"
+                                        />
+                                        <span className="font-bold text-emerald-700/60 uppercase text-xs tracking-widest">أيام</span>
+                                    </div>
+                                    <p className="text-xs text-emerald-800/70 font-medium leading-relaxed">
+                                        تنبيهك قبل حلول موعد استحقاق مديونية العميل للبدء في إجراءات التحصيل.
+                                    </p>
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label className="text-sm">رقم الدعم الفني</Label>
-                                <Input type="tel" placeholder="+20 xxx xxx xxxx" />
-                            </div>
-                        </div>
-                        <Separator />
-                        <Button className="w-full md:w-auto">حفظ التغييرات</Button>
-                    </CardContent>
-                </Card>
-            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* Defaults & Debt Tab */}
+                <TabsContent value="defaults">
+                    <div className="space-y-6 animate-in zoom-in-95 duration-500">
+                        <Card className="border-0 shadow-custom-xl overflow-hidden glass-card rounded-[2.5rem]">
+                            <CardHeader className="p-8 h-40 gradient-primary relative overflow-hidden flex flex-col justify-end">
+                                <div className="absolute top-0 right-0 p-8 opacity-20 transform translate-x-8 -translate-y-8">
+                                    <Settings2 size={160} className="text-white" />
+                                </div>
+                                <CardTitle className="text-3xl font-black text-white relative z-10">القيم الافتراضية والتحكم</CardTitle>
+                                <CardDescription className="text-white/80 font-bold relative z-10 pr-1">قواعد العمل التلقائية للديون والتحصيلات</CardDescription>
+                            </CardHeader>
+                            <CardContent className="p-8 space-y-10">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mt-4">
+                                    <div className="space-y-6">
+                                        <div className="flex items-center gap-4 mb-2">
+                                            <div className="p-3 bg-primary/10 rounded-2xl">
+                                                <CreditCard className="w-6 h-6 text-primary" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-black text-lg">فترات السداد الآلي</h4>
+                                                <p className="text-xs text-muted-foreground font-medium">القيم المستخدمة عند إنشاء سجلات جديدة</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-5 pl-4 border-r-4 border-primary/20">
+                                            <div className="space-y-2 group">
+                                                <Label className="text-sm font-bold flex items-center justify-between">
+                                                    <span>استحقاق العميل (المبيعات)</span>
+                                                    <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-black">DEFAULT TERMS</span>
+                                                </Label>
+                                                <div className="flex items-center gap-3">
+                                                    <Input
+                                                        type="number"
+                                                        value={invoiceSettings.defaultCustomerTerms || 0}
+                                                        onChange={e => setInvoiceSettings({ ...invoiceSettings, defaultCustomerTerms: parseInt(e.target.value) || 0 })}
+                                                        className="h-12 font-bold bg-muted/20 border-0 focus:ring-2 ring-primary/20 transition-all rounded-xl"
+                                                    />
+                                                    <span className="text-sm font-black text-muted-foreground/60 w-12 pt-1">يوم</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2 group">
+                                                <Label className="text-sm font-bold flex items-center justify-between">
+                                                    <span>موعد التوريد (المشتريات)</span>
+                                                    <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-black">EXPECTED DATE</span>
+                                                </Label>
+                                                <div className="flex items-center gap-3">
+                                                    <Input
+                                                        type="number"
+                                                        value={invoiceSettings.defaultSupplierTerms || 0}
+                                                        onChange={e => setInvoiceSettings({ ...invoiceSettings, defaultSupplierTerms: parseInt(e.target.value) || 0 })}
+                                                        className="h-12 font-bold bg-muted/20 border-0 focus:ring-2 ring-primary/20 transition-all rounded-xl"
+                                                    />
+                                                    <span className="text-sm font-black text-muted-foreground/60 w-12 pt-1">يوم</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        <div className="flex items-center gap-4 mb-2">
+                                            <div className="p-3 bg-amber-500/10 rounded-2xl">
+                                                <HandCoins className="w-6 h-6 text-amber-600" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-black text-lg">تحكمات الإشعارات السريعة</h4>
+                                                <p className="text-xs text-muted-foreground font-medium">ضبط ذكاء التنبيهات وإجراءات "تأكيد السداد"</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-8 pl-4 border-r-4 border-amber-500/20">
+                                            <div className="space-y-3">
+                                                <Label className="text-sm font-black text-amber-900/80">الحد الأدنى لمبلغ التنبيه</Label>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex-1 relative">
+                                                        <Input
+                                                            type="number"
+                                                            value={invoiceSettings.minDebtNotificationAmount || 0}
+                                                            onChange={e => setInvoiceSettings({ ...invoiceSettings, minDebtNotificationAmount: parseInt(e.target.value) || 0 })}
+                                                            className="h-14 font-black text-xl text-center bg-amber-500/5 border-amber-500/20 rounded-[1.25rem] pr-12 focus:border-amber-500/40"
+                                                        />
+                                                        <HandCoins size={20} className="absolute right-4 top-4 text-amber-500/40" />
+                                                    </div>
+                                                    <div className="h-14 flex items-center px-4 bg-amber-500 rounded-[1.25rem] text-white font-black text-lg shadow-lg shadow-amber-500/20">ج.م</div>
+                                                </div>
+                                                <p className="text-[11px] text-amber-900/60 font-bold leading-relaxed pr-2">
+                                                    إخفاء تنبيهات الديون التي تقل قيمتها عن هذا المبلغ من قائمة الإشعارات لتجنب الإزعاج بالمبالغ الزهيدة.
+                                                </p>
+                                            </div>
+
+                                            <div className="p-5 rounded-3xl bg-primary/5 border border-dashed border-primary/30 flex items-start gap-3">
+                                                <div className="h-2 w-2 rounded-full bg-primary mt-1.5 animate-pulse" />
+                                                <p className="text-xs font-bold leading-relaxed text-primary/80">
+                                                    ملاحظة: تفعيل خيار "تأكيد السداد" من الإشعارات يستخدم وسيلة الدفع "نقداً" (Cash) تلقائياً لتحقيق أقصى سرعة في التحصيل.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }
-

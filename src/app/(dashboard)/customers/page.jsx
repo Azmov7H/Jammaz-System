@@ -12,6 +12,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import {
     Dialog,
     DialogContent,
@@ -42,11 +44,24 @@ export default function CustomersPage() {
         priceType: 'retail',
         address: '',
         creditLimit: '',
-        notes: ''
+        notes: '',
+        financialTrackingEnabled: true,
+        collectionDay: 'None',
+        paymentTerms: 0
     });
 
     const resetForm = () => {
-        setFormData({ name: '', phone: '', priceType: 'retail', address: '', creditLimit: '', notes: '' });
+        setFormData({
+            name: '',
+            phone: '',
+            priceType: 'retail',
+            address: '',
+            creditLimit: '',
+            notes: '',
+            financialTrackingEnabled: true,
+            collectionDay: 'None',
+            paymentTerms: 0
+        });
         setSelectedCustomer(null);
     };
 
@@ -58,7 +73,10 @@ export default function CustomersPage() {
             priceType: customer.priceType || 'retail',
             address: customer.address || '',
             creditLimit: customer.creditLimit || '',
-            notes: customer.notes || ''
+            notes: customer.notes || '',
+            financialTrackingEnabled: customer.financialTrackingEnabled !== undefined ? customer.financialTrackingEnabled : true,
+            collectionDay: customer.collectionDay || 'None',
+            paymentTerms: customer.paymentTerms || 0
         });
         setIsEditOpen(true);
     };
@@ -321,6 +339,7 @@ export default function CustomersPage() {
                 if (!open) {
                     setIsAddOpen(false);
                     setIsEditOpen(false);
+                    resetForm();
                 }
             }}>
                 <DialogContent>
@@ -389,6 +408,58 @@ export default function CustomersPage() {
                                 value={formData.notes}
                                 onChange={e => setFormData({ ...formData, notes: e.target.value })}
                             />
+                        </div>
+
+                        <Separator />
+                        <div className="bg-primary/5 p-4 rounded-xl space-y-4 border border-primary/10">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-2">
+                                <Wallet size={14} /> التحكم في المديونية والتحصيل
+                            </h4>
+
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                    <Label className="text-sm">تفعيل التتبع المالي</Label>
+                                    <p className="text-[10px] text-muted-foreground">توليد إشعارات تحصيل لهذا العميل</p>
+                                </div>
+                                <Switch
+                                    checked={formData.financialTrackingEnabled}
+                                    onCheckedChange={checked => setFormData({ ...formData, financialTrackingEnabled: checked })}
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label className="text-xs">يوم التحصيل المفضل</Label>
+                                    <Select
+                                        value={formData.collectionDay}
+                                        onValueChange={val => setFormData({ ...formData, collectionDay: val })}
+                                    >
+                                        <SelectTrigger className="h-9 text-xs">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="None">غير محدد</SelectItem>
+                                            <SelectItem value="Saturday">السبت</SelectItem>
+                                            <SelectItem value="Sunday">الأحد</SelectItem>
+                                            <SelectItem value="Monday">الاثنين</SelectItem>
+                                            <SelectItem value="Tuesday">الثلاثاء</SelectItem>
+                                            <SelectItem value="Wednesday">الأربعاء</SelectItem>
+                                            <SelectItem value="Thursday">الخميس</SelectItem>
+                                            <SelectItem value="Friday">الجمعة</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-xs">فترة السداد الخاصة (يوم)</Label>
+                                    <Input
+                                        type="number"
+                                        className="h-9 text-xs"
+                                        value={formData.paymentTerms}
+                                        onChange={e => setFormData({ ...formData, paymentTerms: parseInt(e.target.value) || 0 })}
+                                        placeholder="0 = الافتراضي"
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         <DialogFooter>
