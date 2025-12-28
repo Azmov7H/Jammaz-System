@@ -34,10 +34,15 @@ export async function PUT(request, { params }) {
         const body = await request.json();
 
         // Separate stock fields from other data
-        const { stockQty, warehouseQty, shopQty, ...updateData } = body;
+        const { stockQty, warehouseQty, shopQty, sellPrice, ...updateData } = body;
 
         const currentProduct = await Product.findById(id);
         if (!currentProduct) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+
+        // Map sellPrice to retailPrice if provided
+        if (sellPrice !== undefined) {
+            updateData.retailPrice = Number(sellPrice);
+        }
 
         // Handle Stock Adjustments via Service if detected
         let newWarehouse = warehouseQty !== undefined ? Number(warehouseQty) : currentProduct.warehouseQty;

@@ -195,6 +195,29 @@ export const StockService = {
     },
 
     /**
+     * Register initial balance during system handover
+     */
+    async registerInitialBalance(productId, warehouseQty, shopQty, buyPrice, userId) {
+        const product = await Product.findById(productId);
+        if (!product) throw new Error('المنتج غير موجود');
+
+        // Log initial balance movement
+        const movement = await StockMovement.create({
+            productId,
+            type: 'INITIAL_BALANCE',
+            qty: (warehouseQty || 0) + (shopQty || 0),
+            note: `رصيد افتتاحي - تسليم النظام (التكلفة: ${buyPrice})`,
+            createdBy: userId,
+            snapshot: {
+                warehouseQty: warehouseQty || 0,
+                shopQty: shopQty || 0
+            }
+        });
+
+        return { product, movement };
+    },
+
+    /**
      * Adjust stock quantities (for inventory audits)
      */
     async adjustStock(productId, newWarehouseQty, newShopQty, reason, userId) {

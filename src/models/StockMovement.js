@@ -4,7 +4,7 @@ const StockMovementSchema = new mongoose.Schema({
     productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
     type: {
         type: String,
-        enum: ['IN', 'OUT', 'SALE', 'ADJUST', 'TRANSFER_TO_SHOP', 'TRANSFER_TO_WAREHOUSE'],
+        enum: ['IN', 'OUT', 'SALE', 'ADJUST', 'TRANSFER_TO_SHOP', 'TRANSFER_TO_WAREHOUSE', 'INITIAL_BALANCE'],
         required: true
     },
     qty: { type: Number, required: true }, // Always positive absolute value

@@ -51,6 +51,11 @@ const ProductSchema = new mongoose.Schema({
     warehouseQty: { type: Number, default: 0, min: 0 },
     shopQty: { type: Number, default: 0, min: 0 },
 
+    // Initial Setup (Handover)
+    openingWarehouseQty: { type: Number, default: 0 },
+    openingShopQty: { type: Number, default: 0 },
+    openingBuyPrice: { type: Number, default: 0 },
+
     minLevel: { type: Number, default: 5 },
 
     images: [String], // Cloudinary URLs
