@@ -150,7 +150,7 @@ export default function DailySalesPage() {
                             {summary.topProducts?.map((product, i) => (
                                 <div key={i} className="flex items-center justify-between border-b last:border-0 pb-2 last:pb-0">
                                     <div className="flex items-center gap-3">
-                                        <div className="bg-primary/10 text-primary w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
+                                        <div className="bg-primary/30 text-primary w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
                                             {i + 1}
                                         </div>
                                         <div>
