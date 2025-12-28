@@ -30,7 +30,8 @@ import {
     Image as ImageIcon,
     Sparkles,
     TrendingUp,
-    Zap
+    Zap,
+    AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
