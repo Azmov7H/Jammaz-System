@@ -1,20 +1,17 @@
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import dbConnect from '@/lib/db';
 import Product from '@/models/Product';
 import Supplier from '@/models/Supplier';
 import { getCurrentUser } from '@/lib/auth';
 import { hasPermission, getProductFilterInternal } from '@/lib/permissions';
 import { StockService } from '@/lib/services/stockService';
+import { CACHE_TAGS } from '@/lib/cache';
 
 export async function GET(request) {
-    // ... existing GET remains unchanged ...
     try {
         await dbConnect();
         const user = await getCurrentUser();
-        // Note: Public viewing might be allowed if no token, but let's assume login required for now based on middleware
-        // If user is null (public), we might return empty or restricted. Let's assume Viewer role if public validation fails but route is open? 
-        // Middleware protects /api, so user should exist if valid.
-
         const role = user?.role || 'viewer';
         const roleFilter = getProductFilterInternal(role);
 
@@ -25,7 +22,7 @@ export async function GET(request) {
         const limit = parseInt(searchParams.get('limit') || '10');
         const skip = (page - 1) * limit;
 
-        const query = { ...roleFilter }; // Apply Role Filter
+        const query = { ...roleFilter, isActive: { $ne: false } };
 
         if (search) {
             query.$or = [
@@ -38,16 +35,13 @@ export async function GET(request) {
             query.category = category;
         }
 
-        const products = await Product.find(query)
-            .populate('supplierId', 'name')
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit);
-
-        const total = await Product.countDocuments(query);
+        // Use cached full list and handle pagination for speed
+        const products = await Product.getAllCached(query);
+        const paginatedProducts = products.slice(skip, skip + limit);
+        const total = products.length;
 
         return NextResponse.json({
-            products,
+            products: paginatedProducts,
             pagination: {
                 total,
                 pages: Math.ceil(total / limit),
@@ -89,7 +83,7 @@ export async function POST(request) {
 
         const product = await Product.create({
             name, code,
-            retailPrice: Number(sellPrice), // sellPrice mapped to retailPrice
+            retailPrice: Number(sellPrice),
             buyPrice: Number(buyPrice),
             warehouseQty: finalWarehouse,
             shopQty: finalShop,
@@ -101,7 +95,7 @@ export async function POST(request) {
             minProfitMargin
         });
 
-        // Register initial balance in stock movements if any quantity exists
+        // Register initial balance
         if (totalStock > 0) {
             await StockService.registerInitialBalance(
                 product._id,
@@ -111,6 +105,9 @@ export async function POST(request) {
                 user.userId
             );
         }
+
+        // Revalidate products cache
+        revalidateTag(CACHE_TAGS.PRODUCTS);
 
         return NextResponse.json(product, { status: 201 });
     } catch (error) {

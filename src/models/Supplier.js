@@ -1,4 +1,6 @@
 import mongoose from 'mongoose';
+import { unstable_cache } from 'next/cache';
+import { CACHE_TAGS, CACHE_TIMES } from '@/lib/cache';
 
 const SupplierSchema = new mongoose.Schema({
     name: { type: String, required: true },
@@ -20,6 +22,38 @@ const SupplierSchema = new mongoose.Schema({
         default: 'None'
     },
     supplyTerms: { type: Number, default: 0 } // 0 means use global default
-});
+}, { timestamps: true });
+
+// Static methods with Caching
+SupplierSchema.statics.getAllCached = async function (filter = {}) {
+    const Model = this;
+    const filterKey = JSON.stringify(filter);
+    return unstable_cache(
+        async () => {
+            console.log(`Fetching suppliers from DB [Filter: ${filterKey}]`);
+            return Model.find(filter).sort({ name: 1 }).lean();
+        },
+        ['suppliers-list', filterKey],
+        {
+            tags: [CACHE_TAGS.SUPPLIERS],
+            revalidate: CACHE_TIMES.FREQUENT
+        }
+    )();
+};
+
+SupplierSchema.statics.getByIdCached = async function (id) {
+    const Model = this;
+    return unstable_cache(
+        async () => {
+            console.log(`Fetching supplier ${id} from DB`);
+            return Model.findById(id).lean();
+        },
+        ['supplier-detail', id],
+        {
+            tags: [CACHE_TAGS.SUPPLIERS, `supplier-${id}`],
+            revalidate: CACHE_TIMES.FREQUENT
+        }
+    )();
+};
 
 export default mongoose.models.Supplier || mongoose.model('Supplier', SupplierSchema);

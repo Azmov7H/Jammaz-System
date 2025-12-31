@@ -19,7 +19,13 @@ const PurchaseOrderSchema = new mongoose.Schema({
     receivedDate: Date,
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     notes: String,
-    paymentType: { type: String, enum: ['cash', 'credit', 'bank'], default: 'cash' }
+    paymentType: { type: String, enum: ['cash', 'credit', 'bank'], default: 'cash' },
+    paidAmount: { type: Number, default: 0 },
+    paymentStatus: {
+        type: String,
+        enum: ['pending', 'partial', 'paid'],
+        default: 'pending'
+    }
 }, { timestamps: true });
 
 // Performance Indices

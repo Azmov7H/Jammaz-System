@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import dbConnect from '@/lib/db';
-import Customer from '@/models/Customer'; // Ensuring we use the existing model
+import Customer from '@/models/Customer';
 import { getCurrentUser } from '@/lib/auth';
+import { CACHE_TAGS } from '@/lib/cache';
 
 export async function GET(request) {
     try {
@@ -16,6 +18,8 @@ export async function GET(request) {
         const { searchParams } = new URL(request.url);
         const search = searchParams.get('search');
         const limit = parseInt(searchParams.get('limit')) || 20;
+        const page = parseInt(searchParams.get('page') || '1');
+        const skip = (page - 1) * limit;
 
         const query = {};
         if (search) {
@@ -25,15 +29,20 @@ export async function GET(request) {
             ];
         }
 
-        // Active only by default, unless specified? Let's just show active for now.
-        // query.isActive = true; 
+        // Use cached method for speed
+        const customers = await Customer.getAllCached(query);
+        const paginatedCustomers = customers.slice(skip, skip + limit);
+        const total = customers.length;
 
-        const customers = await Customer.find(query)
-            .sort({ updatedAt: -1 })
-            .limit(limit)
-            .lean(); // Faster
-
-        return NextResponse.json(customers);
+        return NextResponse.json({
+            customers: paginatedCustomers,
+            pagination: {
+                total,
+                pages: Math.ceil(total / limit),
+                page,
+                limit
+            }
+        });
 
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
@@ -44,8 +53,6 @@ export async function POST(request) {
     try {
         await dbConnect();
 
-        // Security Check - Owner/Manager/Cashier can create?
-        // Let's restrict creation to Owner/Manager/Cashier
         const user = await getCurrentUser();
         if (!user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -77,6 +84,9 @@ export async function POST(request) {
             collectionDay: collectionDay || 'None',
             paymentTerms: paymentTerms || 0
         });
+
+        // Revalidate cache
+        revalidateTag(CACHE_TAGS.CUSTOMERS);
 
         return NextResponse.json(newCustomer, { status: 201 });
 

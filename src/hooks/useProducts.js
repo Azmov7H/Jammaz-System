@@ -36,12 +36,24 @@ export function useAddProduct() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: (data) => api.post('/api/products', data),
+        onMutate: async (newProduct) => {
+            await queryClient.cancelQueries({ queryKey: ['products'] });
+            const previousProducts = queryClient.getQueryData(['products']);
+            queryClient.setQueryData(['products', {}], (old) => [
+                { ...newProduct, _id: 'temp-id-' + Date.now(), isOptimistic: true },
+                ...(old || [])
+            ]);
+            return { previousProducts };
+        },
+        onError: (err, newProduct, context) => {
+            queryClient.setQueryData(['products', {}], context.previousProducts);
+            toast.error(err.message || 'فشل إضافة المنتج');
+        },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['products'] });
             toast.success('تم إضافة المنتج بنجاح');
         },
-        onError: (err) => {
-            toast.error(err.message || 'فشل إضافة المنتج');
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
         }
     });
 }
@@ -50,12 +62,23 @@ export function useUpdateProduct() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: (data) => api.put(`/api/products/${data._id}`, data),
+        onMutate: async (updatedProduct) => {
+            await queryClient.cancelQueries({ queryKey: ['products'] });
+            const previousProducts = queryClient.getQueryData(['products']);
+            queryClient.setQueryData(['products', {}], (old) =>
+                old?.map((p) => (p._id === updatedProduct._id ? { ...p, ...updatedProduct } : p))
+            );
+            return { previousProducts };
+        },
+        onError: (err, updatedProduct, context) => {
+            queryClient.setQueryData(['products', {}], context.previousProducts);
+            toast.error(err.message || 'فشل تحديث المنتج');
+        },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['products'] });
             toast.success('تم تحديث المنتج بنجاح');
         },
-        onError: (err) => {
-            toast.error(err.message || 'فشل تحديث المنتج');
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
         }
     });
 }
@@ -64,12 +87,23 @@ export function useDeleteProduct() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: (id) => api.delete(`/api/products/${id}`),
+        onMutate: async (id) => {
+            await queryClient.cancelQueries({ queryKey: ['products'] });
+            const previousProducts = queryClient.getQueryData(['products']);
+            queryClient.setQueryData(['products', {}], (old) =>
+                old?.filter((p) => p._id !== id)
+            );
+            return { previousProducts };
+        },
+        onError: (err, id, context) => {
+            queryClient.setQueryData(['products', {}], context.previousProducts);
+            toast.error(err.message || 'فشل حذف المنتج');
+        },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['products'] });
             toast.success('تم حذف المنتج بنجاح');
         },
-        onError: (err) => {
-            toast.error(err.message || 'فشل حذف المنتج');
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
         }
     });
 }

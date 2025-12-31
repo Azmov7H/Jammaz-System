@@ -95,6 +95,12 @@ export const PhysicalInventoryService = {
                 if (update.reason) {
                     item.reason = update.reason;
                 }
+                if (update.justification) {
+                    item.justification = update.justification;
+                }
+                if (update.justificationReason) {
+                    item.justificationReason = update.justificationReason;
+                }
             }
         }
 

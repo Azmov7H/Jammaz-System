@@ -8,16 +8,22 @@ const NotificationSchema = new mongoose.Schema({
         enum: ['INFO', 'WARNING', 'SUCCESS', 'ERROR'],
         default: 'INFO'
     },
+    category: {
+        type: String,
+        enum: ['CRITICAL', 'OPPORTUNITY', 'INSIGHT', 'SYSTEM'],
+        default: 'SYSTEM'
+    },
     isRead: { type: Boolean, default: false },
-    link: String, // Optional link to navigate to (e.g., specific invoice)
+    link: String,
     actionType: {
         type: String,
-        enum: ['COLLECT_DEBT', 'PAY_SUPPLIER', null],
+        enum: ['COLLECT_DEBT', 'PAY_SUPPLIER', 'REORDER', 'OPTIMIZE_PRICE', 'VIEW_REPORT', null],
         default: null
     },
-    relatedId: mongoose.Schema.Types.ObjectId, // ID of Invoice or PO
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Optional: if null, it's a system-wide notification for admins/owners
-    createdAt: { type: Date, default: Date.now, expires: '30d' } // Auto-delete after 30 days
+    actionParams: { type: Object, default: {} }, // Custom params for actions
+    relatedId: mongoose.Schema.Types.ObjectId,
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    createdAt: { type: Date, default: Date.now, expires: '30d' }
 });
 
 export default mongoose.models.Notification || mongoose.model('Notification', NotificationSchema);

@@ -32,3 +32,32 @@ export async function GET(request) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+// Create manual entry
+export async function POST(request) {
+    try {
+        await dbConnect();
+        const body = await request.json();
+
+        // Basic validation
+        if (!body.amount || !body.debitAccount || !body.creditAccount || !body.type) {
+            return NextResponse.json(
+                { error: 'Missing required fields (amount, debitAccount, creditAccount, type)' },
+                { status: 400 }
+            );
+        }
+
+        const AccountingEntry = (await import('@/models/AccountingEntry')).default;
+
+        const entry = await AccountingEntry.createEntry({
+            ...body,
+            refType: 'Manual',
+            date: body.date || new Date()
+        });
+
+        return NextResponse.json({ success: true, entry });
+
+    } catch (error) {
+        console.error('Error creating accounting entry:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}

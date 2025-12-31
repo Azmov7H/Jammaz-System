@@ -11,8 +11,11 @@ export async function GET(request) {
         const user = await getCurrentUser();
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        // Auto-sync alerts before fetching
-        await NotificationService.syncAllAlerts();
+        // Trigger sync in the background (Non-blocking)
+        // This dramatically improves TTFB
+        NotificationService.syncAllAlerts().catch(err => {
+            console.error('Background Notification Sync Failed:', err);
+        });
 
         // Fetch notifications for this user OR system-wide (null userId)
         const notifications = await Notification.find({

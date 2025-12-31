@@ -103,8 +103,14 @@ export const FinanceService = {
 
         // 4. Treasury & Supplier Balance
         if (paymentType === 'cash') {
+            po.paidAmount = po.totalCost;
+            po.paymentStatus = 'paid';
+            await po.save();
             await TreasuryService.recordPurchaseExpense(po, userId);
         } else if (paymentType === 'credit' && po.supplier) {
+            po.paidAmount = 0;
+            po.paymentStatus = 'pending';
+            await po.save();
             const supplier = await Supplier.findById(po.supplier);
             if (supplier) {
                 supplier.balance = (supplier.balance || 0) + po.totalCost;
@@ -114,6 +120,37 @@ export const FinanceService = {
         }
 
         return po;
+    },
+
+    /**
+     * Helper: Update schedules after a payment
+     */
+    async updateSchedulesAfterPayment(entityId, entityType, amount) {
+        const PaymentSchedule = require('@/models/PaymentSchedule').default;
+
+        // Find pending schedules sorted by due date
+        const schedules = await PaymentSchedule.find({
+            entityId,
+            entityType,
+            status: 'PENDING'
+        }).sort({ dueDate: 1 });
+
+        let remaining = amount;
+
+        for (const schedule of schedules) {
+            if (remaining <= 0) break;
+
+            if (remaining >= schedule.amount) {
+                schedule.status = 'PAID';
+                schedule.paidAt = new Date();
+                await schedule.save();
+                remaining -= schedule.amount;
+            } else {
+                // Optional: Partial logic could go here, for now we skip
+                // or maybe create a new split schedule? 
+                // Let's keep it simple: only close full schedules.
+            }
+        }
     },
 
     /**
@@ -128,6 +165,9 @@ export const FinanceService = {
             if (customer) {
                 customer.balance -= amount;
                 await customer.save();
+
+                // Update Schedules
+                await this.updateSchedulesAfterPayment(invoice.customer, 'Customer', amount);
             }
         }
 
@@ -135,6 +175,46 @@ export const FinanceService = {
         await TreasuryService.recordPaymentCollection(invoice, amount, userId);
 
         return invoice;
+    },
+
+    /**
+     * Record a Supplier Payment (Paying debts)
+     */
+    async recordSupplierPayment(po, amount, method, note, userId) {
+        await dbConnect();
+
+        // Update PO payment status
+        po.paidAmount = (po.paidAmount || 0) + amount;
+        if (po.paidAmount >= po.totalCost) {
+            po.paymentStatus = 'paid';
+            po.paidAmount = po.totalCost;
+        } else {
+            po.paymentStatus = 'partial';
+        }
+        await po.save();
+
+        // Update Supplier Balance
+        if (po.supplier) {
+            const supplier = await Supplier.findById(po.supplier);
+            if (supplier) {
+                supplier.balance = Math.max(0, (supplier.balance || 0) - amount);
+                await supplier.save();
+
+                // Update Schedules
+                await this.updateSchedulesAfterPayment(po.supplier, 'Supplier', amount);
+            }
+        }
+
+        // Record in Treasury & Accounting
+        await TreasuryService.recordPurchaseExpense({
+            ...po.toObject(),
+            totalCost: amount, // Record only this payment amount
+            notes: `سداد جزء من أمر شراء #${po.poNumber}. ${note}`
+        }, userId);
+
+        await AccountingService.createSupplierPaymentEntries(po, amount, userId);
+
+        return po;
     },
 
     /**

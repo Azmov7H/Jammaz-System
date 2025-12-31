@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import dbConnect from '@/lib/db';
 import Customer from '@/models/Customer';
 import { getCurrentUser } from '@/lib/auth';
+import { CACHE_TAGS } from '@/lib/cache';
 
 export async function GET(request, { params }) {
     try {
         await dbConnect();
-        const { id } = await params; // Await params in Next.js 15+ (if applicable, but good practice here too if this version requires it, though 16 usually does)
-        // Checking next version in package.json: it was ^16.0.10. Yes, params should be awaited or treated carefully in newer versions.
+        const { id } = await params;
 
-        const customer = await Customer.findById(id).lean();
+        // Use cached method for speed
+        const customer = await Customer.getByIdCached(id);
         if (!customer) {
             return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
         }
@@ -43,9 +45,12 @@ export async function PUT(request, { params }) {
             return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
         }
 
+        // Revalidate cache
+        revalidateTag(CACHE_TAGS.CUSTOMERS);
+        revalidateTag(`customer-${id}`);
+
         return NextResponse.json(updatedCustomer);
     } catch (error) {
-        // Handle unique phone error duplication
         if (error.code === 11000) {
             return NextResponse.json({ error: 'رقم الهاتف مستخدم بالفعل' }, { status: 400 });
         }
@@ -57,16 +62,12 @@ export async function DELETE(request, { params }) {
     try {
         await dbConnect();
         const user = await getCurrentUser();
-        // Only Owner/Manager can delete
         if (!user || (user.role !== 'owner' && user.role !== 'manager')) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
         const { id } = await params;
 
-        // Check for dependencies (Invoices)
-        // We assume soft delete is safer, but user asked for logic.
-        // Let's check balance. If balance != 0, cannot delete.
         const customer = await Customer.findById(id);
         if (!customer) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -74,9 +75,12 @@ export async function DELETE(request, { params }) {
             return NextResponse.json({ error: 'لا يمكن حذف عميل لديه رصيد مالي (مدين/دائن)' }, { status: 400 });
         }
 
-        // Hard delete or Soft delete? Using Soft Delete logic based on model isActive field
         customer.isActive = false;
         await customer.save();
+
+        // Revalidate cache
+        revalidateTag(CACHE_TAGS.CUSTOMERS);
+        revalidateTag(`customer-${id}`);
 
         return NextResponse.json({ message: 'Customer deactivated successfully' });
     } catch (error) {
