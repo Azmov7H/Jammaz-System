@@ -42,7 +42,13 @@ const PhysicalInventorySchema = new mongoose.Schema({
         }, // actualQty - systemQty
         buyPrice: Number, // Snapshot for value calculation
         value: Number, // difference * buyPrice
-        reason: String
+        reason: String,
+        justification: String,
+        justificationReason: {
+            type: String,
+            enum: ['damage', 'expired', 'theft', 'data_error', 'other', null],
+            default: null
+        }
     }],
     totalShortage: {
         type: Number,

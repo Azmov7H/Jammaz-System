@@ -1,4 +1,6 @@
 import mongoose from 'mongoose';
+import { unstable_cache } from 'next/cache';
+import { CACHE_TAGS, CACHE_TIMES } from '@/lib/cache';
 
 const CustomerSchema = new mongoose.Schema({
     name: { type: String, required: true },
@@ -60,6 +62,38 @@ CustomerSchema.index({ name: 'text', phone: 'text' });
 CustomerSchema.index({ priceType: 1 });
 CustomerSchema.index({ balance: 1 });
 CustomerSchema.index({ 'customPricing.productId': 1 });
+
+// Static methods with Caching
+CustomerSchema.statics.getAllCached = async function (filter = {}) {
+    const Model = this;
+    const filterKey = JSON.stringify(filter);
+    return unstable_cache(
+        async () => {
+            console.log(`Fetching customers from DB [Filter: ${filterKey}]`);
+            return Model.find(filter).sort({ name: 1 }).lean();
+        },
+        ['customers-list', filterKey],
+        {
+            tags: [CACHE_TAGS.CUSTOMERS],
+            revalidate: CACHE_TIMES.FREQUENT
+        }
+    )();
+};
+
+CustomerSchema.statics.getByIdCached = async function (id) {
+    const Model = this;
+    return unstable_cache(
+        async () => {
+            console.log(`Fetching customer ${id} from DB`);
+            return Model.findById(id).lean();
+        },
+        ['customer-detail', id],
+        {
+            tags: [CACHE_TAGS.CUSTOMERS, `customer-${id}`],
+            revalidate: CACHE_TIMES.FREQUENT
+        }
+    )();
+};
 
 // Method to get price for a product
 CustomerSchema.methods.getPriceForProduct = function (productId) {

@@ -1,4 +1,6 @@
 import mongoose from 'mongoose';
+import { unstable_cache } from 'next/cache';
+import { CACHE_TAGS, CACHE_TIMES } from '@/lib/cache';
 
 const InvoiceSettingsSchema = new mongoose.Schema({
     // Company Information
@@ -111,13 +113,29 @@ const InvoiceSettingsSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-// Singleton pattern - only one settings document
-InvoiceSettingsSchema.statics.getSettings = async function () {
+// Original static method for internal use or server-side without cache
+InvoiceSettingsSchema.statics.getSettingsBase = async function () {
     let settings = await this.findOne({ isActive: true });
     if (!settings) {
         settings = await this.create({});
     }
     return settings;
+};
+
+// Singleton pattern - with Next.js unstable_cache
+InvoiceSettingsSchema.statics.getSettings = async function () {
+    const Model = this;
+    return unstable_cache(
+        async () => {
+            console.log('Fetching InvoiceSettings from DB (Cache Miss)');
+            return Model.getSettingsBase();
+        },
+        ['invoice-settings'],
+        {
+            tags: [CACHE_TAGS.SETTINGS],
+            revalidate: CACHE_TIMES.STATIC
+        }
+    )();
 };
 
 export default mongoose.models.InvoiceSettings || mongoose.model('InvoiceSettings', InvoiceSettingsSchema);

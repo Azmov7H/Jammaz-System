@@ -176,6 +176,28 @@ export const AccountingService = {
     },
 
     /**
+     * Create accounting entries for paying supplier debt
+     */
+    async createSupplierPaymentEntries(purchaseOrder, amount, userId, date = new Date()) {
+        await dbConnect();
+
+        // Debit Payables, Credit Cash/Bank
+        const creditAccount = purchaseOrder.paymentType === 'bank' ? ACCOUNTS.BANK : ACCOUNTS.CASH;
+
+        return await AccountingEntry.createEntry({
+            type: 'PAYMENT',
+            debitAccount: ACCOUNTS.PAYABLES,
+            creditAccount: creditAccount,
+            amount: amount,
+            description: `سداد مورد - أمر ${purchaseOrder.poNumber}`,
+            refType: 'PurchaseOrder',
+            refId: purchaseOrder._id,
+            userId,
+            date
+        });
+    },
+
+    /**
      * Create accounting entries for physical inventory adjustments
      */
     async createInventoryAdjustmentEntries(physicalInventory, userId) {

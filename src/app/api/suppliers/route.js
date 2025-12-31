@@ -1,15 +1,17 @@
-
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import dbConnect from '@/lib/db';
 import Supplier from '@/models/Supplier';
 import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
+import { CACHE_TAGS } from '@/lib/cache';
 
 // GET: List all suppliers
 export async function GET() {
     try {
         await dbConnect();
-        const suppliers = await Supplier.find({}).sort({ _id: -1 });
+        // Use cached method for speed
+        const suppliers = await Supplier.getAllCached({});
         return NextResponse.json(suppliers);
     } catch (error) {
         return NextResponse.json({ error: 'Failed to fetch suppliers' }, { status: 500 });
@@ -36,6 +38,10 @@ export async function POST(req) {
             paymentDay: paymentDay || 'None',
             supplyTerms: supplyTerms || 0
         });
+
+        // Revalidate cache
+        revalidateTag(CACHE_TAGS.SUPPLIERS);
+
         return NextResponse.json(newSupplier, { status: 201 });
     } catch (error) {
         return NextResponse.json({ error: 'Failed to create supplier' }, { status: 500 });
@@ -46,7 +52,11 @@ export async function POST(req) {
 export async function PUT(req) {
     try {
         await dbConnect();
-        // Check auth if needed
+
+        const cookieStore = await cookies();
+        const token = cookieStore.get('token')?.value;
+        if (!verifyToken(token)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const body = await req.json();
         const { _id, name, phone, address, email, financialTrackingEnabled, paymentDay, supplyTerms } = body;
 
@@ -57,6 +67,10 @@ export async function PUT(req) {
             { name, phone, address, email, financialTrackingEnabled, paymentDay, supplyTerms },
             { new: true }
         );
+
+        // Revalidate cache
+        revalidateTag(CACHE_TAGS.SUPPLIERS);
+        revalidateTag(`supplier-${_id}`);
 
         return NextResponse.json(updatedSupplier);
     } catch (error) {

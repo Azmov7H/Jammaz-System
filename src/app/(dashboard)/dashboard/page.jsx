@@ -17,6 +17,43 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import dynamic from 'next/dynamic';
+
+// Heavy sections lazily loaded to improve FCP
+const LowStockTable = dynamic(() => Promise.resolve(({ products }) => (
+    <div className="overflow-x-auto">
+        <table className="w-full">
+            <thead className="bg-muted/50 border-b">
+                <tr>
+                    <th className="px-4 py-3 text-right text-sm font-semibold">المنتج</th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold">المحل</th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold">المخزن</th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold">الإجمالي</th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold">الحد الأدنى</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y">
+                {products.map((product) => (
+                    <tr key={product._id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3">
+                            <div>
+                                <p className="font-medium">{product.name}</p>
+                                <p className="text-xs text-muted-foreground font-mono">{product.code}</p>
+                            </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">{product.shopQty}</td>
+                        <td className="px-4 py-3 text-center">{product.warehouseQty}</td>
+                        <td className="px-4 py-3 text-center font-bold text-destructive">{product.stockQty}</td>
+                        <td className="px-4 py-3 text-center text-muted-foreground">{product.minLevel}</td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    </div>
+)), {
+    loading: () => <div className="h-40 flex items-center justify-center"><Loader2 className="animate-spin" /></div>,
+    ssr: false
+});
 
 export default function DashboardPage() {
     // Fetch real KPIs from API
@@ -286,35 +323,7 @@ export default function DashboardPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead className="bg-muted/50 border-b">
-                                    <tr>
-                                        <th className="px-4 py-3 text-right text-sm font-semibold">المنتج</th>
-                                        <th className="px-4 py-3 text-center text-sm font-semibold">المحل</th>
-                                        <th className="px-4 py-3 text-center text-sm font-semibold">المخزن</th>
-                                        <th className="px-4 py-3 text-center text-sm font-semibold">الإجمالي</th>
-                                        <th className="px-4 py-3 text-center text-sm font-semibold">الحد الأدنى</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y">
-                                    {lowStockProducts.map((product) => (
-                                        <tr key={product._id} className="hover:bg-muted/30 transition-colors">
-                                            <td className="px-4 py-3">
-                                                <div>
-                                                    <p className="font-medium">{product.name}</p>
-                                                    <p className="text-xs text-muted-foreground font-mono">{product.code}</p>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3 text-center">{product.shopQty}</td>
-                                            <td className="px-4 py-3 text-center">{product.warehouseQty}</td>
-                                            <td className="px-4 py-3 text-center font-bold text-destructive">{product.stockQty}</td>
-                                            <td className="px-4 py-3 text-center text-muted-foreground">{product.minLevel}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                        <LowStockTable products={lowStockProducts} />
                     </CardContent>
                 </Card>
             )}

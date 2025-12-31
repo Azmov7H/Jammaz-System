@@ -1,13 +1,35 @@
 export async function fetcher(url, options = {}) {
+    const {
+        cache = 'default',
+        revalidate = undefined,
+        tags = [],
+        ...fetchOptions
+    } = options;
+
     const defaultHeaders = {
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-        'Pragma': 'no-cache'
+        'Content-Type': 'application/json',
     };
 
-    // Merge headers if options.headers exists
+    // If cache is explicitly disabled, set headers accordingly
+    if (cache === 'no-store' || revalidate === 0) {
+        defaultHeaders['Cache-Control'] = 'no-store, no-cache, must-revalidate';
+        defaultHeaders['Pragma'] = 'no-cache';
+    }
+
     const headers = { ...defaultHeaders, ...(options.headers || {}) };
 
-    const res = await fetch(url, { ...options, headers, cache: 'no-store', next: { revalidate: 0 } });
+    const config = {
+        ...fetchOptions,
+        headers,
+        cache,
+        next: {
+            revalidate,
+            tags,
+            ...(fetchOptions.next || {})
+        }
+    };
+
+    const res = await fetch(url, config);
     if (!res.ok) {
         const errorBody = await res.json().catch(() => ({}));
         const error = new Error(errorBody.error || 'API Request Failed');
@@ -18,16 +40,16 @@ export async function fetcher(url, options = {}) {
 }
 
 export const api = {
-    get: (url) => fetcher(url),
-    post: (url, body) => fetcher(url, {
+    get: (url, options = {}) => fetcher(url, { ...options, method: 'GET' }),
+    post: (url, body, options = {}) => fetcher(url, {
+        ...options,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     }),
-    put: (url, body) => fetcher(url, {
+    put: (url, body, options = {}) => fetcher(url, {
+        ...options,
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     }),
-    delete: (url) => fetcher(url, { method: 'DELETE' }),
+    delete: (url, options = {}) => fetcher(url, { ...options, method: 'DELETE' }),
 };

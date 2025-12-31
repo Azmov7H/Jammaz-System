@@ -18,14 +18,15 @@ export async function GET() {
         // Let's ensure no error occurs if collections are empty.
 
 
-        // Parallelize queries for performance
+        // Parallelize all queries for maximum performance
         const [
             productsCount,
             lowStockCount,
             invoicesCount,
             totalSalesResult,
             recentInvoices,
-            topSellingProducts
+            topSellingProducts,
+            monthlySales
         ] = await Promise.all([
             Product.countDocuments(),
             Product.countDocuments({ $expr: { $lte: ["$stockQty", "$minLevel"] } }),
@@ -34,8 +35,6 @@ export async function GET() {
                 { $group: { _id: null, total: { $sum: "$total" } } }
             ]),
             Invoice.find().sort({ createdAt: -1 }).limit(5).populate('createdBy', 'name'),
-            // Simple top selling based on stock movement OUT type. 
-            // Better approach: Aggregate Invoice Items. For now, we can aggregate StockMovement type 'OUT_SALE'
             StockMovement.aggregate([
                 { $match: { type: 'OUT_SALE' } },
                 { $group: { _id: "$productId", totalQty: { $sum: "$quantity" } } },
@@ -44,25 +43,23 @@ export async function GET() {
                 { $lookup: { from: "products", localField: "_id", foreignField: "_id", as: "product" } },
                 { $unwind: "$product" },
                 { $project: { name: "$product.name", totalQty: 1 } }
-            ])
-        ]);
-
-        // Monthly Sales Aggregation (Last 6 months)
-        const monthlySales = await Invoice.aggregate([
-            {
-                $match: {
-                    date: {
-                        $gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
+            ]),
+            Invoice.aggregate([
+                {
+                    $match: {
+                        date: {
+                            $gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
+                        }
                     }
-                }
-            },
-            {
-                $group: {
-                    _id: { $month: "$date" },
-                    sales: { $sum: "$total" }
-                }
-            },
-            { $sort: { "_id": 1 } }
+                },
+                {
+                    $group: {
+                        _id: { $month: "$date" },
+                        sales: { $sum: "$total" }
+                    }
+                },
+                { $sort: { "_id": 1 } }
+            ])
         ]);
 
         // Format monthly sales for Chart (0-12 to Month Names)

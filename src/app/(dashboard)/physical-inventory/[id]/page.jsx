@@ -1,5 +1,6 @@
 'use client';
 
+
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -34,7 +35,11 @@ import {
     Eye,
     EyeOff,
     Lock,
-    Unlock
+    Unlock,
+    X,
+    RefreshCw,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -54,7 +59,9 @@ import { use } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
-export default function PhysicalInventoryDetailPage({ params }) {
+import { Suspense } from 'react';
+
+function InternalPhysicalInventoryDetailPage({ params }) {
     const router = useRouter();
     const queryClient = useQueryClient();
     const { id } = use(params);
@@ -66,7 +73,21 @@ export default function PhysicalInventoryDetailPage({ params }) {
     const [lastScanned, setLastScanned] = useState(null);
     const [unlockPassword, setUnlockPassword] = useState('');
     const [isUnlockDialogOpen, setIsUnlockDialogOpen] = useState(false);
+    const [focusMode, setFocusMode] = useState(false);
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [justifyingItem, setJustifyingItem] = useState(null);
+    const [movementsSinceSnapshot, setMovementsSinceSnapshot] = useState({});
     const scannerInputRef = useRef(null);
+    const scrollRef = useRef(null);
+
+    // Audio effects simulation
+    const playSuccessSound = () => {
+        // In a real app, we'd use new Audio('/sounds/success.mp3').play()
+        console.log('Success Sound');
+    };
+    const playErrorSound = () => {
+        console.log('Error Sound');
+    };
 
     // Fetch Count Data
     const { data: count, isLoading, error } = useQuery({
@@ -85,8 +106,18 @@ export default function PhysicalInventoryDetailPage({ params }) {
         if (count) {
             setLocalItems(count.items);
             setHasUnsavedChanges(false);
+
+            // Fetch movements since snapshot
+            const fetchRecentMovements = async () => {
+                try {
+                    const res = await fetch(`/api/physical-inventory/${id}/recent-movements`);
+                    const data = await res.json();
+                    if (data.movements) setMovementsSinceSnapshot(data.movements);
+                } catch (e) { console.error(e); }
+            };
+            fetchRecentMovements();
         }
-    }, [count]);
+    }, [count, id]);
 
     // Save Changes Mutation
     const saveMutation = useMutation({
@@ -151,7 +182,7 @@ export default function PhysicalInventoryDetailPage({ params }) {
     });
 
     // Handle quantity change
-    const handleQuantityChange = (productId, newQty) => {
+    const handleQuantityChange = (productId, newQty, justificationData = null) => {
         const qty = parseFloat(newQty) || 0;
         setLocalItems(prev => prev.map(item => {
             if (item.productId._id === productId) {
@@ -160,12 +191,18 @@ export default function PhysicalInventoryDetailPage({ params }) {
                     ...item,
                     actualQty: qty,
                     difference: diff,
-                    value: diff * (item.buyPrice || 0)
+                    value: diff * (item.buyPrice || 0),
+                    ...justificationData
                 };
             }
             return item;
         }));
         setHasUnsavedChanges(true);
+        if (justificationData) setJustifyingItem(null);
+    };
+
+    const openJustification = (item) => {
+        setJustifyingItem(item);
     };
 
     // Handle Barcode Scan
@@ -334,6 +371,16 @@ export default function PhysicalInventoryDetailPage({ params }) {
                             <Button
                                 variant="outline"
                                 size="lg"
+                                onClick={() => setFocusMode(true)}
+                                className="h-14 px-8 rounded-2xl border-primary/20 hover:border-primary/40 hover:bg-primary/5 font-black text-primary flex-1 lg:flex-none"
+                            >
+                                <Zap className="ml-2 h-4 w-4 fill-primary/20" />
+                                وضع التركيز (Wizard)
+                            </Button>
+
+                            <Button
+                                variant="outline"
+                                size="lg"
                                 onClick={() => {
                                     if (isCompleted) {
                                         toast.error('لا يمكن تعديل جرد مكتمل');
@@ -392,19 +439,43 @@ export default function PhysicalInventoryDetailPage({ params }) {
             {/* Smart Stats Dashboard */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
-                    { label: 'إجمالي الأصناف', value: localItems.length, icon: FileText, color: 'primary' },
                     {
-                        label: 'أصناف بها فروقات',
-                        value: isBlind ? '---' : discrepancies.count,
+                        label: 'تقدم الجرد',
+                        value: `${Math.round(localItems.filter(i => i.actualQty > 0 || i.justificationReason).length / localItems.length * 100)}%`,
                         icon: Activity,
-                        color: isBlind ? 'primary' : (discrepancies.count > 0 ? 'rose' : 'emerald'),
+                        color: 'primary',
+                        customContent: (
+                            <div className="relative h-16 w-16 mx-auto">
+                                <svg className="h-full w-full" viewBox="0 0 36 36">
+                                    <path className="stroke-muted fill-none" strokeWidth="3" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    <motion.path
+                                        className="stroke-primary fill-none"
+                                        strokeWidth="3"
+                                        strokeDasharray={`${Math.round(localItems.filter(i => i.actualQty > 0 || i.justificationReason).length / localItems.length * 100)}, 100`}
+                                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                        initial={{ pathLength: 0 }}
+                                        animate={{ pathLength: 1 }}
+                                    />
+                                </svg>
+                                <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black">
+                                    {Math.round(localItems.filter(i => i.actualQty > 0 || i.justificationReason).length / localItems.length * 100)}%
+                                </div>
+                            </div>
+                        )
+                    },
+                    {
+                        label: 'معدل المطابقة',
+                        value: isBlind ? '---' : `${Math.round((localItems.length - discrepancies.count) / localItems.length * 100)}%`,
+                        icon: Zap,
+                        color: isBlind ? 'primary' : (discrepancies.count > 0 ? 'amber' : 'emerald'),
                         sub: isBlind ? 'مخفي في وضع الجرد الأعمى' : `${discrepancies.count} صنف غير مطابق`
                     },
                     {
-                        label: 'المطابقة الحالية',
-                        value: isBlind ? '---' : `${Math.round((localItems.length - discrepancies.count) / localItems.length * 100)}%`,
-                        icon: Zap,
-                        color: isBlind ? 'primary' : 'amber'
+                        label: 'الأصناف المتأثرة',
+                        value: isBlind ? '---' : discrepancies.count,
+                        icon: AlertTriangle,
+                        color: isBlind ? 'primary' : 'rose',
+                        sub: 'بحاجة لتبرير أو مراجعة'
                     },
                     {
                         label: 'الأثر المالي المتوقع',
@@ -433,10 +504,14 @@ export default function PhysicalInventoryDetailPage({ params }) {
                                     <Badge variant="outline" className="text-[10px] font-black uppercase opacity-60">Insight</Badge>
                                 </div>
                                 <h3 className="text-sm font-bold text-muted-foreground">{stat.label}</h3>
-                                <div className="flex items-baseline gap-2 mt-1">
-                                    <span className="text-3xl font-black tracking-tighter">{stat.value}</span>
-                                    {stat.symbol && <span className="text-sm font-black text-muted-foreground">{stat.symbol}</span>}
-                                </div>
+                                {stat.customContent ? (
+                                    <div className="mt-2">{stat.customContent}</div>
+                                ) : (
+                                    <div className="flex items-baseline gap-2 mt-1">
+                                        <span className="text-3xl font-black tracking-tighter">{stat.value}</span>
+                                        {stat.symbol && <span className="text-sm font-black text-muted-foreground">{stat.symbol}</span>}
+                                    </div>
+                                )}
                                 {stat.sub && <p className="text-[10px] font-bold mt-2 text-muted-foreground/60">{stat.sub}</p>}
                             </CardContent>
                         </Card>
@@ -548,14 +623,15 @@ export default function PhysicalInventoryDetailPage({ params }) {
                                 <AnimatePresence mode="popLayout">
                                     {filteredItems.map((item, index) => (
                                         <motion.tr
-                                            key={item.productId._id}
+                                            key={index}
                                             layout
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             transition={{ delay: Math.min(index * 0.05, 1) }}
                                             className={cn(
                                                 "border-b border-muted/20 hover:bg-muted/5 transition-colors group",
-                                                !isBlind && item.difference !== 0 ? 'bg-rose-500/[0.02]' : ''
+                                                !isBlind && item.difference !== 0 ? 'bg-rose-500/[0.02]' : '',
+                                                (item.productId && movementsSinceSnapshot[item.productId._id]) ? 'bg-amber-500/[0.03]' : ''
                                             )}
                                         >
                                             <TableCell className="py-6 pr-8">
@@ -563,8 +639,16 @@ export default function PhysicalInventoryDetailPage({ params }) {
                                                     <div className="h-10 w-10 rounded-xl bg-muted/50 flex items-center justify-center font-black text-xs text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
                                                         {index + 1}
                                                     </div>
-                                                    <div>
-                                                        <div className="font-black text-base">{item.productName}</div>
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="font-black text-base">{item.productName}</div>
+                                                            {movementsSinceSnapshot[index] && (
+                                                                <Badge className="bg-amber-500 text-white text-[9px] px-1.5 py-0 border-0 flex items-center gap-1">
+                                                                    <RefreshCw size={8} className="animate-spin" />
+                                                                    حركة مؤخراً
+                                                                </Badge>
+                                                            )}
+                                                        </div>
                                                         <div className="text-xs font-bold text-muted-foreground flex items-center gap-2 mt-1">
                                                             <Badge variant="secondary" className="px-2 py-0 h-4 text-[10px] font-black rounded-sm">{item.productCode}</Badge>
                                                         </div>
@@ -582,7 +666,7 @@ export default function PhysicalInventoryDetailPage({ params }) {
                                             </TableCell>
 
                                             <TableCell className="text-center">
-                                                <div className="flex justify-center">
+                                                <div className="flex justify-center items-center gap-2">
                                                     {isCompleted ? (
                                                         <Badge className="h-10 px-6 rounded-xl bg-muted text-muted-foreground border-0 font-black text-lg">
                                                             {item.actualQty}
@@ -600,6 +684,16 @@ export default function PhysicalInventoryDetailPage({ params }) {
                                                                         : 'border-transparent bg-muted/40'
                                                                 )}
                                                             />
+                                                            {Math.abs(item.difference) > (item.systemQty * 0.2) && !item.justificationReason && (
+                                                                <Button
+                                                                    size="icon"
+                                                                    variant="ghost"
+                                                                    onClick={() => openJustification(item)}
+                                                                    className="absolute -left-10 text-rose-500 animate-pulse"
+                                                                >
+                                                                    <AlertTriangle size={20} />
+                                                                </Button>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
@@ -635,6 +729,11 @@ export default function PhysicalInventoryDetailPage({ params }) {
                                                                     <CheckCircle size={12} className="ml-1" />
                                                                     مطابق
                                                                 </Badge>
+                                                            )}
+                                                            {item.justificationReason && (
+                                                                <span className="text-[10px] font-bold text-muted-foreground/50">
+                                                                    تم التبرير: {item.justificationReason}
+                                                                </span>
                                                             )}
                                                         </>
                                                     )}
@@ -697,6 +796,261 @@ export default function PhysicalInventoryDetailPage({ params }) {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Justification Dialog */}
+            <AlertDialog open={!!justifyingItem} onOpenChange={() => setJustifyingItem(null)}>
+                <AlertDialogContent className="rounded-[2.5rem] border-0 glass-card max-w-lg">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-2xl font-black flex items-center gap-3">
+                            <div className="h-12 w-12 rounded-2xl bg-rose-500/10 flex items-center justify-center">
+                                <AlertTriangle className="text-rose-600 w-6 h-6" />
+                            </div>
+                            تبرير فرق الجرد
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-base font-bold text-muted-foreground">
+                            هناك فرق كبير الملاحظ للصنف: <span className="text-foreground">{justifyingItem?.productName}</span>. يرجى تقديم تبرير لهذا الفرق.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    <div className="space-y-6 pt-4">
+                        <div className="space-y-3">
+                            <Label className="font-black text-sm">سبب الفرق</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {[
+                                    { id: 'damage', label: 'تلف / كسر', icon: Trash2 },
+                                    { id: 'expired', label: 'تاريخ منتهى', icon: History },
+                                    { id: 'theft', label: 'عجز / سرقة', icon: AlertTriangle },
+                                    { id: 'data_error', label: 'خطأ إدخال سابق', icon: FileText },
+                                    { id: 'other', label: 'أخرى', icon: Zap }
+                                ].map((reason) => (
+                                    <Button
+                                        key={reason.id}
+                                        variant="outline"
+                                        onClick={() => {
+                                            handleQuantityChange(justifyingItem.productId._id, justifyingItem.actualQty, { justificationReason: reason.id });
+                                        }}
+                                        className={cn(
+                                            "h-12 rounded-xl border-2 font-bold gap-2",
+                                            justifyingItem?.justificationReason === reason.id ? "border-primary bg-primary/5" : "border-transparent bg-muted/30"
+                                        )}
+                                    >
+                                        <reason.icon size={14} className="text-primary" />
+                                        {reason.label}
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <Label className="font-black text-sm">ملاحظات إضافية</Label>
+                            <Input
+                                placeholder="اكتب تفاصيل التبرير هنا..."
+                                value={justifyingItem?.justification || ''}
+                                onChange={(e) => {
+                                    handleQuantityChange(justifyingItem.productId._id, justifyingItem.actualQty, { justification: e.target.value });
+                                }}
+                                className="h-14 rounded-2xl bg-muted/40 border-0 font-medium"
+                            />
+                        </div>
+                    </div>
+
+                    <AlertDialogFooter className="pt-6">
+                        <Button
+                            onClick={() => setJustifyingItem(null)}
+                            className="w-full h-14 rounded-2xl gradient-primary font-black"
+                        >
+                            حفظ التبرير والعودة
+                        </Button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Focus Mode Overlay */}
+            <AnimatePresence>
+                {focusMode && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-xl flex flex-col"
+                    >
+                        {/* Header */}
+                        <div className="p-8 border-b border-white/10 flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => setFocusMode(false)}
+                                    className="h-12 w-12 rounded-2xl bg-muted/50"
+                                >
+                                    <X className="h-6 w-6" />
+                                </Button>
+                                <div>
+                                    <h2 className="text-2xl font-black">وضع التركيز للجرد</h2>
+                                    <p className="text-sm font-bold text-muted-foreground">جاري عد الصنف {currentIndex + 1} من {localItems.length}</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-6">
+                                <div className="flex flex-col items-center">
+                                    <div className="h-12 w-48 bg-muted/50 rounded-full overflow-hidden relative">
+                                        <motion.div
+                                            className="absolute inset-y-0 left-0 bg-primary"
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${((currentIndex + 1) / localItems.length) * 100}%` }}
+                                        />
+                                        <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-white mix-blend-difference">
+                                            {Math.round(((currentIndex + 1) / localItems.length) * 100)}% COMPLETE
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 flex items-center justify-center p-8">
+                            <div className="max-w-4xl w-full">
+                                {localItems[currentIndex] && (
+                                    <motion.div
+                                        key={currentIndex}
+                                        initial={{ opacity: 0, x: 50 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -50 }}
+                                        className="space-y-12"
+                                    >
+                                        <div className="text-center space-y-4">
+                                            <Badge className="h-8 px-6 rounded-full bg-primary/10 text-primary font-black text-sm border-0">
+                                                {localItems[currentIndex].productCode}
+                                            </Badge>
+                                            <h1 className="text-6xl font-black tracking-tight leading-tight">
+                                                {localItems[currentIndex].productName}
+                                            </h1>
+                                            {movementsSinceSnapshot[localItems[currentIndex].productId._id] && (
+                                                <div className="flex items-center justify-center gap-2 text-amber-500 font-extrabold animate-pulse">
+                                                    <RefreshCw size={24} className="animate-spin" />
+                                                    تنبيه: تم بيع أو نقل كميات من هذا الصنف أثناء الجرد!
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-8">
+                                            <Card className="glass-card border-0 rounded-[3rem] p-12 text-center">
+                                                <p className="text-sm font-black text-muted-foreground uppercase tracking-widest mb-4">كمية النظام</p>
+                                                <p className={cn(
+                                                    "text-8xl font-black tabular-nums tracking-tighter",
+                                                    isBlind ? "blur-2xl opacity-10" : "text-primary/40"
+                                                )}>
+                                                    {isBlind ? '888' : localItems[currentIndex].systemQty}
+                                                </p>
+                                            </Card>
+
+                                            <Card className="glass-card border-4 border-primary/20 rounded-[3rem] p-12 text-center shadow-2xl shadow-primary/20">
+                                                <p className="text-sm font-black text-primary uppercase tracking-widest mb-4">الكمية الفعلية</p>
+                                                <div className="relative">
+                                                    <Input
+                                                        type="number"
+                                                        autoFocus
+                                                        value={localItems[currentIndex].actualQty || ''}
+                                                        onChange={(e) => handleQuantityChange(localItems[currentIndex].productId._id, e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                if (currentIndex < localItems.length - 1) {
+                                                                    setCurrentIndex(prev => prev + 1);
+                                                                    playSuccessSound();
+                                                                } else {
+                                                                    setFocusMode(false);
+                                                                    toast.success('تم الانتهاء من جميع الأصناف');
+                                                                }
+                                                            }
+                                                        }}
+                                                        className="h-40 border-0 bg-transparent text-center text-[10rem] font-black tabular-nums focus:ring-0"
+                                                    />
+                                                    {Math.abs(localItems[currentIndex].difference) > (localItems[currentIndex].systemQty * 0.2) && !localItems[currentIndex].justificationReason && (
+                                                        <Button
+                                                            onClick={() => openJustification(localItems[currentIndex])}
+                                                            className="absolute bottom-0 right-1/2 translate-x-1/2 translate-y-20 bg-rose-500 hover:bg-rose-600 text-white font-black rounded-2xl h-14 px-8 animate-bounce gap-2"
+                                                        >
+                                                            <AlertTriangle size={20} />
+                                                            يوجد فرق كبير: تبرير الآن؟
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                                <p className="text-xs font-bold text-muted-foreground mt-8 opacity-40">اضغط ENTER للانتقال للصنف التالي</p>
+                                            </Card>
+                                        </div>
+
+                                        <div className="flex items-center justify-between gap-6">
+                                            <Button
+                                                variant="ghost"
+                                                size="xl"
+                                                disabled={currentIndex === 0}
+                                                onClick={() => setCurrentIndex(prev => prev - 1)}
+                                                className="h-20 flex-1 rounded-[2rem] text-2xl font-black gap-4"
+                                            >
+                                                <ChevronRight className="h-8 w-8" />
+                                                الصنف السابق
+                                            </Button>
+
+                                            <div className="flex-[0.5] flex items-center justify-center">
+                                                <div className="flex gap-2">
+                                                    {localItems.map((_, idx) => (
+                                                        <div
+                                                            key={idx}
+                                                            className={cn(
+                                                                "h-2 w-2 rounded-full transition-all duration-300",
+                                                                idx === currentIndex ? "w-8 bg-primary" : (idx < currentIndex ? "bg-primary/40" : "bg-muted")
+                                                            )}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <Button
+                                                size="xl"
+                                                onClick={() => {
+                                                    if (currentIndex < localItems.length - 1) {
+                                                        setCurrentIndex(prev => prev + 1);
+                                                        playSuccessSound();
+                                                    } else {
+                                                        setFocusMode(false);
+                                                    }
+                                                }}
+                                                className="h-20 flex-1 rounded-[2rem] gradient-primary text-2xl font-black gap-4"
+                                            >
+                                                {currentIndex === localItems.length - 1 ? 'إنهاء الجرد' : 'الصنف التالي'}
+                                                <ChevronLeft className="h-8 w-8" />
+                                            </Button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Scanner Footer */}
+                        <div className="p-8 bg-muted/20 flex justify-center">
+                            <div className="max-w-xl w-full relative">
+                                <ScanBarcode className="absolute right-6 top-5 h-8 w-8 text-primary" />
+                                <Input
+                                    placeholder="امسح باركود لبدء العد..."
+                                    className="h-18 rounded-3xl bg-background/50 border-0 pr-18 text-2xl font-black text-center"
+                                />
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
+    );
+}
+
+export default function PhysicalInventoryDetailPage({ params }) {
+    return (
+        <Suspense fallback={
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                <Loader2 size={40} className="animate-spin text-primary" />
+                <p className="font-black text-muted-foreground animate-pulse">جاري تحميل الجرد...</p>
+            </div>
+        }>
+            <InternalPhysicalInventoryDetailPage params={params} />
+        </Suspense>
     );
 }

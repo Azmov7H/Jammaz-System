@@ -1,15 +1,19 @@
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import dbConnect from '@/lib/db';
 import Product from '@/models/Product';
 import { InventoryService } from '@/lib/services/inventoryService';
 import { getCurrentUser } from '@/lib/auth';
 import { hasPermission } from '@/lib/permissions';
+import { CACHE_TAGS } from '@/lib/cache';
 
 export async function GET(request, { params }) {
     try {
         await dbConnect();
         const { id } = await params;
-        const product = await Product.findById(id).populate('supplierId', 'name');
+
+        // Use cached method
+        const product = await Product.getByIdCached(id);
 
         if (!product) {
             return NextResponse.json({ error: 'Product not found' }, { status: 404 });
@@ -48,7 +52,6 @@ export async function PUT(request, { params }) {
         let newWarehouse = warehouseQty !== undefined ? Number(warehouseQty) : currentProduct.warehouseQty;
         let newShop = shopQty !== undefined ? Number(shopQty) : currentProduct.shopQty;
 
-        // Force Audit if values differ
         if (newWarehouse !== currentProduct.warehouseQty || newShop !== currentProduct.shopQty) {
             await InventoryService.forceAdjust(
                 id,
@@ -65,6 +68,10 @@ export async function PUT(request, { params }) {
             runValidators: true
         });
 
+        // Revalidate cache
+        revalidateTag(CACHE_TAGS.PRODUCTS);
+        revalidateTag(`product-${id}`);
+
         return NextResponse.json(finalProduct);
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
@@ -75,7 +82,7 @@ export async function DELETE(request, { params }) {
     try {
         await dbConnect();
         const user = await getCurrentUser();
-        if (!user || user.role !== 'owner') { // Strict delete permission
+        if (!user || user.role !== 'owner') {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
@@ -85,6 +92,10 @@ export async function DELETE(request, { params }) {
         if (!product) {
             return NextResponse.json({ error: 'Product not found' }, { status: 404 });
         }
+
+        // Revalidate cache
+        revalidateTag(CACHE_TAGS.PRODUCTS);
+        revalidateTag(`product-${id}`);
 
         return NextResponse.json({ message: 'Product deleted' });
     } catch (error) {

@@ -1,4 +1,6 @@
 import mongoose from 'mongoose';
+import { unstable_cache } from 'next/cache';
+import { CACHE_TAGS, CACHE_TIMES } from '@/lib/cache';
 
 const ProductSchema = new mongoose.Schema({
     name: {
@@ -14,10 +16,10 @@ const ProductSchema = new mongoose.Schema({
         trim: true,
         index: true
     },
-    brand: { type: String, trim: true },
+    brand: { type: String, trim: true, index: true },
     originCountry: { type: String, trim: true },
     category: { type: String, trim: true, index: true },
-    subsection: { type: String, trim: true }, // Added Subsection support
+    subsection: { type: String, trim: true, index: true }, // Added Subsection support
     size: { type: String, trim: true }, // Specific attributes
     color: { type: String, trim: true },
     gender: {
@@ -67,6 +69,43 @@ const ProductSchema = new mongoose.Schema({
     toJSON: { virtuals: true },
     toObject: { virtuals: true }
 });
+
+// Efficient combined indexes
+ProductSchema.index({ category: 1, isActive: 1 });
+ProductSchema.index({ stockQty: 1 });
+ProductSchema.index({ createdAt: -1 });
+
+// Static methods with Caching
+ProductSchema.statics.getAllCached = async function (filter = {}) {
+    const Model = this;
+    const filterKey = JSON.stringify(filter);
+    return unstable_cache(
+        async () => {
+            console.log(`Fetching products from DB [Filter: ${filterKey}]`);
+            return Model.find({ ...filter }).sort({ createdAt: -1 }).lean();
+        },
+        ['products-list', filterKey],
+        {
+            tags: [CACHE_TAGS.PRODUCTS],
+            revalidate: CACHE_TIMES.FREQUENT
+        }
+    )();
+};
+
+ProductSchema.statics.getByIdCached = async function (id) {
+    const Model = this;
+    return unstable_cache(
+        async () => {
+            console.log(`Fetching product ${id} from DB`);
+            return Model.findById(id).lean();
+        },
+        ['product-detail', id],
+        {
+            tags: [CACHE_TAGS.PRODUCTS, `product-${id}`],
+            revalidate: CACHE_TIMES.FREQUENT
+        }
+    )();
+};
 
 // Middleware to ensure stockQty is always sync
 ProductSchema.pre('save', async function () {

@@ -1,20 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard,
     Package,
     ShoppingCart,
     Wallet,
-
     Users,
     History,
     Settings,
     Box,
     FileText,
     ClipboardCheck,
+    ShieldAlert,
     BarChart2,
     Truck,
     TrendingUp,
@@ -23,7 +24,8 @@ import {
     DollarSign,
     ChevronRight,
     X,
-    Sparkles
+    Sparkles,
+    LogOut
 } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
 import { hasPermission } from '@/lib/permissions';
@@ -31,10 +33,8 @@ import { useSidebar } from '@/providers/SidebarProvider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
-// Menu configuration
 const menuGroups = [
     {
         title: 'الرئيسية',
@@ -51,7 +51,6 @@ const menuGroups = [
             { name: 'الجرد الفعلي', href: '/physical-inventory', icon: ClipboardCheck, permission: 'audit:manage' },
             { name: 'أوامر الشراء', href: '/purchase-orders', icon: ShoppingCart, permission: 'suppliers:manage' },
             { name: 'الموردين', href: '/suppliers', icon: Users, permission: 'suppliers:manage' },
-            { name: 'تحليل المخزون', href: '/analytics/stock', icon: Truck, permission: 'reports:view' },
         ]
     },
     {
@@ -60,25 +59,15 @@ const menuGroups = [
             { name: 'فاتورة جديدة', href: '/invoices/new', icon: Plus, permission: 'invoices:create' },
             { name: 'سجل الفواتير', href: '/invoices', icon: FileText, permission: 'invoices:view' },
             { name: 'العملاء', href: '/customers', icon: Users, permission: 'invoices:view' },
-            { name: 'ذمم العملاء', href: '/receivables', icon: Wallet, permission: 'invoices:view' },
-            { name: 'نفقات التشغيل', href: '/financial/expenses', icon: DollarSign, permission: 'financial:view' },
-            { name: 'الخزينة اليومية', href: '/cashbox-daily', icon: Wallet, permission: 'financial:view' },
+            { name: 'الخزينة والمالية', href: '/financial', icon: Wallet, permission: 'financial:view' },
+            { name: 'مركز الديون والمستحقات', href: '/financial/debt-center', icon: ShieldAlert, permission: 'financial:view' },
+            { name: 'المصروفات والإيرادات', href: '/accounting/manual', icon: TrendingUp, permission: 'financial:view' },
             { name: 'المحاسبة العامة', href: '/accounting', icon: DollarSign, permission: 'financial:view' },
-        ]
-    },
-    {
-        title: 'التقارير',
-        items: [
-            { name: 'المبيعات اليومية', href: '/daily-sales', icon: BarChart2, permission: 'reports:view' },
-            { name: 'ربحية العملاء', href: '/reports/profit-by-customer', icon: TrendingUp, permission: 'reports:view' },
-            { name: 'تاريخ الأسعار', href: '/reports/price-history', icon: History, permission: 'reports:view' },
-            { name: 'نواقص البضاعة', href: '/reports/shortage', icon: AlertCircle, permission: 'products:view' },
         ]
     },
     {
         title: 'النظام',
         items: [
-            { name: 'سجل العمليات', href: '/logs', icon: History, permission: 'activity:view' },
             { name: 'المستخدمين', href: '/users', icon: Users, permission: 'users:manage' },
             { name: 'الإعدادات', href: '/settings', icon: Settings, permission: 'settings:manage' },
         ]
@@ -92,11 +81,10 @@ export default function Sidebar() {
     const [expandedGroups, setExpandedGroups] = useState({
         'الرئيسية': true,
         'المخزون والمشتريات': true,
-        'المبيعات والمالية': true,
-        'النظام': true
+        'المبيعات والمالية': false,
+        'النظام': false
     });
 
-    // Check if user has permission for menu item
     const isAllowed = (item) => {
         if (loading || !role) return false;
         if (role === 'owner') return true;
@@ -104,12 +92,10 @@ export default function Sidebar() {
         return hasPermission(role, item.permission);
     };
 
-    // Toggle group expansion
     const toggleGroup = (title) => {
         setExpandedGroups(prev => ({ ...prev, [title]: !prev[title] }));
     };
 
-    // Get role display name
     const getRoleDisplay = () => {
         switch (role) {
             case 'owner': return 'المالك';
@@ -120,160 +106,199 @@ export default function Sidebar() {
         }
     };
 
-    if (loading) {
-        return (
-            <aside className={cn(
-                "glass-card border-l border-white/10 transition-all duration-300 backdrop-blur-xl",
-                isMobile ? "fixed inset-y-0 right-0 z-50 w-72 shadow-2xl" : "w-72",
-                !isOpen && "hidden"
-            )}>
-                <div className="animate-pulse h-full bg-gradient-to-b from-[#0f172a]/90 to-[#1e293b]/90" />
-            </aside>
-        );
-    }
+    const handleLogout = async () => {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        window.location.href = '/login';
+    };
 
     return (
         <>
-            {/* Mobile overlay */}
-            {isMobile && isOpen && (
-                <div
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-all duration-300"
-                    onClick={closeSidebar}
-                />
-            )}
+            <AnimatePresence>
+                {isMobile && isOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={closeSidebar}
+                        className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 transition-all"
+                    />
+                )}
+            </AnimatePresence>
 
-            {/* Sidebar */}
-            <aside className={cn(
-                "glass-card border-l border-white/10 transition-all duration-300 flex flex-col backdrop-blur-xl bg-gradient-to-b from-[#0f172a]/95 via-[#1e293b]/95 to-[#0f172a]/95 shadow-2xl",
-                isMobile ? "fixed inset-y-0 right-0 z-50 w-72" : "w-72",
-                !isOpen && (isMobile ? "translate-x-full" : "hidden")
-            )}>
-                {/* Header */}
-                <div className="h-16 flex items-center justify-between px-4 border-b border-white/10 shrink-0 glass-card bg-gradient-to-l from-purple-500/10 via-blue-500/5 to-transparent relative overflow-hidden">
-                    {/* Decorative gradient orbs */}
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl" />
-                    <div className="absolute bottom-0 left-0 w-20 h-20 bg-blue-500/10 rounded-full blur-xl" />
-
-                    <div className="flex items-center gap-3 relative z-10">
-                        <div className="w-11 h-11 bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-purple-500/20 relative overflow-hidden group">
-                            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <span className="relative z-10">ج</span>
-                            <Sparkles className="absolute top-1 left-1 h-3 w-3 text-white/40 animate-pulse" />
+            <motion.aside
+                initial={isMobile ? { x: '100%' } : false}
+                animate={isMobile ? { x: isOpen ? 0 : '100%' } : { width: isOpen ? 288 : 0 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className={cn(
+                    "relative h-screen flex flex-col z-50 overflow-hidden shrink-0 w-72",
+                    isMobile ? "fixed inset-y-0 right-0" : "sticky top-0",
+                    "bg-background/40 backdrop-blur-3xl border-l border-white/10 shadow-[0_0_40px_-10px_rgba(0,0,0,0.3)]",
+                    !isMobile && !isOpen && "border-none w-0"
+                )}
+            >
+                {/* Logo Section */}
+                <div className="h-20 flex items-center px-6 shrink-0 relative">
+                    <div className="flex items-center gap-4 group cursor-pointer">
+                        <div className="relative">
+                            <div className="w-12 h-12 bg-gradient-to-tr from-primary via-primary/80 to-primary/40 rounded-2xl flex items-center justify-center text-white shadow-lg rotate-3 group-hover:rotate-12 transition-transform duration-500">
+                                <Sparkles className="w-6 h-6 animate-pulse" />
+                            </div>
+                            <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full scale-75 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
-                        <div>
-                            <h1 className="text-base font-black bg-gradient-to-l from-purple-400 to-blue-400 bg-clip-text text-transparent">مخازن الجماز</h1>
-                            <p className="text-[9px] text-foreground/50 font-medium tracking-wider">v2.1 SMART SYSTEM</p>
+                        <div className="flex flex-col">
+                            <span className="text-xl font-black tracking-tight text-foreground bg-gradient-to-l from-foreground via-foreground/80 to-foreground/50 bg-clip-text text-transparent">
+                                مخازن الجماز
+                            </span>
+                            <span className="text-[10px] font-bold text-primary/60 tracking-widest uppercase">
+                                v2.5 Evolution
+                            </span>
                         </div>
                     </div>
-                    {isMobile && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={closeSidebar}
-                            className="shrink-0 hover:bg-white/10 rounded-xl h-9 w-9 transition-all hover:scale-110 relative z-10"
-                        >
-                            <X size={18} />
-                        </Button>
-                    )}
                 </div>
 
-                {/* Navigation */}
-                <ScrollArea className="flex-1 py-4">
-                    <nav className="px-3 space-y-6">
-                        {menuGroups.map((group) => {
+                <ScrollArea className="flex-1 px-4 py-2">
+                    {/* Premium Sidebar Scrollbar */}
+                    <style jsx global>{`
+                        .sidebar-scroll .absolute[data-orientation="vertical"] {
+                            right: 2px !important;
+                            width: 6px !important;
+                            background: transparent !important;
+                        }
+                        .sidebar-scroll .absolute[data-orientation="vertical"] > div {
+                            background: linear-gradient(to bottom, #3b82f6, #8b5cf6) !important;
+                            border-radius: 10px !important;
+                            opacity: 0.5;
+                            transition: opacity 0.3s;
+                        }
+                        .sidebar-scroll:hover .absolute[data-orientation="vertical"] > div {
+                            opacity: 1;
+                        }
+                    `}</style>
+                    <div className="space-y-6 sidebar-scroll">
+                        {menuGroups.map((group, groupIdx) => {
                             const allowedItems = group.items.filter(isAllowed);
                             if (allowedItems.length === 0) return null;
-
                             const isExpanded = expandedGroups[group.title];
 
                             return (
-                                <div key={group.title} className="space-y-1">
-                                    {/* Group header */}
+                                <div key={group.title} className="space-y-2">
                                     <button
                                         onClick={() => toggleGroup(group.title)}
-                                        className="flex items-center justify-between w-full px-3 py-2 text-[10px] font-black uppercase tracking-widest text-foreground/60 hover:text-foreground transition-all duration-300 rounded-xl hover:bg-white/5 group"
+                                        className="flex items-center justify-between w-full px-3 py-2 group hover:bg-white/5 rounded-xl transition-colors"
                                     >
-                                        <span>{group.title}</span>
+                                        <span className="text-[11px] font-black text-muted-foreground group-hover:text-foreground tracking-widest uppercase transition-colors">
+                                            {group.title}
+                                        </span>
                                         <ChevronRight
                                             size={14}
                                             className={cn(
-                                                "transition-all duration-300 group-hover:translate-x-[-2px]",
-                                                isExpanded && "rotate-90"
+                                                "text-muted-foreground transition-transform duration-300",
+                                                isExpanded && "rotate-90 text-primary"
                                             )}
                                         />
                                     </button>
 
-                                    {/* Group items */}
-                                    {isExpanded && (
-                                        <div className="space-y-0.5">
-                                            {allowedItems.map((item) => {
-                                                const isActive = pathname === item.href ||
-                                                    (pathname !== '/dashboard' && pathname.startsWith(item.href));
-                                                const Icon = item.icon;
+                                    <AnimatePresence initial={false}>
+                                        {isExpanded && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                transition={{ duration: 0.3, ease: 'circOut' }}
+                                                className="overflow-hidden space-y-1"
+                                            >
+                                                {allowedItems.map((item, itemIdx) => {
+                                                    const isActive = pathname === item.href || (pathname !== '/dashboard' && pathname.startsWith(item.href));
+                                                    const Icon = item.icon;
 
-                                                return (
-                                                    <Link
-                                                        key={item.href}
-                                                        href={item.href}
-                                                        onClick={() => isMobile && closeSidebar()}
-                                                        className={cn(
-                                                            "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 group relative overflow-hidden",
-                                                            isActive
-                                                                ? "glass-card bg-gradient-to-l from-purple-500/20 to-blue-500/10 text-foreground font-semibold shadow-lg border border-purple-500/20"
-                                                                : "text-foreground/70 hover:bg-white/5 hover:text-foreground hover:translate-x-[-2px]"
-                                                        )}
-                                                    >
-                                                        {/* Active indicator */}
-                                                        {isActive && (
-                                                            <>
-                                                                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-purple-500 to-blue-500 rounded-l-full shadow-lg shadow-purple-500/50" />
-                                                                <div className="absolute inset-0 bg-gradient-to-l from-purple-500/5 to-transparent animate-pulse" />
-                                                            </>
-                                                        )}
+                                                    return (
+                                                        <Link key={item.href} href={item.href} onClick={() => isMobile && closeSidebar()}>
+                                                            <motion.div
+                                                                whileHover={{ x: -4 }}
+                                                                whileTap={{ scale: 0.98 }}
+                                                                className={cn(
+                                                                    "group relative flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300",
+                                                                    isActive
+                                                                        ? "bg-primary/10 text-primary shadow-[inset_0_0_20px_rgba(var(--primary-rgb),0.05)] border border-primary/20"
+                                                                        : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                                                                )}
+                                                            >
+                                                                {isActive && (
+                                                                    <motion.div
+                                                                        layoutId="active-nav"
+                                                                        className="absolute right-0 top-3 bottom-3 w-1.5 bg-primary rounded-l-full shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)]"
+                                                                    />
+                                                                )}
+                                                                <Icon
+                                                                    size={20}
+                                                                    className={cn(
+                                                                        "transition-all duration-300",
+                                                                        isActive ? "text-primary scale-110" : "group-hover:scale-110"
+                                                                    )}
+                                                                />
+                                                                <span className="text-sm font-bold tracking-tight">{item.name}</span>
 
-                                                        <Icon
-                                                            size={18}
-                                                            className={cn(
-                                                                "shrink-0 relative z-10 transition-all duration-300",
-                                                                isActive
-                                                                    ? "text-purple-400 scale-110"
-                                                                    : "text-foreground/50 group-hover:text-foreground group-hover:scale-110"
-                                                            )}
-                                                        />
-                                                        <span className="text-sm relative z-10">{item.name}</span>
-                                                    </Link>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
+                                                                {isActive && (
+                                                                    <motion.div
+                                                                        initial={{ opacity: 0, scale: 0 }}
+                                                                        animate={{ opacity: 1, scale: 1 }}
+                                                                        className="absolute left-3 w-1.5 h-1.5 rounded-full bg-primary"
+                                                                    />
+                                                                )}
+                                                            </motion.div>
+                                                        </Link>
+                                                    );
+                                                })}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
                                 </div>
                             );
                         })}
-                    </nav>
+                    </div>
                 </ScrollArea>
 
-                {/* User Profile Footer */}
-                <div className="p-4 border-t border-white/10 shrink-0 glass-card bg-gradient-to-b from-purple-500/5 to-blue-500/5 relative overflow-hidden">
-                    {/* Decorative gradient */}
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl" />
+                {/* Footer Section */}
+                <div className="p-4 mt-auto">
+                    <div className="p-4 rounded-[2rem] bg-gradient-to-br from-white/5 to-transparent border border-white/5 shadow-2xl relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-                    <div className="flex items-center gap-3 relative z-10">
-                        <div className="relative">
-                            <Avatar className="h-11 w-11 border-2 border-purple-500/30 ring-2 ring-purple-500/10">
-                                <AvatarImage src={user?.picture} alt={user?.name || 'User'} />
-                                <AvatarFallback className="bg-gradient-to-br from-purple-600 to-blue-600 text-white font-bold">
-                                    {user?.name?.charAt(0) || 'م'}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#0f172a] shadow-lg" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold truncate text-foreground">{user?.name || 'مستخدم'}</p>
-                            <p className="text-xs text-foreground/60 truncate font-medium">{getRoleDisplay()}</p>
+                        <div className="flex items-center gap-4 relative z-10">
+                            <div className="relative">
+                                <Avatar className="h-12 w-12 border-2 border-primary/20 ring-4 ring-primary/5 transition-transform duration-500 group-hover:scale-110">
+                                    <AvatarImage src={user?.picture} />
+                                    <AvatarFallback className="bg-primary text-white font-black text-lg">
+                                        {user?.name?.charAt(0)}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-[3px] border-[#1e293b] shadow-lg animate-pulse" />
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-black text-foreground truncate group-hover:text-primary transition-colors">
+                                    {user?.name}
+                                </p>
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                    {getRoleDisplay()}
+                                </p>
+                            </div>
+
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={handleLogout}
+                                className="h-10 w-10 rounded-2xl hover:bg-destructive/10 hover:text-destructive group-hover:scale-110 transition-all"
+                            >
+                                <LogOut size={18} />
+                            </Button>
                         </div>
                     </div>
                 </div>
-            </aside>
+
+                {/* Background Decorative Blur */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2 pointer-events-none" />
+            </motion.aside>
         </>
     );
 }

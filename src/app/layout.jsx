@@ -8,6 +8,8 @@ export const metadata = {
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "sonner";
+import { NotificationProvider } from "@/context/NotificationContext";
+import { SmartNotificationCenter } from "@/components/notifications/SmartNotificationCenter";
 
 export default function RootLayout({ children }) {
   return (
@@ -20,8 +22,11 @@ export default function RootLayout({ children }) {
           disableTransitionOnChange
         >
           <QueryProvider>
-            {children}
-            <Toaster position="top-center" richColors />
+            <NotificationProvider>
+              {children}
+              <SmartNotificationCenter />
+              <Toaster position="top-center" richColors />
+            </NotificationProvider>
           </QueryProvider>
         </ThemeProvider>
       </body>
