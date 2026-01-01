@@ -16,11 +16,8 @@ export function usePurchaseOrder(id) {
     return useQuery({
         queryKey: ['purchase-orders', id],
         queryFn: async () => {
-            const data = await api.get(`/api/purchase-orders/${id}`); // Assuming API supports get by ID
-            // Note: The original API might only have supported listing. I might need to double check the API route.
-            // If not exists, I'll need to update the API route.
-            // For now, let's assume I'll add the GET ID support if missing.
-            return data.data?.purchaseOrder;
+            const data = await api.get(`/api/purchase-orders/${id}`);
+            return data.data?.purchaseOrder || null;
         },
         enabled: !!id
     });
@@ -41,18 +38,7 @@ export function useCreatePO() {
 export function useUpdatePOStatus() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ id, status, paymentType = 'cash' }) => {
-            // Use PATCH to the ID route for better REST conventions
-            const response = fetch(`/api/purchase-orders/${id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status, paymentType })
-            });
-            return response.then(res => {
-                if (!res.ok) throw new Error('Failed to update status');
-                return res.json();
-            });
-        },
+        mutationFn: (payload) => api.patch(`/api/purchase-orders/${payload.id}`, payload),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
             queryClient.invalidateQueries({ queryKey: ['products'] }); // Stock updates on receive

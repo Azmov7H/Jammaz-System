@@ -108,11 +108,11 @@ export const DebtService = {
         await dbConnect();
         const now = new Date();
 
-        // For simplicity, we assume PurchaseOrders with paymentType 'credit' are the debts
-        // In a more complex system, we'd have a separate Payments table for POs
+        // Find POs on credit that are not fully paid
         const pos = await PurchaseOrder.find({
             paymentType: 'credit',
-            status: 'RECEIVED'
+            status: 'RECEIVED',
+            paymentStatus: { $in: ['pending', 'partial'] }
         }).populate('supplier', 'name').lean();
 
         const tiers = {
@@ -125,11 +125,10 @@ export const DebtService = {
         const bySupplier = {};
 
         pos.forEach(po => {
-            // Logic: POs usually don't have a partial payment model in the current simple PO schema
-            // We'll treat totalCost as debt if paymentType is credit. 
-            // Better: Check Supplier balance too.
-            const amount = po.totalCost;
-            const dueDate = po.receivedDate; // Suppliers usually want payment within N days of receive
+            const balance = po.totalCost - (po.paidAmount || 0);
+            if (balance <= 0) return;
+
+            const dueDate = po.receivedDate;
             const daysPast = differenceInDays(now, dueDate);
 
             let tier = 'current';
@@ -137,7 +136,7 @@ export const DebtService = {
             else if (daysPast > 30) tier = 'tier2';
             else if (daysPast > 0) tier = 'tier1';
 
-            tiers[tier].amount += amount;
+            tiers[tier].amount += balance;
             tiers[tier].count += 1;
 
             const sId = po.supplier?._id?.toString() || 'unknown';
@@ -150,12 +149,11 @@ export const DebtService = {
                     pos: []
                 };
             }
-            bySupplier[sId].totalDebt += amount;
+            bySupplier[sId].totalDebt += balance;
             bySupplier[sId].oldestPODays = Math.max(bySupplier[sId].oldestPODays, daysPast);
-            bySupplier[sId].pos.push({ ...po, daysPast });
+            bySupplier[sId].pos.push({ ...po, balance, daysPast });
         });
 
-        // Filter out suppliers with no valid ID or 'unknown' if necessary
         const validSuppliers = Object.values(bySupplier)
             .filter(s => s._id && s._id !== 'unknown')
             .sort((a, b) => b.totalDebt - a.totalDebt);

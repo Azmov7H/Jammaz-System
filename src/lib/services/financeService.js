@@ -128,11 +128,11 @@ export const FinanceService = {
     async updateSchedulesAfterPayment(entityId, entityType, amount) {
         const PaymentSchedule = require('@/models/PaymentSchedule').default;
 
-        // Find pending schedules sorted by due date
+        // Find pending or overdue schedules sorted by due date
         const schedules = await PaymentSchedule.find({
             entityId,
             entityType,
-            status: 'PENDING'
+            status: { $in: ['PENDING', 'OVERDUE'] }
         }).sort({ dueDate: 1 });
 
         let remaining = amount;
@@ -141,14 +141,18 @@ export const FinanceService = {
             if (remaining <= 0) break;
 
             if (remaining >= schedule.amount) {
+                // Payment covers this installment or more
+                remaining -= schedule.amount;
+                schedule.amount = 0;
                 schedule.status = 'PAID';
                 schedule.paidAt = new Date();
                 await schedule.save();
-                remaining -= schedule.amount;
             } else {
-                // Optional: Partial logic could go here, for now we skip
-                // or maybe create a new split schedule? 
-                // Let's keep it simple: only close full schedules.
+                // Payment is a partial for this installment
+                schedule.amount -= remaining;
+                remaining = 0;
+                // Keep status as PENDING or OVERDUE, but with reduced amount
+                await schedule.save();
             }
         }
     },
@@ -163,7 +167,7 @@ export const FinanceService = {
         if (invoice.customer) {
             const customer = await Customer.findById(invoice.customer);
             if (customer) {
-                customer.balance -= amount;
+                customer.balance = Math.max(0, (customer.balance || 0) - amount);
                 await customer.save();
 
                 // Update Schedules

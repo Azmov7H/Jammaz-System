@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { usePurchaseOrder } from '@/hooks/usePurchaseOrders';
+import { usePurchaseOrder, useUpdatePOStatus } from '@/hooks/usePurchaseOrders';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, Printer, ArrowRight, CheckCircle } from 'lucide-react';
@@ -14,37 +14,20 @@ import { toast } from 'sonner';
 export default function PurchaseOrderInvoice() {
     const { id } = useParams();
     const router = useRouter();
-    const { data: po, isLoading, error, mutate } = usePurchaseOrder(id);
+    const { data: po, isLoading, error } = usePurchaseOrder(id);
+    const { mutate: updateStatus, isPending: receiving } = useUpdatePOStatus();
     const [receiveDialog, setReceiveDialog] = useState(false);
     const [paymentType, setPaymentType] = useState('cash');
-    const [receiving, setReceiving] = useState(false);
 
-    const handleReceive = async () => {
-        setReceiving(true);
-        try {
-            const res = await fetch('/api/purchase-orders', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id: po._id,
-                    status: 'RECEIVED',
-                    paymentType
-                })
-            });
-
-            if (res.ok) {
-                toast.success('تم استلام الطلب وتسجيل القيود المحاسبية');
-                mutate(); // Refresh data
-                setReceiveDialog(false);
-            } else {
-                const data = await res.json();
-                toast.error(data.error || 'فشل الاستلام');
+    const handleReceive = () => {
+        updateStatus(
+            { id, status: 'RECEIVED', paymentType },
+            {
+                onSuccess: () => {
+                    setReceiveDialog(false);
+                }
             }
-        } catch (error) {
-            toast.error('خطأ في النظام');
-        } finally {
-            setReceiving(false);
-        }
+        );
     };
 
     if (isLoading) {

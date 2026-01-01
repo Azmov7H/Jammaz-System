@@ -21,7 +21,7 @@ export default function StockMovementsPage() {
     const [searchProduct, setSearchProduct] = useState('');
     const [filterType, setFilterType] = useState('ALL'); // ALL, IN, OUT, TRANSFER, ADJUST
 
-    const { data, isLoading } = useQuery({
+    const { data: movementsData, isLoading } = useQuery({
         queryKey: ['stock-movements', days],
         queryFn: async () => {
             const endDate = new Date();
@@ -32,11 +32,12 @@ export default function StockMovementsPage() {
                 `/api/stock/movements?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
             );
             if (!res.ok) throw new Error('Failed to fetch');
-            return res.json();
+            const json = await res.json();
+            return json.data;
         }
     });
 
-    const movements = data?.movements || [];
+    const movements = movementsData?.movements || [];
 
     // Filter Logic
     const filteredMovements = useMemo(() => {
