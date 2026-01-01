@@ -14,9 +14,12 @@ import { useProducts } from '@/hooks/useProducts';
 import Link from 'next/link';
 
 export default function PurchaseOrdersPage() {
-    const { data: pos = [], isLoading: posLoading } = usePurchaseOrders();
-    const { data: suppliers = [] } = useSuppliers();
-    const { data: products = [] } = useProducts({ limit: 100 });
+    const { data: posData, isLoading: posLoading } = usePurchaseOrders();
+    const pos = posData?.purchaseOrders || [];
+    const { data: suppliersData } = useSuppliers();
+    const suppliers = suppliersData?.suppliers || [];
+    const { data: productsData } = useProducts({ limit: 100 });
+    const products = productsData?.products || [];
     const createMutation = useCreatePO();
     const updateMutation = useUpdatePOStatus();
 
@@ -30,6 +33,7 @@ export default function PurchaseOrdersPage() {
 
     const addItem = () => {
         if (!selectedProduct || !qty || !cost) return;
+        const products = productsData?.products || [];
         const prod = products.find(p => p._id === selectedProduct);
         setPoItems([...poItems, {
             productId: selectedProduct,

@@ -5,12 +5,12 @@ const NotificationSchema = new mongoose.Schema({
     message: { type: String, required: true },
     type: {
         type: String,
-        enum: ['INFO', 'WARNING', 'SUCCESS', 'ERROR'],
+        enum: ['INFO', 'WARNING', 'SUCCESS', 'ERROR', 'CRITICAL', 'OPPORTUNITY'],
         default: 'INFO'
     },
     category: {
         type: String,
-        enum: ['CRITICAL', 'OPPORTUNITY', 'INSIGHT', 'SYSTEM'],
+        enum: ['CRITICAL', 'OPPORTUNITY', 'INSIGHT', 'SYSTEM', 'FINANCIAL', 'WARNING'],
         default: 'SYSTEM'
     },
     isRead: { type: Boolean, default: false },

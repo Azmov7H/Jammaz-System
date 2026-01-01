@@ -13,14 +13,14 @@ module.exports = {
       },
       colors: {
         brand: {
-          primary: '#1B3C73',    // Navy Blue
-          secondary: '#E8C547',  // Gold
-          bg: '#F5F6FA',         // Light Gray Background
-          dark: '#111111',       // Dark Text
-          text: '#333333',       // Body Text
-          success: '#22C55E',
-          warning: '#F59E0B',
-          danger: '#EF4444',
+          primary: 'hsl(var(--primary))',
+          secondary: 'hsl(var(--secondary))',
+          bg: 'hsl(var(--background))',
+          dark: 'hsl(var(--foreground))',
+          text: 'hsl(var(--muted-foreground))',
+          success: 'hsl(var(--success))',
+          warning: 'hsl(var(--warning))',
+          danger: 'hsl(var(--destructive))',
         },
         // Keeping Shadcn vars for compatibility but overriding mainly
         border: "hsl(var(--border))",

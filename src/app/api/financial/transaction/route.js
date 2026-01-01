@@ -1,31 +1,11 @@
-import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import { processTreasuryTransaction } from '@/lib/treasury';
-import { getCurrentUser } from '@/lib/auth';
+import { apiHandler } from '@/lib/api-handler';
+import { TreasuryService } from '@/lib/services/treasuryService';
 
-export async function POST(request) {
-    try {
-        await dbConnect();
-        const user = await getCurrentUser();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export const GET = apiHandler(async (req) => {
+    const { searchParams } = new URL(req.url);
+    const startDate = searchParams.get('startDate') ? new Date(searchParams.get('startDate')) : new Date();
+    const endDate = searchParams.get('endDate') ? new Date(searchParams.get('endDate')) : new Date();
+    const type = searchParams.get('type');
 
-        const { amount, type, description } = await request.json();
-
-        if (!amount || !type || !description) {
-            return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
-        }
-
-        await processTreasuryTransaction({
-            amount: Number(amount),
-            type,
-            description,
-            referenceType: 'Manual',
-            referenceId: null,
-            userId: user.id
-        });
-
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-}
+    return await TreasuryService.getTransactions(startDate, endDate, type);
+});

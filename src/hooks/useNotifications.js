@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { CACHE_CONFIG } from '@/lib/cache-config';
 
 export function useNotifications() {
     const queryClient = useQueryClient();
@@ -11,10 +12,10 @@ export function useNotifications() {
         queryFn: async () => {
             const res = await fetch('/api/notifications');
             if (!res.ok) throw new Error('Failed to fetch notifications');
-            const data = await res.json();
-            return data.notifications || [];
+            const json = await res.json();
+            return json.data?.notifications || [];
         },
-        refetchInterval: 60000, // Sync every minute
+        ...CACHE_CONFIG.NOTIFICATIONS,
     });
 
     const markAsReadMutation = useMutation({
@@ -25,18 +26,20 @@ export function useNotifications() {
                 body: JSON.stringify({ ids })
             });
             if (!res.ok) throw new Error('Failed to mark as read');
-            return res.json();
+            const json = await res.json();
+            return json.data;
         },
         onMutate: async (ids) => {
             await queryClient.cancelQueries({ queryKey: ['notifications'] });
             const previousNotifications = queryClient.getQueryData(['notifications']);
 
             queryClient.setQueryData(['notifications'], (old) => {
+                const current = Array.isArray(old) ? old : [];
                 if (ids === 'all') {
-                    return old?.map(n => ({ ...n, isRead: true }));
+                    return current.map(n => ({ ...n, isRead: true }));
                 }
                 const idSet = new Set(Array.isArray(ids) ? ids : [ids]);
-                return old?.map(n => idSet.has(n._id) ? { ...n, isRead: true } : n);
+                return current.map(n => idSet.has(n._id) ? { ...n, isRead: true } : n);
             });
 
             return { previousNotifications };
@@ -55,15 +58,17 @@ export function useNotifications() {
             const url = id === 'all' ? '/api/notifications' : `/api/notifications/${id}`;
             const res = await fetch(url, { method: 'DELETE' });
             if (!res.ok) throw new Error('Failed to delete');
-            return res.json();
+            const json = await res.json();
+            return json.data;
         },
         onMutate: async (id) => {
             await queryClient.cancelQueries({ queryKey: ['notifications'] });
             const previousNotifications = queryClient.getQueryData(['notifications']);
 
             queryClient.setQueryData(['notifications'], (old) => {
+                const current = Array.isArray(old) ? old : [];
                 if (id === 'all') return [];
-                return old?.filter(n => n._id !== id);
+                return current.filter(n => n._id !== id);
             });
 
             return { previousNotifications };
@@ -87,25 +92,25 @@ export function useNotifications() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ notificationId })
             });
+            const json = await res.json();
             if (!res.ok) {
-                const error = await res.json();
-                throw new Error(error.error || 'Server Error');
+                throw new Error(json.error || 'Server Error');
             }
-            return res.json();
+            return json.data;
         },
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['notifications'] });
-            toast.success(data.message || 'تمت العملية بنجاح');
+            toast.success(data?.message || 'تمت العملية بنجاح');
         },
         onError: (error) => {
             toast.error(error.message);
         }
     });
 
-    const unreadCount = notifications.filter(n => !n.isRead).length;
+    const unreadCount = (Array.isArray(notifications) ? notifications : []).filter(n => !n.isRead).length;
 
     return {
-        notifications,
+        notifications: Array.isArray(notifications) ? notifications : [],
         isLoading,
         unreadCount,
         refetch,

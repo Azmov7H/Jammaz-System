@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { useNotificationCenter } from '@/context/NotificationContext';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useSidebar } from '@/providers/SidebarProvider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -18,6 +19,7 @@ export default function Header() {
     const router = useRouter();
     const { user } = useUserRole();
     const { toggleSidebar, isMobile } = useSidebar();
+    const { setIsSidebarOpen } = useNotificationCenter();
     const [isSearchFocused, setIsSearchFocused] = useState(false);
 
     const handleLogout = async () => {
@@ -72,7 +74,7 @@ export default function Header() {
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl">
                         <ThemeToggle />
-                        <NotificationBell />
+                        <NotificationBell onClick={() => setIsSidebarOpen(true)} />
                     </div>
 
                     <Separator orientation="vertical" className="h-8 bg-white/10 hidden sm:block" />

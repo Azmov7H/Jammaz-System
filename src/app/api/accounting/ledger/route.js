@@ -1,28 +1,16 @@
-import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
+import { apiHandler } from '@/lib/api-handler';
 import { AccountingService } from '@/lib/services/accountingService';
-import { getCurrentUser } from '@/lib/auth';
+import { NextResponse } from 'next/server';
 
-// Get ledger for an account
-export async function GET(request) {
-    try {
-        await dbConnect();
-        const { searchParams } = new URL(request.url);
+export const GET = apiHandler(async (req) => {
+    const { searchParams } = new URL(req.url);
+    const account = searchParams.get('account');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
 
-        const account = searchParams.get('account');
-        const startDate = searchParams.get('startDate');
-        const endDate = searchParams.get('endDate');
-
-        if (!account) {
-            return NextResponse.json({ error: 'اسم الحساب مطلوب' }, { status: 400 });
-        }
-
-        const ledger = await AccountingService.getLedger(account, startDate, endDate);
-
-        return NextResponse.json({ ledger });
-
-    } catch (error) {
-        console.error('Error fetching ledger:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!account) {
+        return NextResponse.json({ success: false, error: 'Account Name is required' }, { status: 400 });
     }
-}
+
+    return await AccountingService.getLedger(account, startDate, endDate);
+});

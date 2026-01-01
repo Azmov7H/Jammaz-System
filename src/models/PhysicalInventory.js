@@ -123,9 +123,4 @@ PhysicalInventorySchema.methods.complete = function (userId) {
     return this.save();
 };
 
-// Force model recompilation in dev to fix cache
-if (process.env.NODE_ENV !== 'production' && mongoose.models.PhysicalInventory) {
-    delete mongoose.models.PhysicalInventory;
-}
-
-export default mongoose.model('PhysicalInventory', PhysicalInventorySchema);
+export default mongoose.models.PhysicalInventory || mongoose.model('PhysicalInventory', PhysicalInventorySchema);

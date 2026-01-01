@@ -7,7 +7,7 @@ export function useStockMovements(limit = 50) {
         queryKey: ['stock-movements', limit],
         queryFn: async () => {
             const data = await api.get(`/api/stock?limit=${limit}`);
-            return data || [];
+            return data.data || [];
         }
     });
 }

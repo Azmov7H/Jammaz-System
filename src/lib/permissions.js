@@ -71,3 +71,40 @@ export function getProductFilterInternal(role) {
     if (role === 'cashier') return { shopQty: { $gt: -1 } }; // Cashier needs to see shop products.
     return {};
 }
+
+/**
+ * Require a user to have a specific permission, throw error if not
+ * @param {Object} user - User object with role property
+ * @param {string} permission - Permission string (e.g., 'products:manage')
+ * @throws {string} Error message if user doesn't have permission
+ */
+export function requirePermission(user, permission) {
+    if (!user) {
+        throw 'Unauthorized - يجب تسجيل الدخول';
+    }
+
+    if (!hasPermission(user.role, permission)) {
+        throw 'ليس لديك صلاحية لهذا الإجراء';
+    }
+}
+
+/**
+ * Check if user can manage resources (owner or manager)
+ * @param {Object} user - User object with role property
+ * @returns {boolean}
+ */
+export function canManage(user) {
+    return user && (user.role === 'owner' || user.role === 'manager');
+}
+
+/**
+ * Require user to be owner or manager
+ * @param {Object} user - User object
+ * @throws {string} Error if not authorized
+ */
+export function requireManager(user) {
+    if (!canManage(user)) {
+        throw 'هذه العملية تتطلب صلاحيات إدارية';
+    }
+}
+

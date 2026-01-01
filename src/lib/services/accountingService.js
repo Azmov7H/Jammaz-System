@@ -1,4 +1,5 @@
 import AccountingEntry from '@/models/AccountingEntry';
+import User from '@/models/User';
 import dbConnect from '@/lib/db';
 
 /**
@@ -345,29 +346,41 @@ export const AccountingService = {
     /**
      * Get trial balance
      */
+    /**
+     * Get trial balance
+     * Optimized to use Aggregation instead of fetching all entries
+     */
     async getTrialBalance(asOfDate = new Date()) {
         await dbConnect();
 
-        const allEntries = await AccountingEntry.find({
-            date: { $lte: asOfDate }
-        }).lean();
+        // Use aggregation to calculate totals per account directly in DB
+        const [result] = await AccountingEntry.aggregate([
+            { $match: { date: { $lte: asOfDate } } },
+            {
+                $facet: {
+                    byDebit: [
+                        { $group: { _id: "$debitAccount", total: { $sum: "$amount" } } }
+                    ],
+                    byCredit: [
+                        { $group: { _id: "$creditAccount", total: { $sum: "$amount" } } }
+                    ]
+                }
+            }
+        ]);
 
         const balances = {};
 
-        // Calculate balance for each account
-        for (const entry of allEntries) {
-            // Debit side
-            if (!balances[entry.debitAccount]) {
-                balances[entry.debitAccount] = { debit: 0, credit: 0 };
-            }
-            balances[entry.debitAccount].debit += entry.amount;
+        // Process Debits
+        result.byDebit.forEach(({ _id, total }) => {
+            if (!balances[_id]) balances[_id] = { debit: 0, credit: 0 };
+            balances[_id].debit = total;
+        });
 
-            // Credit side
-            if (!balances[entry.creditAccount]) {
-                balances[entry.creditAccount] = { debit: 0, credit: 0 };
-            }
-            balances[entry.creditAccount].credit += entry.amount;
-        }
+        // Process Credits
+        result.byCredit.forEach(({ _id, total }) => {
+            if (!balances[_id]) balances[_id] = { debit: 0, credit: 0 };
+            balances[_id].credit = total;
+        });
 
         const trialBalance = Object.entries(balances).map(([account, { debit, credit }]) => ({
             account,

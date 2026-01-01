@@ -23,7 +23,8 @@ const JournalEntriesTab = () => {
         queryKey: ['accounting-entries'],
         queryFn: async () => {
             const res = await fetch('/api/accounting/entries?limit=50');
-            return res.json();
+            const json = await res.json();
+            return { entries: json.data || [] };
         }
     });
 
@@ -104,7 +105,8 @@ const LedgerTab = ({ chartOfAccounts }) => {
         queryFn: async () => {
             if (!selectedAccount) return null;
             const res = await fetch(`/api/accounting/ledger?account=${encodeURIComponent(selectedAccount)}`);
-            return res.json();
+            const json = await res.json();
+            return { ledger: json.data };
         },
         enabled: !!selectedAccount
     });
@@ -193,7 +195,8 @@ const TrialBalanceTab = () => {
         queryKey: ['trial-balance'],
         queryFn: async () => {
             const res = await fetch('/api/accounting/trial-balance');
-            return res.json();
+            const json = await res.json();
+            return { trialBalance: json.data };
         }
     });
 
@@ -262,8 +265,15 @@ export default function AccountingPage() {
     const { data: chartData } = useQuery({
         queryKey: ['chart-of-accounts'],
         queryFn: async () => {
-            const res = await fetch('/api/accounting/entries?limit=1');
-            return res.json();
+            const res = await fetch('/api/accounting/entries?limit=500');
+            const json = await res.json();
+            const entries = json.data || [];
+            const accounts = new Set();
+            entries.forEach(e => {
+                if (e.debitAccount) accounts.add(e.debitAccount);
+                if (e.creditAccount) accounts.add(e.creditAccount);
+            });
+            return { chartOfAccounts: Array.from(accounts) };
         }
     });
 

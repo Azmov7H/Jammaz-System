@@ -76,9 +76,4 @@ DailySalesSchema.pre('save', async function () {
 // Index for date range queries
 DailySalesSchema.index({ date: -1 });
 
-// Force model recompilation in dev to fix cache
-if (process.env.NODE_ENV !== 'production' && mongoose.models.DailySales) {
-    delete mongoose.models.DailySales;
-}
-
-export default mongoose.model('DailySales', DailySalesSchema);
+export default mongoose.models.DailySales || mongoose.model('DailySales', DailySalesSchema);

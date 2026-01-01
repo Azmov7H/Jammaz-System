@@ -8,7 +8,7 @@ export function useInvoices(search = '') {
         queryFn: async () => {
             const query = search ? `?search=${search}` : '';
             const data = await api.get(`/api/invoices${query}`);
-            return data.invoices || [];
+            return data.data;
         }
     });
 }
@@ -16,7 +16,10 @@ export function useInvoices(search = '') {
 export function useCreateInvoice() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (data) => api.post('/api/invoices', data),
+        mutationFn: async (data) => {
+            const res = await api.post('/api/invoices', data);
+            return res.data;
+        },
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['invoices'] });
             queryClient.invalidateQueries({ queryKey: ['products'] }); // Stock changes

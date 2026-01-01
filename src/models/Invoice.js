@@ -59,6 +59,8 @@ InvoiceSchema.index({ customer: 1 });
 InvoiceSchema.index({ date: -1 });
 InvoiceSchema.index({ paymentType: 1 });
 InvoiceSchema.index({ paymentStatus: 1 });
+InvoiceSchema.index({ "items.productId": 1 }); // For "Where used" queries
+InvoiceSchema.index({ date: -1, createdBy: 1 }); // For filtering user invoices by date
 
 // Pre-save middleware to set payment status based on payment type
 InvoiceSchema.pre('save', async function () {
@@ -118,9 +120,4 @@ InvoiceSchema.virtual('isOverdue').get(function () {
     return new Date() > this.dueDate;
 });
 
-// Force model recompilation in dev to fix cache
-if (process.env.NODE_ENV !== 'production' && mongoose.models.Invoice) {
-    delete mongoose.models.Invoice;
-}
-
-export default mongoose.model('Invoice', InvoiceSchema);
+export default mongoose.models.Invoice || mongoose.model('Invoice', InvoiceSchema);

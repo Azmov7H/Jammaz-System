@@ -36,7 +36,8 @@ export default function ReceivablesPage() {
         queryFn: async () => {
             const res = await fetch('/api/payments');
             if (!res.ok) throw new Error('Failed to fetch data');
-            return res.json();
+            const json = await res.json();
+            return json.data;
         },
     });
 

@@ -367,5 +367,103 @@ export const StockService = {
         }
 
         return results;
+    },
+
+    /**
+     * Generic Move Stock (Consolidates all simple movements)
+     */
+    async moveStock({ productId, qty, type, userId, note, refId, isSystem = false }) {
+        // Validation handled by caller or Schema? Let's add basic checks
+        const quantity = Math.abs(Number(qty));
+        if (quantity === 0) throw new Error('Quantity must be greater than 0');
+
+        const product = await Product.findById(productId);
+        if (!product) throw new Error('Product not found');
+
+        let updateQuery = {};
+
+        switch (type) {
+            case 'IN': // Purchase (Add to Warehouse default)
+                updateQuery = { $inc: { warehouseQty: quantity, stockQty: quantity } };
+                break;
+
+            case 'OUT': // Loss/Damage (Remove from Warehouse default)
+                if (product.warehouseQty < quantity && !isSystem) {
+                    throw new Error(`Insufficient warehouse stock. Available: ${product.warehouseQty}`);
+                }
+                updateQuery = { $inc: { warehouseQty: -quantity, stockQty: -quantity } };
+                break;
+
+            case 'SALE': // Sale (Remove from SHOP)
+                if (product.shopQty < quantity && !isSystem) {
+                    throw new Error(`Insufficient shop stock for sale. Available: ${product.shopQty}`);
+                }
+                updateQuery = { $inc: { shopQty: -quantity, stockQty: -quantity } };
+                break;
+
+            case 'TRANSFER_TO_SHOP': // Warehouse -> Shop
+                if (product.warehouseQty < quantity && !isSystem) {
+                    throw new Error(`Insufficient warehouse stock for transfer. Available: ${product.warehouseQty}`);
+                }
+                updateQuery = { $inc: { warehouseQty: -quantity, shopQty: quantity } };
+                break;
+
+            case 'TRANSFER_TO_WAREHOUSE': // Shop -> Warehouse
+                if (product.shopQty < quantity && !isSystem) {
+                    throw new Error(`Insufficient shop stock for transfer. Available: ${product.shopQty}`);
+                }
+                updateQuery = { $inc: { shopQty: -quantity, warehouseQty: quantity } };
+                break;
+
+            case 'ADJUST':
+                // Legacy, prefer explicit IN/OUT or ADJUST method
+                if (note && note.toLowerCase().includes('shop')) {
+                    updateQuery = { $inc: { shopQty: quantity, stockQty: quantity } };
+                } else {
+                    updateQuery = { $inc: { warehouseQty: quantity, stockQty: quantity } };
+                }
+                break;
+
+            default:
+                throw new Error('Invalid movement type');
+        }
+
+        const updatedProduct = await Product.findByIdAndUpdate(productId, updateQuery, { new: true });
+
+        await StockMovement.create({
+            productId,
+            type,
+            qty: quantity,
+            note: note || `Manual Move: ${type}`,
+            refId,
+            createdBy: userId,
+            date: new Date(),
+            snapshot: {
+                warehouseQty: updatedProduct.warehouseQty,
+                shopQty: updatedProduct.shopQty
+            }
+        });
+
+        return updatedProduct;
+    },
+
+    async bulkMoveStock({ items, type, userId }) {
+        await dbConnect();
+        const results = [];
+
+        for (const item of items) {
+            const result = await this.moveStock({
+                productId: item.productId,
+                qty: item.qty,
+                type: item.type || type,
+                userId,
+                note: item.note,
+                isSystem: true // Bulk usually implies system/admin override or trusted op
+            });
+            results.push(result);
+        }
+
+        return results;
     }
 };
+

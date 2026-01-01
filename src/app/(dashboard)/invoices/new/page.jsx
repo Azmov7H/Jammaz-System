@@ -4,130 +4,46 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, Trash2, Save, Printer, UserPlus, Search, AlertTriangle, Loader2, Receipt, User, DollarSign, ShoppingCart, X, CheckCircle2, Package, TrendingUp, Wallet, CreditCard, Banknote, Calendar as CalendarIcon } from 'lucide-react';
+import { Save, Printer, AlertTriangle, Loader2, Receipt, Banknote, Wallet, CreditCard, Calendar as CalendarIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { useCreateInvoice } from '@/hooks/useInvoices';
+
+import { InvoiceCustomerSelect } from '@/components/invoices/InvoiceCustomerSelect';
+import { InvoiceItemsManager } from '@/components/invoices/InvoiceItemsManager';
 
 export default function NewInvoicePage() {
     const router = useRouter();
-    const [loading, setLoading] = useState(false);
 
-    // Data State
-    const [products, setProducts] = useState([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [searchResults, setSearchResults] = useState([]);
-
-    // Invoice State
+    // Invoice Items
     const [items, setItems] = useState([]);
 
-    // Customer Smart Search State
-    const [customerQuery, setCustomerQuery] = useState('');
-    const [customerSuggestions, setCustomerSuggestions] = useState([]);
-
-    // Final Form Values
-    const [customerPhone, setCustomerPhone] = useState('');
+    // Customer State
+    const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [customerName, setCustomerName] = useState('');
-    const [customerId, setCustomerId] = useState(null);
-    const [customerCredit, setCustomerCredit] = useState(0);
-    const [customerCreditLimit, setCustomerCreditLimit] = useState(0);
-    const [customerBalance, setCustomerBalance] = useState(0);
+    const [customerPhone, setCustomerPhone] = useState('');
+    const [currentPriceType, setCurrentPriceType] = useState('retail');
 
-    // Shortage Reporting State
+    // Payment State
+    const [paymentType, setPaymentType] = useState('cash');
+    const [dueDate, setDueDate] = useState('');
+
+    // Shortage Reporting
     const [shortageDialog, setShortageDialog] = useState({ open: false, product: null });
     const [reportNote, setReportNote] = useState('');
 
-    const [currentPriceType, setCurrentPriceType] = useState('retail');
+    const createInvoiceMutation = useCreateInvoice();
 
-    // Debounced Customer Search
-    useEffect(() => {
-        const timeoutId = setTimeout(async () => {
-            if (customerQuery.length < 2) {
-                setCustomerSuggestions([]);
-                return;
-            }
-
-            if (customerId && (customerQuery === customerName || customerQuery === customerPhone)) return;
-
-            try {
-                const res = await fetch(`/api/customers?search=${customerQuery}`);
-                const data = await res.json();
-                setCustomerSuggestions(Array.isArray(data) ? data : (data.customers || []));
-            } catch (error) {
-                console.error(error);
-            }
-        }, 300);
-
-        return () => clearTimeout(timeoutId);
-    }, [customerQuery, customerId, customerName, customerPhone]);
-
-    const handleProductSearch = async (term) => {
-        setSearchTerm(term);
-        if (term.length < 2) {
-            setSearchResults([]);
-            return;
-        }
-        try {
-            const res = await fetch(`/api/products?search=${term}`);
-            const data = await res.json();
-            const foundProducts = data.products || [];
-            setSearchResults(foundProducts);
-
-            if (foundProducts.length === 1) {
-                const p = foundProducts[0];
-                if (p.code === term || p.name === term) {
-                    addItem(p);
-                    setSearchTerm('');
-                    setSearchResults([]);
-                }
-            }
-        } catch (error) {
-            console.error(error);
-        }
-    };
-
-    const handleCustomerInput = (e) => {
-        const val = e.target.value;
-        setCustomerQuery(val);
-        if (val === '') {
-            setCustomerId(null);
-            setCustomerName('');
-            setCustomerPhone('');
-            setCurrentPriceType('retail');
-        }
-    };
-
-    const selectCustomer = (customer) => {
-        setCustomerId(customer._id);
-        setCustomerName(customer.name);
-        setCustomerPhone(customer.phone);
-        setCustomerQuery(customer.name);
-        setCurrentPriceType(customer.priceType || 'retail');
-        setCustomerCredit(customer.creditBalance || 0);
-        setCustomerCreditLimit(customer.creditLimit || 0);
-        setCustomerBalance(customer.balance || 0);
-        setCustomerSuggestions([]);
-        toast.success(`تم اختيار العميل: ${customer.name} (${customer.priceType === 'wholesale' ? 'سعر جملة' : customer.priceType === 'special' ? 'سعر خاص' : 'سعر قطاعي'})`);
-    };
-
-    const getProductPrice = (product, type) => {
-        if (type === 'wholesale') return product.wholesalePrice || product.retailPrice || 0;
-        if (type === 'special') return product.specialPrice || product.retailPrice || 0;
-        return product.retailPrice || product.sellPrice || 0;
-    };
-
+    // Effect to update prices when customer price type changes
     useEffect(() => {
         if (items.length > 0) {
             setItems(prevItems => prevItems.map(item => {
-                if (item.retailPrice) {
-                    return {
-                        ...item,
-                        unitPrice: getProductPrice(item, currentPriceType)
-                    };
+                const newPrice = getProductPrice(item, currentPriceType);
+                if (item.unitPrice !== newPrice) {
+                    return { ...item, unitPrice: newPrice };
                 }
                 return item;
             }));
@@ -138,37 +54,25 @@ export default function NewInvoicePage() {
         }
     }, [currentPriceType]);
 
-    const addItem = (product) => {
-        const stockToCheck = product.shopQty !== undefined ? product.shopQty : product.stockQty;
+    const getProductPrice = (product, type) => {
+        if (type === 'wholesale') return product.wholesalePrice || product.retailPrice || 0;
+        if (type === 'special') return product.specialPrice || product.retailPrice || 0;
+        return product.retailPrice || product.sellPrice || 0;
+    };
 
-        if (stockToCheck <= 0) {
-            setShortageDialog({ open: true, product });
-            return;
-        }
+    const handleCustomerSelect = (customer) => {
+        setSelectedCustomer(customer);
+        setCustomerName(customer.name);
+        setCustomerPhone(customer.phone);
+        setCurrentPriceType(customer.priceType || 'retail');
+        toast.success(`تم اختيار العميل: ${customer.name}`);
+    };
 
-        const existing = items.find(i => i.productId === product._id);
-        if (existing) {
-            toast.warning('المنتج مضاف بالفعل');
-            return;
-        }
-
-        const price = getProductPrice(product, currentPriceType);
-
-        setItems([...items, {
-            productId: product._id,
-            name: product.name,
-            code: product.code,
-            unitPrice: price,
-            qty: 1,
-            maxQty: stockToCheck,
-            retailPrice: product.retailPrice || product.sellPrice,
-            wholesalePrice: product.wholesalePrice,
-            specialPrice: product.specialPrice,
-            buyPrice: product.buyPrice || 0,
-            minProfitMargin: product.minProfitMargin || 0
-        }]);
-        setSearchTerm('');
-        setSearchResults([]);
+    const handleCustomerClear = () => {
+        setSelectedCustomer(null);
+        setCustomerName('');
+        setCustomerPhone('');
+        setCurrentPriceType('retail');
     };
 
     const handleReportShortage = async () => {
@@ -198,93 +102,37 @@ export default function NewInvoicePage() {
         }
     };
 
-    const removeItem = (index) => {
-        const newItems = [...items];
-        newItems.splice(index, 1);
-        setItems(newItems);
-    };
-
-    const updateQty = (index, qty) => {
-        const item = items[index];
-        if (Number(qty) > item.maxQty) {
-            toast.error(`الكمية المتوفرة فقط ${item.maxQty}`);
-            return;
-        }
-        const newItems = [...items];
-        newItems[index].qty = Number(qty);
-        setItems(newItems);
-    };
-
-    const updatePrice = (index, newPrice) => {
-        const item = items[index];
-        const price = Number(newPrice);
-
-        if (price <= 0) {
-            toast.error('السعر يجب أن يكون أكبر من صفر');
-            return;
-        }
-
-        if (price < item.buyPrice) {
-            toast.error('🔴 تحذير: السعر أقل من سعر الشراء! سيؤدي إلى خسارة');
-        }
-        else if (item.minProfitMargin > 0) {
-            const profitMargin = ((price - item.buyPrice) / item.buyPrice) * 100;
-            if (profitMargin < item.minProfitMargin) {
-                toast.warning(`🟠 تحذير: هامش الربح (${profitMargin.toFixed(1)}%) أقل من الحد الأدنى (${item.minProfitMargin}%)`);
-            }
-        }
-
-        const newItems = [...items];
-        newItems[index].unitPrice = price;
-        setItems(newItems);
-    };
-
-    const subtotal = items.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0);
-    const total = subtotal;
-
-    // Payment State
-    const [paymentType, setPaymentType] = useState('cash');
-    const [dueDate, setDueDate] = useState('');
-
-    const handleSubmit = async () => {
+    const handleSubmit = () => {
         if (items.length === 0) {
             toast.error('الفاتورة فارغة');
             return;
         }
 
-        if (paymentType === 'credit' && !customerId) {
+        if (paymentType === 'credit' && !selectedCustomer) {
             toast.error('يجب اختيار عميل للفاتورة الآجلة');
             return;
         }
 
-        setLoading(true);
-        try {
-            const res = await fetch('/api/invoices', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    items,
-                    customerName: customerName || 'Walk-in',
-                    customerPhone,
-                    customerId,
-                    paymentType,
-                    dueDate
-                })
-            });
+        const invoiceData = {
+            items,
+            customerName: customerName || 'Walk-in',
+            customerPhone,
+            customerId: selectedCustomer?._id,
+            paymentType,
+            dueDate
+        };
 
-            const data = await res.json();
-            if (res.ok) {
-                toast.success('تم إنشاء الفاتورة بنجاح!');
-                router.push(`/invoices/${data.invoice._id}`);
-            } else {
-                toast.error(data.error);
+        createInvoiceMutation.mutate(invoiceData, {
+            onSuccess: (status) => {
+                // data from useCreateInvoice is now data.data which is { invoice, message }
+                const invoiceId = status.invoice?._id;
+                if (invoiceId) router.push(`/invoices/${invoiceId}`);
             }
-        } catch (error) {
-            toast.error('حدث خطأ في النظام');
-        } finally {
-            setLoading(false);
-        }
+        });
     };
+
+    const subtotal = items.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0);
+    const customerCredit = selectedCustomer?.creditBalance || 0;
 
     return (
         <div className="min-h-screen bg-[#0f172a]/20 space-y-8 p-6" dir="rtl">
@@ -311,116 +159,15 @@ export default function NewInvoicePage() {
                     transition={{ delay: 0.1 }}
                     className="lg:col-span-1"
                 >
-                    <div className="glass-card p-6 rounded-[2rem] border border-white/5 space-y-4">
-                        <div className="flex items-center gap-2 font-bold text-lg text-foreground mb-4">
-                            <div className="p-2 bg-blue-500/10 rounded-xl">
-                                <UserPlus className="w-5 h-5 text-blue-500" />
-                            </div>
-                            بيانات العميل
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label className="font-bold">رقم الجوال أو اسم العميل</Label>
-                            <div className="relative">
-                                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
-                                <Input
-                                    value={customerQuery}
-                                    onChange={handleCustomerInput}
-                                    placeholder="بحث برقم الهاتف أو الاسم..."
-                                    className="h-12 pr-10 rounded-xl bg-white/5 border-white/5 focus:bg-white/10"
-                                    autoComplete="off"
-                                />
-
-                                {customerSuggestions.length > 0 && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className="absolute top-full left-0 right-0 glass-card border border-white/10 rounded-xl shadow-2xl z-50 mt-2 max-h-60 overflow-y-auto"
-                                    >
-                                        {customerSuggestions.map(c => (
-                                            <div
-                                                key={c._id}
-                                                onClick={() => selectCustomer(c)}
-                                                className="p-4 hover:bg-white/5 cursor-pointer flex justify-between items-center border-b border-white/5 last:border-0 transition-all group"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className="p-2 bg-blue-500/10 rounded-lg group-hover:bg-blue-500/20 transition-colors">
-                                                        <User className="h-4 w-4 text-blue-500" />
-                                                    </div>
-                                                    <div>
-                                                        <span className="font-bold text-sm block">{c.name}</span>
-                                                        <span className="text-xs text-muted-foreground">{c.phone}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </motion.div>
-                                )}
-                            </div>
-                        </div>
-
-                        {customerId && (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="glass-card p-4 rounded-xl bg-blue-500/5 border border-blue-500/20 space-y-3"
-                            >
-                                <div className="flex justify-between items-center text-sm">
-                                    <span className="text-muted-foreground font-medium">الاسم:</span>
-                                    <span className="font-bold">{customerName}</span>
-                                </div>
-                                <div className="flex justify-between items-center text-sm">
-                                    <span className="text-muted-foreground font-medium">حد الائتمان:</span>
-                                    <span className={customerCreditLimit === 0 ? "text-emerald-500 font-bold" : "font-bold"}>
-                                        {customerCreditLimit === 0 ? 'مفتوح ∞' : `${customerCreditLimit.toLocaleString()} ج.م`}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between items-center text-sm">
-                                    <span className="text-muted-foreground font-medium">المديونية:</span>
-                                    <span className={customerBalance > 0 ? "text-red-500 font-bold" : "text-emerald-500 font-bold"}>
-                                        {customerBalance.toLocaleString()} ج.م
-                                    </span>
-                                </div>
-                                {customerCredit > 0 && (
-                                    <div className="flex justify-between items-center text-sm bg-emerald-500/10 px-3 py-2 rounded-lg">
-                                        <span className="text-emerald-500 font-medium">رصيد متاح:</span>
-                                        <span className="text-emerald-500 font-bold">
-                                            {customerCredit.toLocaleString()} ج.م
-                                        </span>
-                                    </div>
-                                )}
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="w-full h-9 text-xs text-red-500 border-red-200 hover:bg-red-50 rounded-lg"
-                                    onClick={() => {
-                                        setCustomerId(null);
-                                        setCustomerQuery('');
-                                        setCustomerName('');
-                                        setCustomerPhone('');
-                                        setCustomerCredit(0);
-                                        setCustomerCreditLimit(0);
-                                        setCustomerBalance(0);
-                                    }}
-                                >
-                                    تغيير العميل
-                                </Button>
-                            </motion.div>
-                        )}
-
-                        <div className={customerId ? 'opacity-50 pointer-events-none' : ''}>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-2">
-                                    <Label className="text-xs font-bold text-muted-foreground">الاسم</Label>
-                                    <Input value={customerName} onChange={e => setCustomerName(e.target.value)} className="h-10 bg-white/5 border-white/5 rounded-lg" />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-xs font-bold text-muted-foreground">الهاتف</Label>
-                                    <Input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="h-10 bg-white/5 border-white/5 rounded-lg text-left placeholder:text-right" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <InvoiceCustomerSelect
+                        selectedCustomer={selectedCustomer}
+                        onSelect={handleCustomerSelect}
+                        onClear={handleCustomerClear}
+                        customerName={customerName}
+                        setCustomerName={setCustomerName}
+                        customerPhone={customerPhone}
+                        setCustomerPhone={setCustomerPhone}
+                    />
                 </motion.div>
 
                 {/* Items Section */}
@@ -430,147 +177,11 @@ export default function NewInvoicePage() {
                     transition={{ delay: 0.2 }}
                     className="lg:col-span-2"
                 >
-                    <div className="glass-card p-6 rounded-[2rem] border border-white/5 space-y-6">
-                        <div className="relative">
-                            <Label className="font-bold mb-2 block">بحث عن منتج</Label>
-                            <div className="relative">
-                                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />
-                                <Input
-                                    placeholder="اسم المنتج او الباركود..."
-                                    value={searchTerm}
-                                    onChange={e => handleProductSearch(e.target.value)}
-                                    className="h-12 pr-11 rounded-xl bg-white/5 border-white/5 focus:bg-white/10 text-base"
-                                    autoFocus
-                                />
-                            </div>
-                            {searchResults.length > 0 && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: -10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="absolute top-full left-0 right-0 glass-card border border-white/10 rounded-xl shadow-2xl z-50 mt-2 max-h-72 overflow-y-auto"
-                                >
-                                    {searchResults.map(p => {
-                                        const qty = p.shopQty !== undefined ? p.shopQty : p.stockQty;
-                                        return (
-                                            <div
-                                                key={p._id}
-                                                onClick={() => addItem(p)}
-                                                className="p-4 hover:bg-white/5 cursor-pointer flex justify-between items-center border-b border-white/5 last:border-0 transition-all group"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className="p-2 bg-purple-500/10 rounded-lg group-hover:bg-purple-500/20 transition-colors">
-                                                        <Package className="h-5 w-5 text-purple-500" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-bold text-sm">{p.name}</div>
-                                                        <div className="text-xs text-muted-foreground">{p.code}</div>
-                                                    </div>
-                                                </div>
-                                                <div className="text-left">
-                                                    <div className="font-bold text-purple-500">{p.sellPrice} ج.م</div>
-                                                    <div className={`text-xs font-medium ${qty > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                                                        متوفر: {qty}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </motion.div>
-                            )}
-                        </div>
-
-                        <div className="border border-white/5 rounded-2xl overflow-hidden">
-                            <Table>
-                                <TableHeader className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border-b border-white/5">
-                                    <TableRow className="hover:bg-transparent">
-                                        <TableHead className="text-right font-bold">المنتج</TableHead>
-                                        <TableHead className="text-center w-24 font-bold">الكمية</TableHead>
-                                        <TableHead className="text-center font-bold">السعر</TableHead>
-                                        <TableHead className="text-center font-bold">الإجمالي</TableHead>
-                                        <TableHead className="w-10"></TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {items.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                                                <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                                                <p className="font-medium">لا توجد منتجات مضافة</p>
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        <AnimatePresence mode="popLayout">
-                                            {items.map((item, idx) => {
-                                                const profitMargin = item.buyPrice > 0 ? ((item.unitPrice - item.buyPrice) / item.buyPrice) * 100 : 0;
-                                                const isLoss = item.unitPrice < item.buyPrice;
-                                                const isLowMargin = item.minProfitMargin > 0 && profitMargin < item.minProfitMargin;
-
-                                                return (
-                                                    <motion.tr
-                                                        key={idx}
-                                                        initial={{ opacity: 0, y: 10 }}
-                                                        animate={{ opacity: 1, y: 0 }}
-                                                        exit={{ opacity: 0, scale: 0.95 }}
-                                                        className="border-b border-white/5 hover:bg-white/5 transition-colors"
-                                                    >
-                                                        <TableCell>
-                                                            <div className="font-medium">{item.name}</div>
-                                                            <div className="text-xs text-muted-foreground">{item.code}</div>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <Input
-                                                                type="number"
-                                                                min="1"
-                                                                max={item.maxQty}
-                                                                value={item.qty}
-                                                                onChange={e => updateQty(idx, e.target.value)}
-                                                                className="h-9 text-center bg-white/5 border-white/5 rounded-lg"
-                                                            />
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <div className="flex flex-col items-center gap-1">
-                                                                <Input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    step="0.01"
-                                                                    value={item.unitPrice}
-                                                                    onChange={e => updatePrice(idx, e.target.value)}
-                                                                    className={cn(
-                                                                        "h-9 text-center rounded-lg bg-white/5 border-white/5",
-                                                                        isLoss && "border-red-500 bg-red-500/10",
-                                                                        isLowMargin && "border-amber-400 bg-amber-400/10"
-                                                                    )}
-                                                                />
-                                                                <span className={cn(
-                                                                    "text-xs font-bold",
-                                                                    isLoss ? "text-red-500" : isLowMargin ? "text-amber-500" : "text-emerald-500"
-                                                                )}>
-                                                                    {isLoss ? '🔴 خسارة' : `+${profitMargin.toFixed(1)}%`}
-                                                                </span>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell className="text-center font-bold text-purple-500">
-                                                            {(item.qty * item.unitPrice).toLocaleString()}
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <Button
-                                                                size="icon"
-                                                                variant="ghost"
-                                                                className="text-red-500 hover:bg-red-500/10 rounded-lg h-8 w-8"
-                                                                onClick={() => removeItem(idx)}
-                                                            >
-                                                                <Trash2 size={16} />
-                                                            </Button>
-                                                        </TableCell>
-                                                    </motion.tr>
-                                                );
-                                            })}
-                                        </AnimatePresence>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </div>
+                    <InvoiceItemsManager
+                        items={items}
+                        setItems={setItems}
+                        onReportShortage={(product) => setShortageDialog({ open: true, product })}
+                    />
                 </motion.div>
             </div>
 
@@ -678,9 +289,9 @@ export default function NewInvoicePage() {
                             size="lg"
                             className="w-full h-14 rounded-xl bg-purple-600 hover:bg-purple-700 font-bold text-lg shadow-lg shadow-purple-500/20 transition-all hover:scale-[1.02]"
                             onClick={handleSubmit}
-                            disabled={loading || items.length === 0}
+                            disabled={createInvoiceMutation.isPending || items.length === 0}
                         >
-                            {loading ? (
+                            {createInvoiceMutation.isPending ? (
                                 <>
                                     <Loader2 className="animate-spin ml-2" /> جاري الحفظ...
                                 </>

@@ -1,6 +1,3 @@
-'use client';
-
-import { useQuery } from '@tanstack/react-query';
 import {
     TrendingUp,
     Package,
@@ -8,83 +5,23 @@ import {
     DollarSign,
     Wallet,
     ShoppingCart,
-    Loader2,
     TrendingDown,
     FileText
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { KPICard } from '@/components/dashboard/KPICard';
+import { LowStockTable } from '@/components/dashboard/LowStockTable';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import dynamic from 'next/dynamic';
+import { DashboardService } from '@/lib/services/dashboardService';
 
-// Heavy sections lazily loaded to improve FCP
-const LowStockTable = dynamic(() => Promise.resolve(({ products }) => (
-    <div className="overflow-x-auto">
-        <table className="w-full">
-            <thead className="bg-muted/50 border-b">
-                <tr>
-                    <th className="px-4 py-3 text-right text-sm font-semibold">المنتج</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">المحل</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">المخزن</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">الإجمالي</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">الحد الأدنى</th>
-                </tr>
-            </thead>
-            <tbody className="divide-y">
-                {products.map((product) => (
-                    <tr key={product._id} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3">
-                            <div>
-                                <p className="font-medium">{product.name}</p>
-                                <p className="text-xs text-muted-foreground font-mono">{product.code}</p>
-                            </div>
-                        </td>
-                        <td className="px-4 py-3 text-center">{product.shopQty}</td>
-                        <td className="px-4 py-3 text-center">{product.warehouseQty}</td>
-                        <td className="px-4 py-3 text-center font-bold text-destructive">{product.stockQty}</td>
-                        <td className="px-4 py-3 text-center text-muted-foreground">{product.minLevel}</td>
-                    </tr>
-                ))}
-            </tbody>
-        </table>
-    </div>
-)), {
-    loading: () => <div className="h-40 flex items-center justify-center"><Loader2 className="animate-spin" /></div>,
-    ssr: false
-});
+export const dynamic = 'force-dynamic'; // Ensure no caching of stale data as dashboard needs real-time
 
-export default function DashboardPage() {
-    // Fetch real KPIs from API
-    const { data, isLoading, error } = useQuery({
-        queryKey: ['dashboard-kpis'],
-        queryFn: async () => {
-            const res = await fetch('/api/dashboard/kpis');
-            if (!res.ok) throw new Error('Failed to fetch KPIs');
-            return res.json();
-        },
-        refetchInterval: 30000 // Refetch every 30 seconds
-    });
-
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="p-8 text-center">
-                <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-destructive" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">حدث خطأ في تحميل البيانات</h3>
-                <p className="text-muted-foreground">يرجى المحاولة مرة أخرى</p>
-            </div>
-        );
-    }
-
+export default async function DashboardPage() {
+    // Fetch real KPIs directly on server
+    const data = await DashboardService.getKPIs();
     const { kpis, monthSummary, recentActivity, lowStockProducts } = data;
 
     return (
@@ -331,55 +268,4 @@ export default function DashboardPage() {
     );
 }
 
-// KPI Card Component
-function KPICard({ title, value, unit, icon: Icon, subtitle, variant = 'default' }) {
-    const variants = {
-        primary: 'border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent hover:from-primary/15',
-        success: 'border-green-500/20 bg-gradient-to-br from-green-500/10 via-green-500/5 to-transparent hover:from-green-500/15',
-        warning: 'border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent hover:from-amber-500/15',
-        destructive: 'border-red-500/20 bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent hover:from-red-500/15',
-        secondary: 'border-secondary/20 bg-gradient-to-br from-secondary/10 via-secondary/5 to-transparent hover:from-secondary/15',
-        default: 'border-border bg-card hover:bg-muted/20'
-    };
 
-    const iconColors = {
-        primary: 'text-primary',
-        success: 'text-green-600 dark:text-green-400',
-        warning: 'text-amber-600 dark:text-amber-400',
-        destructive: 'text-red-600 dark:text-red-400',
-        secondary: 'text-secondary',
-        default: 'text-muted-foreground'
-    };
-
-    const iconBgColors = {
-        primary: 'bg-primary/10',
-        success: 'bg-green-500/10',
-        warning: 'bg-amber-500/10',
-        destructive: 'bg-red-500/10',
-        secondary: 'bg-secondary/10',
-        default: 'bg-muted/20'
-    };
-
-    return (
-        <Card className={cn('border shadow-custom-md hover-lift hover:shadow-custom-xl transition-all duration-300 overflow-hidden relative group', variants[variant])}>
-            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <CardContent className="p-6 relative z-10">
-                <div className="flex items-center justify-between mb-4">
-                    <p className="text-sm font-medium text-muted-foreground">{title}</p>
-                    <div className={cn('p-2 rounded-lg transition-transform duration-300 group-hover:scale-110', iconBgColors[variant])}>
-                        <Icon className={cn('w-5 h-5', iconColors[variant])} />
-                    </div>
-                </div>
-                <div>
-                    <p className="text-2xl md:text-3xl font-bold text-foreground group-hover:scale-105 transition-transform duration-300 inline-block">
-                        {value}
-                        <span className="text-lg">{unit}</span>
-                    </p>
-                    {subtitle && (
-                        <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
