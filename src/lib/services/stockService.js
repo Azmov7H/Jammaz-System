@@ -259,9 +259,10 @@ export const StockService = {
      * Get stock movement history for a product
      */
     async getProductHistory(productId, limit = 50) {
-        return await StockMovement.find({ productId })
+        const query = productId ? { productId } : {};
+        return await StockMovement.find(query)
             .sort({ date: -1 })
-            .limit(limit)
+            .populate('productId', 'name code')
             .populate('createdBy', 'name')
             .lean();
     },

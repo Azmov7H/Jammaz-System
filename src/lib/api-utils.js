@@ -52,4 +52,9 @@ export const api = {
         body: JSON.stringify(body),
     }),
     delete: (url, options = {}) => fetcher(url, { ...options, method: 'DELETE' }),
+    patch: (url, body, options = {}) => fetcher(url, {
+        ...options,
+        method: 'PATCH',
+        body: JSON.stringify(body),
+    }),
 };
