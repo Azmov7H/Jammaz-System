@@ -166,9 +166,4 @@ CashboxDailySchema.methods.reconcile = function (actualClosingBalance, userId, n
 CashboxDailySchema.index({ date: -1 });
 CashboxDailySchema.index({ isReconciled: 1 });
 
-// Force model recompilation in dev to fix cache
-if (process.env.NODE_ENV !== 'production' && mongoose.models.CashboxDaily) {
-    delete mongoose.models.CashboxDaily;
-}
-
-export default mongoose.model('CashboxDaily', CashboxDailySchema);
+export default mongoose.models.CashboxDaily || mongoose.model('CashboxDaily', CashboxDailySchema);

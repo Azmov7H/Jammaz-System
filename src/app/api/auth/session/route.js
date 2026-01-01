@@ -1,29 +1,13 @@
+import { apiHandler } from '@/lib/api-handler';
+import { AuthService } from '@/lib/services/authService';
 import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
-import { cookies } from 'next/headers';
-import dbConnect from '@/lib/db';
-import User from '@/models/User';
 
-export async function GET() {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
+export const GET = apiHandler(async () => {
+    const user = await AuthService.getSession();
+    // Return direct NextResponse to match existing frontend expectations if needed, 
+    // BUT since we are standardizing, let's keep consistent format.
+    // However, the frontend likely checks `if (!data.user)` or similar. 
+    // The apiHandler wraps this in { success: true, data: { user: ... } }
 
-    if (!token) {
-        return NextResponse.json({ user: null }, { status: 200 });
-    }
-
-    const decoded = verifyToken(token);
-
-    if (!decoded) {
-        return NextResponse.json({ user: null }, { status: 200 });
-    }
-
-    await dbConnect();
-    const user = await User.findById(decoded.userId).select('-__v');
-
-    if (!user) {
-        return NextResponse.json({ user: null }, { status: 200 });
-    }
-
-    return NextResponse.json({ user });
-}
+    return { user };
+});

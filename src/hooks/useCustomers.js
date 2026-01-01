@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-utils';
 import { toast } from 'sonner';
+import { CACHE_CONFIG } from '@/lib/cache-config';
 
 export function useCustomers({ search } = {}) {
     const queryClient = useQueryClient();
@@ -10,9 +11,10 @@ export function useCustomers({ search } = {}) {
         queryFn: async () => {
             const params = new URLSearchParams();
             if (search) params.append('search', search);
-            return api.get(`/api/customers?${params.toString()}`);
+            const data = await api.get(`/api/customers?${params.toString()}`);
+            return data.data;
         },
-        staleTime: 0, // Always fetch fresh data for financial accuracy
+        ...CACHE_CONFIG.CUSTOMERS,
     });
 
     const addMutation = useMutation({

@@ -117,9 +117,12 @@ AccountingEntrySchema.statics.createEntry = async function ({
     });
 };
 
-// Force model recompilation in dev to fix cache
-if (process.env.NODE_ENV !== 'production' && mongoose.models.AccountingEntry) {
-    delete mongoose.models.AccountingEntry;
+// Safe Model registration for Next.js
+let AccountingEntry;
+try {
+    AccountingEntry = mongoose.model('AccountingEntry');
+} catch (e) {
+    AccountingEntry = mongoose.model('AccountingEntry', AccountingEntrySchema);
 }
 
-export default mongoose.model('AccountingEntry', AccountingEntrySchema);
+export default AccountingEntry;

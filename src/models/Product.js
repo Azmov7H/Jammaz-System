@@ -72,6 +72,7 @@ const ProductSchema = new mongoose.Schema({
 
 // Efficient combined indexes
 ProductSchema.index({ category: 1, isActive: 1 });
+ProductSchema.index({ isActive: 1 }); // Added for filtering active products only
 ProductSchema.index({ stockQty: 1 });
 ProductSchema.index({ createdAt: -1 });
 
@@ -151,9 +152,4 @@ ProductSchema.virtual('profitMargin').get(function () {
     return ((this.retailPrice - this.buyPrice) / this.buyPrice) * 100;
 });
 
-// Force model recompilation in dev to fix cache
-if (process.env.NODE_ENV !== 'production' && mongoose.models.Product) {
-    delete mongoose.models.Product;
-}
-
-export default mongoose.model('Product', ProductSchema);
+export default mongoose.models.Product || mongoose.model('Product', ProductSchema);

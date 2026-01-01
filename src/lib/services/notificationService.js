@@ -28,6 +28,8 @@ export class NotificationService {
         const settings = await InvoiceSettings.getSettings();
 
         // RUN SEQUENTIALLY to avoid race conditions and double-creation
+        await this.syncStockAlerts(settings);
+        await this.syncSupplierAlerts(settings);
         await this.syncCustomerAlerts(settings);
         await this.syncInactiveCustomerAlerts(settings);
         await this.syncIntelligenceAlerts(settings);
@@ -196,12 +198,12 @@ export class NotificationService {
             total: { $gte: minAmount },
             dueDate: { $lte: targetDate, $gte: new Date() }
         }).populate({
-            path: 'customerId',
+            path: 'customer',
             match: { financialTrackingEnabled: { $ne: false } }
         });
 
         for (const inv of pendingInvoices) {
-            if (!inv.customerId) continue;
+            if (!inv.customer) continue;
             const title = this.normalize(`تحصيل من عميل: ${inv.customerName}`);
             const message = `الفاتورة #${inv.number} بقيمة ${inv.total.toLocaleString()} ج.م مستحقة خلال ${days} أيام.`;
 

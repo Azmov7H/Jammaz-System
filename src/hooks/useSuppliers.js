@@ -5,7 +5,10 @@ import { toast } from 'sonner';
 export function useSuppliers() {
     return useQuery({
         queryKey: ['suppliers'],
-        queryFn: () => api.get('/api/suppliers'),
+        queryFn: async () => {
+            const data = await api.get('/api/suppliers');
+            return data.data || [];
+        },
     });
 }
 

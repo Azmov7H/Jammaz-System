@@ -15,8 +15,9 @@ export default function StockAnalyticsPage() {
         async function load() {
             try {
                 const res = await fetch('/api/products?limit=500');
-                const data = await res.json();
-                const prods = data.products || [];
+                const json = await res.json();
+                const data = json.data;
+                const prods = data?.products || [];
 
                 let value = 0;
                 let low = 0;

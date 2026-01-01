@@ -1,8 +1,6 @@
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { apiHandler } from '@/lib/api-handler';
+import { AuthService } from '@/lib/services/authService';
 
-export async function POST() {
-    const cookieStore = await cookies();
-    cookieStore.delete('token');
-    return NextResponse.json({ message: 'Logged out' });
-}
+export const POST = apiHandler(async () => {
+    return await AuthService.logout();
+});

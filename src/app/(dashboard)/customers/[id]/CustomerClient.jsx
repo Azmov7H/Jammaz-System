@@ -42,9 +42,10 @@ export default function CustomerClient({ id }) {
     const { data: customer, isLoading } = useQuery({
         queryKey: ['customer', id],
         queryFn: async () => {
-            const res = await fetch(`/api/customers/${id}`); // Assumes this exists
+            const res = await fetch(`/api/customers/${id}`);
             if (!res.ok) throw new Error('Failed to fetch customer');
-            return res.json();
+            const json = await res.json();
+            return json.data;
         }
     });
 
@@ -53,7 +54,8 @@ export default function CustomerClient({ id }) {
         queryKey: ['customer-pricing', id],
         queryFn: async () => {
             const res = await fetch(`/api/customers/${id}/pricing`);
-            return res.json();
+            const json = await res.json();
+            return json.data;
         }
     });
 
@@ -62,7 +64,8 @@ export default function CustomerClient({ id }) {
         queryKey: ['products'],
         queryFn: async () => {
             const res = await fetch('/api/products?limit=100');
-            return res.json();
+            const json = await res.json();
+            return json.data;
         },
         enabled: isAddPriceOpen
     });

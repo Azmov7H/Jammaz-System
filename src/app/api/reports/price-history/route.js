@@ -1,31 +1,11 @@
-import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import PriceHistory from '@/models/PriceHistory';
-import User from '@/models/User'; // Ensure User model is registered
-import Product from '@/models/Product'; // Ensure Product model is registered
+import { apiHandler } from '@/lib/api-handler';
+import { ReportingService } from '@/lib/services/reportingService';
 
-export async function GET(request) {
-    try {
-        await dbConnect();
+export const GET = apiHandler(async (req) => {
+    const { searchParams } = new URL(req.url);
+    const limit = parseInt(searchParams.get('limit')) || 50;
+    const productId = searchParams.get('productId');
 
-        const { searchParams } = new URL(request.url);
-        const limit = parseInt(searchParams.get('limit')) || 50;
-        const productId = searchParams.get('productId');
-
-        const query = {};
-        if (productId) query.productId = productId;
-
-        const history = await PriceHistory.find(query)
-            .sort({ date: -1 })
-            .limit(limit)
-            .populate('productId', 'name code')
-            .populate('changedBy', 'name')
-            .lean();
-
-        return NextResponse.json({ history });
-
-    } catch (error) {
-        console.error('Price History Error:', error);
-        return NextResponse.json({ error: 'Failed to fetch price history' }, { status: 500 });
-    }
-}
+    const history = await ReportingService.getPriceHistory(productId, limit);
+    return { history };
+});

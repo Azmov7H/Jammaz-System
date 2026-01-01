@@ -1,104 +1,28 @@
-import { NextResponse } from 'next/server';
-import { revalidateTag } from 'next/cache';
-import dbConnect from '@/lib/db';
-import Product from '@/models/Product';
-import { InventoryService } from '@/lib/services/inventoryService';
+import { apiHandler } from '@/lib/api-handler';
+import { ProductService } from '@/lib/services/productService';
+import { productSchema } from '@/lib/validators';
 import { getCurrentUser } from '@/lib/auth';
-import { hasPermission } from '@/lib/permissions';
-import { CACHE_TAGS } from '@/lib/cache';
+import { NextResponse } from 'next/server';
 
-export async function GET(request, { params }) {
-    try {
-        await dbConnect();
-        const { id } = await params;
+export const GET = apiHandler(async (req, { params }) => {
+    return await ProductService.getById(params.id);
+});
 
-        // Use cached method
-        const product = await Product.getByIdCached(id);
+export const PUT = apiHandler(async (req, { params }) => {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-        if (!product) {
-            return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-        }
+    const body = await req.json();
+    // Use partial schema for updates or full schema depending on requirements.
+    // Ideally we should have updateProductSchema. For now using recursive partial manually or just parsing valid fields.
+    const validated = productSchema.partial().parse(body);
 
-        return NextResponse.json(product);
-    } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-}
+    return await ProductService.update(params.id, validated, user.userId);
+});
 
-export async function PUT(request, { params }) {
-    try {
-        await dbConnect();
+export const DELETE = apiHandler(async (req, { params }) => {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-        const user = await getCurrentUser();
-        if (!user || !hasPermission(user.role, 'products:manage')) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-        }
-
-        const { id } = await params;
-        const body = await request.json();
-
-        // Separate stock fields from other data
-        const { stockQty, warehouseQty, shopQty, sellPrice, ...updateData } = body;
-
-        const currentProduct = await Product.findById(id);
-        if (!currentProduct) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-
-        // Map sellPrice to retailPrice if provided
-        if (sellPrice !== undefined) {
-            updateData.retailPrice = Number(sellPrice);
-        }
-
-        // Handle Stock Adjustments via Service if detected
-        let newWarehouse = warehouseQty !== undefined ? Number(warehouseQty) : currentProduct.warehouseQty;
-        let newShop = shopQty !== undefined ? Number(shopQty) : currentProduct.shopQty;
-
-        if (newWarehouse !== currentProduct.warehouseQty || newShop !== currentProduct.shopQty) {
-            await InventoryService.forceAdjust(
-                id,
-                newWarehouse,
-                newShop,
-                user.userId,
-                'Manual Correction via Product Edit'
-            );
-        }
-
-        // Update other fields
-        const finalProduct = await Product.findByIdAndUpdate(id, updateData, {
-            new: true,
-            runValidators: true
-        });
-
-        // Revalidate cache
-        revalidateTag(CACHE_TAGS.PRODUCTS);
-        revalidateTag(`product-${id}`);
-
-        return NextResponse.json(finalProduct);
-    } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-}
-
-export async function DELETE(request, { params }) {
-    try {
-        await dbConnect();
-        const user = await getCurrentUser();
-        if (!user || user.role !== 'owner') {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-        }
-
-        const { id } = await params;
-        const product = await Product.findByIdAndDelete(id);
-
-        if (!product) {
-            return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-        }
-
-        // Revalidate cache
-        revalidateTag(CACHE_TAGS.PRODUCTS);
-        revalidateTag(`product-${id}`);
-
-        return NextResponse.json({ message: 'Product deleted' });
-    } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-}
+    return await ProductService.delete(params.id);
+});

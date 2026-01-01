@@ -7,7 +7,7 @@ export function useTreasury() {
         queryKey: ['treasury'],
         queryFn: async () => {
             const data = await api.get('/api/financial/treasury');
-            return data || { balance: 0, transactions: [] };
+            return data.data || { balance: 0, transactions: [] };
         }
     });
 }

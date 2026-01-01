@@ -29,6 +29,10 @@ import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
+import { KPICard } from '@/components/dashboard/KPICard';
+import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog';
+import { RedeemPointsDialog } from '@/components/customers/RedeemPointsDialog';
+
 export default function CustomersPage() {
     const router = useRouter();
     const [search, setSearch] = useState('');
@@ -36,77 +40,21 @@ export default function CustomersPage() {
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isRedeemOpen, setIsRedeemOpen] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
-    const [redeemPoints, setRedeemPoints] = useState(0);
 
-    const { data: customers = [], isLoading, addMutation, updateMutation, deleteMutation, redeemMutation } = useCustomers({ search });
-
-    // Form State
-    const [formData, setFormData] = useState({
-        name: '',
-        phone: '',
-        priceType: 'retail',
-        address: '',
-        creditLimit: '',
-        notes: '',
-        financialTrackingEnabled: true,
-        collectionDay: 'None',
-        paymentTerms: 0
-    });
-
-    const resetForm = () => {
-        setFormData({
-            name: '',
-            phone: '',
-            priceType: 'retail',
-            address: '',
-            creditLimit: '',
-            notes: '',
-            financialTrackingEnabled: true,
-            collectionDay: 'None',
-            paymentTerms: 0
-        });
-        setSelectedCustomer(null);
-    };
+    const { data: queryData, isLoading, addMutation, updateMutation, deleteMutation, redeemMutation } = useCustomers({ search });
+    const customers = queryData?.customers || [];
 
     const handleEditClick = (customer) => {
         setSelectedCustomer(customer);
-        setFormData({
-            name: customer.name,
-            phone: customer.phone,
-            priceType: customer.priceType || 'retail',
-            address: customer.address || '',
-            creditLimit: customer.creditLimit || '',
-            notes: customer.notes || '',
-            financialTrackingEnabled: customer.financialTrackingEnabled !== undefined ? customer.financialTrackingEnabled : true,
-            collectionDay: customer.collectionDay || 'None',
-            paymentTerms: customer.paymentTerms || 0
-        });
         setIsEditOpen(true);
     };
 
     const handleRedeemClick = (customer) => {
         setSelectedCustomer(customer);
-        setRedeemPoints(customer.loyaltyPoints || 0);
         setIsRedeemOpen(true);
     };
 
-    const handleRedeemSubmit = () => {
-        if (redeemPoints <= 0) {
-            toast.error('يجب إدخال عدد نقاط أكبر من 0');
-            return;
-        }
-        if (redeemPoints > (selectedCustomer.loyaltyPoints || 0)) {
-            toast.error('النقاط المدخلة أكبر من المتاحة للعميل');
-            return;
-        }
-
-        redeemMutation.mutate({ id: selectedCustomer._id, points: redeemPoints }, {
-            onSuccess: () => setIsRedeemOpen(false)
-        });
-    };
-
-    const handleSave = (e) => {
-        e.preventDefault();
+    const handleFormSubmit = (formData) => {
         const payload = {
             ...formData,
             creditLimit: formData.creditLimit ? parseFloat(formData.creditLimit) : 0
@@ -114,16 +62,24 @@ export default function CustomersPage() {
 
         if (selectedCustomer) {
             updateMutation.mutate({ id: selectedCustomer._id, data: payload }, {
-                onSuccess: () => setIsEditOpen(false)
+                onSuccess: () => {
+                    setIsEditOpen(false);
+                    setSelectedCustomer(null);
+                }
             });
         } else {
             addMutation.mutate(payload, {
                 onSuccess: () => {
                     setIsAddOpen(false);
-                    resetForm();
                 }
             });
         }
+    };
+
+    const handleRedeemSubmit = ({ id, points }) => {
+        redeemMutation.mutate({ id, points }, {
+            onSuccess: () => setIsRedeemOpen(false)
+        });
     };
 
     const handleDelete = (id) => {
@@ -132,6 +88,18 @@ export default function CustomersPage() {
         }
     };
 
+    // Stats
+    const activeCustomers = customers.filter(c => c.isActive).length;
+    const debtCustomers = customers.filter(c => c.balance > 0).length;
+    const creditCustomers = customers.filter(c => c.creditBalance > 0).length;
+    const totalPoints = customers.reduce((sum, c) => sum + (c.loyaltyPoints || 0), 0);
+    const inactiveCustomers = customers.filter(c => {
+        if (!c.lastPurchaseDate) return false;
+        const diff = (new Date() - new Date(c.lastPurchaseDate)) / (1000 * 60 * 60 * 24);
+        return diff > 30;
+    }).length;
+
+
     return (
         <div className="space-y-6 animate-fade-in-up">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -139,7 +107,7 @@ export default function CustomersPage() {
                     <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">إدارة العملاء</h1>
                     <p className="text-muted-foreground">قائمة العملاء وبيانات الاتصال والأسعار ونقاط الولاء</p>
                 </div>
-                <Button onClick={() => { resetForm(); setIsAddOpen(true); }} className="gap-2 gradient-primary border-0 hover-lift shadow-colored animate-scale-in">
+                <Button onClick={() => { setSelectedCustomer(null); setIsAddOpen(true); }} className="gap-2 gradient-primary border-0 hover-lift shadow-colored animate-scale-in">
                     <Plus size={16} /> إضافة عميل جديد
                 </Button>
             </div>
@@ -157,86 +125,12 @@ export default function CustomersPage() {
 
             {/* Quick Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
-                <div className="glass-card p-4 rounded-lg border shadow-custom-sm hover-lift transition-all duration-300 group">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">إجمالي العملاء</p>
-                            <p className="text-2xl font-bold text-foreground mt-1">{customers.length}</p>
-                        </div>
-                        <div className="p-3 bg-primary/10 rounded-lg group-hover:scale-110 transition-transform">
-                            <UserIcon size={24} className="text-primary" />
-                        </div>
-                    </div>
-                </div>
-                <div className="glass-card p-4 rounded-lg border shadow-custom-sm hover-lift transition-all duration-300 group">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">عملاء نشطون</p>
-                            <p className="text-2xl font-bold text-green-600 mt-1">
-                                {customers.filter(c => c.isActive).length}
-                            </p>
-                        </div>
-                        <div className="p-3 bg-green-500/10 rounded-lg group-hover:scale-110 transition-transform">
-                            <UserIcon size={24} className="text-green-500" />
-                        </div>
-                    </div>
-                </div>
-                <div className="glass-card p-4 rounded-lg border shadow-custom-sm hover-lift transition-all duration-300 group">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">في انتظار السداد</p>
-                            <p className="text-2xl font-bold text-red-600 mt-1">
-                                {customers.filter(c => c.balance > 0).length}
-                            </p>
-                        </div>
-                        <div className="p-3 bg-red-500/10 rounded-lg group-hover:scale-110 transition-transform">
-                            <Wallet size={24} className="text-red-500" />
-                        </div>
-                    </div>
-                </div>
-                <div className="glass-card p-4 rounded-lg border shadow-custom-sm hover-lift transition-all duration-300 group">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">رصيد مرتجع</p>
-                            <p className="text-2xl font-bold text-blue-600 mt-1">
-                                {customers.filter(c => c.creditBalance > 0).length}
-                            </p>
-                        </div>
-                        <div className="p-3 bg-blue-500/10 rounded-lg group-hover:scale-110 transition-transform">
-                            <ArrowRightLeft size={24} className="text-blue-500" />
-                        </div>
-                    </div>
-                </div>
-                <div className="glass-card p-4 rounded-lg border shadow-custom-sm hover-lift transition-all duration-300 group">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">نقاط الولاء</p>
-                            <p className="text-2xl font-bold text-amber-600 mt-1">
-                                {customers.reduce((sum, c) => sum + (c.loyaltyPoints || 0), 0).toLocaleString()}
-                            </p>
-                        </div>
-                        <div className="p-3 bg-amber-500/10 rounded-lg group-hover:scale-110 transition-transform">
-                            <Gift size={24} className="text-amber-500" />
-                        </div>
-                    </div>
-                </div>
-                <div className="glass-card p-4 rounded-lg border shadow-custom-sm hover-lift transition-all duration-300 group">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">منقطعون</p>
-                            <p className="text-2xl font-bold text-rose-600 mt-1">
-                                {customers.filter(c => {
-                                    if (!c.lastPurchaseDate) return false;
-                                    const diff = (new Date() - new Date(c.lastPurchaseDate)) / (1000 * 60 * 60 * 24);
-                                    return diff > 30; // Threshold logic 
-                                }).length}
-                            </p>
-                        </div>
-                        <div className="p-3 bg-rose-500/10 rounded-lg group-hover:scale-110 transition-transform">
-                            <AlertTriangle size={24} className="text-rose-500" />
-                        </div>
-                    </div>
-                </div>
+                <KPICard title="إجمالي العملاء" value={customers.length} unit="" icon={UserIcon} variant="default" />
+                <KPICard title="عملاء نشطون" value={activeCustomers} unit="" icon={UserIcon} variant="success" />
+                <KPICard title="في انتظار السداد" value={debtCustomers} unit="" icon={Wallet} variant="destructive" />
+                <KPICard title="رصيد مرتجع" value={creditCustomers} unit="" icon={ArrowRightLeft} variant="primary" />
+                <KPICard title="نقاط الولاء" value={totalPoints.toLocaleString()} unit="" icon={Gift} variant="warning" />
+                <KPICard title="منقطعون" value={inactiveCustomers} unit="" icon={AlertTriangle} variant="destructive" />
             </div>
 
             {/* Table */}
@@ -409,185 +303,29 @@ export default function CustomersPage() {
                 </Table>
             </div>
 
-            {/* Add/Edit Dialog */}
-            <Dialog open={isAddOpen || isEditOpen} onOpenChange={(open) => {
-                if (!open) {
-                    setIsAddOpen(false);
-                    setIsEditOpen(false);
-                    resetForm();
-                }
-            }}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{isEditOpen ? 'تعديل بيانات العميل' : 'إضافة عميل جديد'}</DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={handleSave} className="space-y-4 py-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>اسم العميل *</Label>
-                                <Input
-                                    required
-                                    value={formData.name}
-                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>رقم الهاتف *</Label>
-                                <Input
-                                    required
-                                    value={formData.phone}
-                                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                                />
-                            </div>
-                        </div>
+            {/* Dialogs */}
+            <CustomerFormDialog
+                open={isAddOpen || isEditOpen}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setIsAddOpen(false);
+                        setIsEditOpen(false);
+                        setSelectedCustomer(null);
+                    }
+                }}
+                mode={isEditOpen ? 'edit' : 'add'}
+                initialData={selectedCustomer}
+                onSubmit={handleFormSubmit}
+                isPending={addMutation.isPending || updateMutation.isPending}
+            />
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>نوع التسعير</Label>
-                                <Select
-                                    value={formData.priceType}
-                                    onValueChange={val => setFormData({ ...formData, priceType: val })}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="retail">قطاعي (عادي)</SelectItem>
-                                        <SelectItem value="wholesale">جملة</SelectItem>
-                                        <SelectItem value="special">خاص</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>حد الائتمان (الديون) <span className="text-[10px] text-primary">(0 = مفتوح)</span></Label>
-                                <Input
-                                    type="number"
-                                    value={formData.creditLimit}
-                                    onChange={e => setFormData({ ...formData, creditLimit: e.target.value })}
-                                    placeholder="أدخل الحد الأقصى للديون (0 للمفتوح)"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label>العنوان</Label>
-                            <Input
-                                value={formData.address}
-                                onChange={e => setFormData({ ...formData, address: e.target.value })}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label>ملاحظات</Label>
-                            <Input
-                                value={formData.notes}
-                                onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                            />
-                        </div>
-
-                        <Separator />
-                        <div className="bg-primary/5 p-4 rounded-xl space-y-4 border border-primary/10">
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-2">
-                                <Wallet size={14} /> التحكم في المديونية والتحصيل
-                            </h4>
-
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-0.5">
-                                    <Label className="text-sm">تفعيل التتبع المالي</Label>
-                                    <p className="text-[10px] text-muted-foreground">توليد إشعارات تحصيل لهذا العميل</p>
-                                </div>
-                                <Switch
-                                    checked={formData.financialTrackingEnabled}
-                                    onCheckedChange={checked => setFormData({ ...formData, financialTrackingEnabled: checked })}
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label className="text-xs">يوم التحصيل المفضل</Label>
-                                    <Select
-                                        value={formData.collectionDay}
-                                        onValueChange={val => setFormData({ ...formData, collectionDay: val })}
-                                    >
-                                        <SelectTrigger className="h-9 text-xs">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="None">غير محدد</SelectItem>
-                                            <SelectItem value="Saturday">السبت</SelectItem>
-                                            <SelectItem value="Sunday">الأحد</SelectItem>
-                                            <SelectItem value="Monday">الاثنين</SelectItem>
-                                            <SelectItem value="Tuesday">الثلاثاء</SelectItem>
-                                            <SelectItem value="Wednesday">الأربعاء</SelectItem>
-                                            <SelectItem value="Thursday">الخميس</SelectItem>
-                                            <SelectItem value="Friday">الجمعة</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-xs">فترة السداد الخاصة (يوم)</Label>
-                                    <Input
-                                        type="number"
-                                        className="h-9 text-xs"
-                                        value={formData.paymentTerms}
-                                        onChange={e => setFormData({ ...formData, paymentTerms: parseInt(e.target.value) || 0 })}
-                                        placeholder="0 = الافتراضي"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => { setIsAddOpen(false); setIsEditOpen(false); }}>
-                                إلغاء
-                            </Button>
-                            <Button type="submit" disabled={addMutation.isPending || updateMutation.isPending}>
-                                {(addMutation.isPending || updateMutation.isPending) && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-                                حفظ البيانات
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-
-            {/* Loyalty Redemption Dialog */}
-            <Dialog open={isRedeemOpen} onOpenChange={setIsRedeemOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <Gift className="text-amber-500" /> استبدال نقاط الولاء ({selectedCustomer?.name})
-                        </DialogTitle>
-                    </DialogHeader>
-                    <div className="py-6 space-y-6 text-center">
-                        <div className="p-6 rounded-2xl bg-amber-50 border border-amber-200 inline-block mx-auto min-w-[200px]">
-                            <p className="text-amber-700 text-sm font-bold mb-2">النقاط المتاحة</p>
-                            <p className="text-4xl font-black text-amber-600">{selectedCustomer?.loyaltyPoints || 0}</p>
-                        </div>
-
-                        <div className="space-y-3 px-4">
-                            <Label className="text-right block">عدد النقاط المراد استبدالها</Label>
-                            <Input
-                                type="number"
-                                className="text-center text-xl font-bold h-12"
-                                value={redeemPoints}
-                                onChange={(e) => setRedeemPoints(parseInt(e.target.value) || 0)}
-                            />
-                            <p className="text-[10px] text-muted-foreground">سيتم تحويل النقاط إلى رصيد مالي في حساب العميل مباشرة</p>
-                        </div>
-                    </div>
-                    <DialogFooter className="gap-2">
-                        <Button variant="outline" onClick={() => setIsRedeemOpen(false)}>إلغاء</Button>
-                        <Button
-                            className="bg-amber-500 hover:bg-amber-600 border-0"
-                            onClick={handleRedeemSubmit}
-                            disabled={redeemMutation.isPending}
-                        >
-                            {redeemMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-                            تأكيد الاستبدال
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <RedeemPointsDialog
+                open={isRedeemOpen}
+                onOpenChange={setIsRedeemOpen}
+                customer={selectedCustomer}
+                onRedeem={handleRedeemSubmit}
+                isPending={redeemMutation.isPending}
+            />
         </div>
     );
 }

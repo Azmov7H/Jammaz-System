@@ -1,5 +1,20 @@
 import './globals.css';
 import QueryProvider from '@/providers/QueryProvider';
+import { Cairo, Tajawal } from 'next/font/google';
+import { LazyNotificationCenter } from '@/components/notifications/LazyNotificationCenter';
+
+const cairo = Cairo({
+  subsets: ['arabic'],
+  variable: '--font-cairo',
+  display: 'swap',
+});
+
+const tajawal = Tajawal({
+  subsets: ['arabic'],
+  weight: ['300', '400', '500', '700', '800', '900'],
+  variable: '--font-tajawal',
+  display: 'swap',
+});
 
 export const metadata = {
   title: 'مخازن الجماز',
@@ -9,12 +24,11 @@ export const metadata = {
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "sonner";
 import { NotificationProvider } from "@/context/NotificationContext";
-import { SmartNotificationCenter } from "@/components/notifications/SmartNotificationCenter";
 
 export default function RootLayout({ children }) {
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
-      <body className="font-sans antialiased bg-background text-foreground transition-colors duration-300">
+      <body className={`${cairo.variable} ${tajawal.variable} font-sans antialiased bg-background text-foreground transition-colors duration-300`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -24,7 +38,7 @@ export default function RootLayout({ children }) {
           <QueryProvider>
             <NotificationProvider>
               {children}
-              <SmartNotificationCenter />
+              <LazyNotificationCenter />
               <Toaster position="top-center" richColors />
             </NotificationProvider>
           </QueryProvider>

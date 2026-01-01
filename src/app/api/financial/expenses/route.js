@@ -1,40 +1,33 @@
-import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
+import { apiHandler } from '@/lib/api-handler';
 import { TreasuryService } from '@/lib/services/treasuryService';
 import { AccountingService } from '@/lib/services/accountingService';
+import { getCurrentUser } from '@/lib/auth';
+import { NextResponse } from 'next/server';
 
-export async function POST(req) {
-    try {
-        await dbConnect();
-        const { amount, reason, category, date, userId } = await req.json();
+export const POST = apiHandler(async (req) => {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-        if (!amount || !reason || !category) {
-            return NextResponse.json({ error: 'البيانات غير مكتملة' }, { status: 400 });
-        }
+    const body = await req.json();
+    const { amount, reason, category, date } = body;
 
-        // 1. Record in Treasury/Cashbox
-        await TreasuryService.addManualExpense(
-            date || new Date(),
-            parseFloat(amount),
-            reason,
-            category,
-            userId || 'system'
-        );
+    // 1. Record in Treasury
+    await TreasuryService.addManualExpense(
+        date || new Date(),
+        parseFloat(amount),
+        reason,
+        category,
+        user.userId
+    );
 
-        // 2. Accounting Entry (Operating Expense)
-        await AccountingService.createManualEntry({
-            date: date || new Date(),
-            type: 'EXPENSE',
-            amount: parseFloat(amount),
-            description: reason,
-            category: category,
-            userId: userId || 'system'
-        });
+    // 2. Record in Accounting
+    await AccountingService.createExpenseEntry(
+        parseFloat(amount),
+        category,
+        reason,
+        user.userId,
+        date || new Date()
+    );
 
-        return NextResponse.json({ success: true });
-
-    } catch (error) {
-        console.error('Expense API Error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-}
+    return { success: true };
+});

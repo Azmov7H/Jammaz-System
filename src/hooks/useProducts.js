@@ -1,59 +1,71 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api-utils';
 import { toast } from 'sonner';
+import { CACHE_CONFIG } from '@/lib/cache-config';
 
-export function useProducts(filters = {}) {
-    // Convert filters object to URLSearchParams
-    const params = new URLSearchParams();
-    if (filters.search) params.append('search', filters.search);
-    if (filters.category) params.append('category', filters.category);
-    if (filters.limit) params.append('limit', filters.limit);
-    // Add other filters as needed
+async function fetchProducts(params) {
+    const searchParams = new URLSearchParams(params);
+    const response = await fetch(`/api/products?${searchParams.toString()}`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch products');
+    }
+    const json = await response.json();
+    return json.data;
+}
 
-    return useQuery({
-        queryKey: ['products', filters],
-        queryFn: async () => {
-            const data = await api.get(`/api/products?${params.toString()}`);
-            return data.products || []; // Simplify: just return the array primarily
+async function createProduct(data) {
+    const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create product');
+    }
+    return response.json();
+}
+
+export function useProducts(params = {}) {
+    const queryClient = useQueryClient();
+
+    const query = useQuery({
+        queryKey: ['products', params],
+        queryFn: () => fetchProducts(params),
+        keepPreviousData: true,
+        ...CACHE_CONFIG.PRODUCTS,
+    });
+
+    const createMutation = useMutation({
+        mutationFn: createProduct,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+            toast.success('Product created successfully');
+        },
+        onError: (error) => {
+            toast.error(error.message);
         }
     });
+
+    return {
+        ...query,
+        createProduct: createMutation.mutate,
+        isCreating: createMutation.isPending
+    };
 }
 
-// Hook specifically for getting metadata (brands/categories)
-export function useProductMetadata() {
-    return useQuery({
-        queryKey: ['products', 'metadata'],
-        queryFn: async () => {
-            return api.get('/api/products/metadata');
-        },
-        staleTime: 1000 * 60 * 15 // 15 minutes cache for metadata
-    });
-}
-
-
-//Add Product
 export function useAddProduct() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (data) => api.post('/api/products', data),
-        onMutate: async (newProduct) => {
-            await queryClient.cancelQueries({ queryKey: ['products'] });
-            const previousProducts = queryClient.getQueryData(['products']);
-            queryClient.setQueryData(['products', {}], (old) => [
-                { ...newProduct, _id: 'temp-id-' + Date.now(), isOptimistic: true },
-                ...(old || [])
-            ]);
-            return { previousProducts };
-        },
-        onError: (err, newProduct, context) => {
-            queryClient.setQueryData(['products', {}], context.previousProducts);
-            toast.error(err.message || 'فشل إضافة المنتج');
-        },
+        mutationFn: createProduct,
         onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
             toast.success('تم إضافة المنتج بنجاح');
         },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: ['products'] });
+        onError: (error) => {
+            toast.error(error.message);
         }
     });
 }
@@ -61,50 +73,52 @@ export function useAddProduct() {
 export function useUpdateProduct() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (data) => api.put(`/api/products/${data._id}`, data),
-        onMutate: async (updatedProduct) => {
-            await queryClient.cancelQueries({ queryKey: ['products'] });
-            const previousProducts = queryClient.getQueryData(['products']);
-            queryClient.setQueryData(['products', {}], (old) =>
-                old?.map((p) => (p._id === updatedProduct._id ? { ...p, ...updatedProduct } : p))
-            );
-            return { previousProducts };
-        },
-        onError: (err, updatedProduct, context) => {
-            queryClient.setQueryData(['products', {}], context.previousProducts);
-            toast.error(err.message || 'فشل تحديث المنتج');
+        mutationFn: async (data) => {
+            // Implementation for update
+            const response = await fetch(`/api/products/${data._id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (!response.ok) throw new Error('Failed to update');
+            return response.json();
         },
         onSuccess: () => {
-            toast.success('تم تحديث المنتج بنجاح');
-        },
-        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['products'] });
-        }
+            toast.success('تم تعديل المنتج بنجاح');
+        },
+        onError: (error) => toast.error(error.message)
     });
 }
 
 export function useDeleteProduct() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (id) => api.delete(`/api/products/${id}`),
-        onMutate: async (id) => {
-            await queryClient.cancelQueries({ queryKey: ['products'] });
-            const previousProducts = queryClient.getQueryData(['products']);
-            queryClient.setQueryData(['products', {}], (old) =>
-                old?.filter((p) => p._id !== id)
-            );
-            return { previousProducts };
-        },
-        onError: (err, id, context) => {
-            queryClient.setQueryData(['products', {}], context.previousProducts);
-            toast.error(err.message || 'فشل حذف المنتج');
+        mutationFn: async (id) => {
+            const response = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+            if (!response.ok) throw new Error('Failed to delete');
+            return response.json();
         },
         onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
             toast.success('تم حذف المنتج بنجاح');
         },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: ['products'] });
-        }
+        onError: (error) => toast.error(error.message)
     });
 }
 
+export function useProductMetadata() {
+    return useQuery({
+        queryKey: ['product-metadata'],
+        queryFn: async () => {
+            const response = await fetch('/api/products/metadata');
+            if (!response.ok) {
+                throw new Error('Failed to fetch product metadata');
+            }
+            const json = await response.json();
+            return json.data;
+        },
+        ...CACHE_CONFIG.METADATA,
+        initialData: { brands: [], categories: [] }
+    });
+}

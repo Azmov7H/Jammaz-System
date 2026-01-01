@@ -1,56 +1,19 @@
-import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import { InventoryService } from '@/lib/services/inventoryService';
-import { hasPermission } from '@/lib/permissions';
+import { apiHandler } from '@/lib/api-handler';
+import { StockService } from '@/lib/services/stockService';
+import { stockMoveSchema } from '@/lib/validators';
 import { getCurrentUser } from '@/lib/auth';
+import { NextResponse } from 'next/server';
 
-export async function POST(request) {
-    try {
-        await dbConnect();
+export const POST = apiHandler(async (req) => {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-        // 1. Auth & RBAC
-        const user = await getCurrentUser();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const body = await req.json();
+    const validated = stockMoveSchema.parse(body);
 
-        const allowed = hasPermission(user.role, 'stock:manage') || hasPermission(user.role, 'transfers:manage');
-        if (!allowed) {
-            return NextResponse.json({ error: 'Forbidden: Insufficient permissions' }, { status: 403 });
-        }
-
-        // 2. Validate Body
-        const body = await request.json();
-        const { productId, qty, type, note, items } = body;
-
-        if (!items && (!productId || !qty || !type)) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-        }
-
-        // 3. Execute Logic via Service
-        try {
-            let result;
-            if (items && Array.isArray(items)) {
-                // Bulk Move
-                result = await InventoryService.bulkMoveStock({
-                    items,
-                    type: type || items[0]?.type,
-                    userId: user.userId
-                });
-            } else {
-                // Single Move
-                result = await InventoryService.moveStock({
-                    productId,
-                    qty: Number(qty),
-                    type,
-                    userId: user.userId,
-                    note: note || 'Manual Operation'
-                });
-            }
-            return NextResponse.json(result, { status: 201 });
-        } catch (e) {
-            return NextResponse.json({ error: e.message }, { status: 400 });
-        }
-
-    } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    if (validated.items) {
+        return await StockService.bulkMoveStock({ ...validated, userId: user.userId });
+    } else {
+        return await StockService.moveStock({ ...validated, userId: user.userId });
     }
-}
+});

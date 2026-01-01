@@ -1,27 +1,15 @@
-import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import Treasury from '@/models/Treasury';
-import TreasuryTransaction from '@/models/TreasuryTransaction';
+import { apiHandler } from '@/lib/api-handler';
+import { TreasuryService } from '@/lib/services/treasuryService';
 
-export async function GET() {
-    try {
-        await dbConnect();
+export const GET = apiHandler(async (req) => {
+    const { searchParams } = new URL(req.url);
+    const date = searchParams.get('date');
 
-        let treasury = await Treasury.findOne();
-        if (!treasury) {
-            treasury = await Treasury.create({ balance: 0 });
-        }
-
-        const transactions = await TreasuryTransaction.find()
-            .sort({ createdAt: -1 })
-            .limit(20)
-            .populate('createdBy', 'name');
-
-        return NextResponse.json({
-            balance: treasury.balance,
-            transactions
-        });
-    } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    if (date) {
+        return await TreasuryService.getDailyCashbox(new Date(date));
+    } else {
+        return {
+            balance: await TreasuryService.getCurrentBalance()
+        };
     }
-}
+});

@@ -6,28 +6,23 @@ import {
     X,
     Bell,
     Search,
-    Filter,
-    AlertCircle,
-    Wallet,
-    Package,
-    CheckCircle2,
-    Clock,
     Trash2,
     ArrowRight,
     Loader2,
-    Calendar,
-    ChevronLeft,
     Sparkles,
     TrendingUp,
     Zap,
-    Scale,
-    PieChart
+    PieChart,
+    AlertTriangle,
+    Clock,
+    Layout
 } from 'lucide-react';
 import { useNotificationCenter } from '@/context/NotificationContext';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
@@ -35,6 +30,8 @@ import { ar } from 'date-fns/locale';
 const TABS = [
     { id: 'all', label: 'الكل', icon: Bell },
     { id: 'CRITICAL', label: 'عاجل', icon: Zap, color: 'text-rose-500' },
+    { id: 'WARNING', label: 'تنبيهات', icon: AlertTriangle, color: 'text-amber-500' },
+    { id: 'FINANCIAL', label: 'مالي', icon: Zap, color: 'text-emerald-500' },
     { id: 'OPPORTUNITY', label: 'فرص', icon: TrendingUp, color: 'text-emerald-500' },
     { id: 'INSIGHT', label: 'رؤى', icon: PieChart, color: 'text-blue-500' },
 ];
@@ -45,28 +42,42 @@ const CATEGORY_STYLES = {
         border: 'border-rose-500/20',
         text: 'text-rose-500',
         icon: Zap,
-        glow: 'via-rose-500'
+        label: 'عاجل'
+    },
+    WARNING: {
+        bg: 'bg-amber-500/10',
+        border: 'border-amber-500/20',
+        text: 'text-amber-500',
+        icon: AlertTriangle,
+        label: 'تنبيه'
     },
     OPPORTUNITY: {
         bg: 'bg-emerald-500/10',
         border: 'border-emerald-500/20',
         text: 'text-emerald-500',
         icon: TrendingUp,
-        glow: 'via-emerald-500'
+        label: 'فرصة'
     },
     INSIGHT: {
         bg: 'bg-blue-500/10',
         border: 'border-blue-500/20',
         text: 'text-blue-500',
         icon: PieChart,
-        glow: 'via-blue-500'
+        label: 'رؤية'
+    },
+    FINANCIAL: {
+        bg: 'bg-emerald-500/10',
+        border: 'border-emerald-500/20',
+        text: 'text-emerald-500',
+        icon: TrendingUp,
+        label: 'مالي'
     },
     SYSTEM: {
-        bg: 'bg-white/5',
-        border: 'border-white/5',
-        text: 'text-foreground/40',
+        bg: 'bg-muted/50',
+        border: 'border-muted-foreground/10',
+        text: 'text-muted-foreground',
         icon: Bell,
-        glow: 'via-primary'
+        label: 'نظام'
     }
 };
 
@@ -85,11 +96,9 @@ export function SmartNotificationCenter() {
 
     const filteredNotifications = useMemo(() => {
         let result = notifications;
-
         if (activeTab !== 'all') {
             result = result.filter(n => n.category === activeTab);
         }
-
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
             result = result.filter(n =>
@@ -97,19 +106,10 @@ export function SmartNotificationCenter() {
                 n.message.toLowerCase().includes(query)
             );
         }
-
         return result;
     }, [notifications, activeTab, searchQuery]);
 
     const unreadCount = notifications.filter(n => !n.isRead).length;
-
-    // Intelligence Summary
-    const stats = useMemo(() => {
-        return {
-            critical: notifications.filter(n => n.category === 'CRITICAL' && !n.isRead).length,
-            opportunity: notifications.filter(n => n.category === 'OPPORTUNITY' && !n.isRead).length
-        };
-    }, [notifications]);
 
     return (
         <AnimatePresence>
@@ -127,33 +127,27 @@ export function SmartNotificationCenter() {
                         initial={{ scale: 0.95, opacity: 0, y: 20 }}
                         animate={{ scale: 1, opacity: 1, y: 0 }}
                         exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                        className="relative w-full max-w-5xl h-[90vh] bg-background/40 backdrop-blur-3xl border border-white/10 rounded-[3rem] shadow-[0_32px_128px_-16px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col"
+                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                        className="relative w-full max-w-5xl h-[85vh] md:h-[80vh] bg-card/90 backdrop-blur-3xl border border-white/5 rounded-[2rem] shadow-2xl overflow-hidden flex flex-col"
                     >
-                        {/* Header Area */}
-                        <div className="p-8 md:p-10 border-b border-white/5 space-y-8 bg-gradient-to-br from-primary/10 via-transparent to-transparent">
+                        {/* Header Section */}
+                        <div className="p-6 md:p-8 border-b border-white/5 space-y-6 bg-white/[0.02]">
                             <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-6">
+                                <div className="flex items-center gap-4">
                                     <div className="relative">
                                         <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full" />
-                                        <div className="relative p-4 bg-gradient-to-br from-primary to-blue-600 rounded-2xl shadow-2xl border border-white/20">
-                                            <Sparkles className="w-6 h-6 text-white" />
+                                        <div className="relative w-12 h-12 bg-gradient-to-tr from-primary to-primary/60 rounded-xl flex items-center justify-center text-white shadow-xl rotate-2">
+                                            <Sparkles className="w-6 h-6" />
                                         </div>
                                     </div>
-                                    <div className="space-y-1">
-                                        <h2 className="text-3xl font-black tracking-tighter">AI Power Feed</h2>
-                                        <div className="flex items-center gap-3">
-                                            <p className="text-sm text-foreground/40 font-bold uppercase tracking-[0.2em]">
-                                                {unreadCount > 0 ? `${unreadCount} تنبيهات ذكية` : 'النظام يعمل بكفاءة'}
+                                    <div className="space-y-0.5">
+                                        <h2 className="text-2xl font-black tracking-tight">مركز الذكاء</h2>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                                                {unreadCount > 0 ? `${unreadCount} تنبيهات نشطة` : 'جميع الأنظمة مستقرة'}
                                             </p>
-                                            {stats.critical > 0 && (
-                                                <span className="px-2 py-0.5 bg-rose-500/10 text-rose-500 rounded-lg text-[10px] font-black border border-rose-500/20">
-                                                    {stats.critical} حرجة
-                                                </span>
-                                            )}
-                                            {stats.opportunity > 0 && (
-                                                <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 rounded-lg text-[10px] font-black border border-emerald-500/20">
-                                                    {stats.opportunity} فرصة
-                                                </span>
+                                            {unreadCount > 0 && (
+                                                <div className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
                                             )}
                                         </div>
                                     </div>
@@ -162,96 +156,107 @@ export function SmartNotificationCenter() {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => setIsSidebarOpen(false)}
-                                    className="rounded-full h-12 w-12 hover:bg-white/10"
+                                    className="rounded-full h-10 w-10 hover:bg-white/10"
                                 >
-                                    <X size={24} />
+                                    <X size={20} />
                                 </Button>
                             </div>
 
-                            {/* Search and Tabs */}
-                            <div className="flex flex-col lg:flex-row gap-6 items-end justify-between">
-                                <div className="flex gap-2 p-1.5 bg-black/20 rounded-2xl border border-white/5 backdrop-blur-md">
+                            {/* Search and Filters */}
+                            <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+                                <div className="flex flex-wrap gap-1 p-1 bg-white/5 rounded-xl border border-white/5">
                                     {TABS.map(tab => (
                                         <button
                                             key={tab.id}
                                             onClick={() => setActiveTab(tab.id)}
                                             className={cn(
-                                                "relative flex items-center gap-2 px-6 py-3 rounded-[1.25rem] text-sm font-black transition-all duration-300",
+                                                "relative flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all duration-300",
                                                 activeTab === tab.id
-                                                    ? "bg-white text-black shadow-xl scale-105"
-                                                    : "text-foreground/40 hover:text-foreground hover:bg-white/5"
+                                                    ? "text-primary"
+                                                    : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                                             )}
                                         >
-                                            <tab.icon size={16} className={cn(activeTab !== tab.id && tab.color)} />
-                                            {tab.label}
                                             {activeTab === tab.id && (
-                                                <motion.div layoutId="tab-pill" className="absolute inset-0 bg-white rounded-[1.25rem] -z-10" />
+                                                <motion.div layoutId="tab-pill" className="absolute inset-0 bg-primary/10 rounded-lg -z-10 border border-primary/20" />
                                             )}
+                                            <tab.icon size={14} />
+                                            {tab.label}
                                         </button>
                                     ))}
                                 </div>
 
-                                <div className="relative w-full lg:w-96 group">
-                                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground/30 group-hover:text-primary transition-colors" size={18} />
+                                <div className="relative w-full lg:w-72 group">
+                                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={16} />
                                     <Input
-                                        placeholder="تصفية المحرك الذكي..."
+                                        placeholder="تصفية المحرك..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full pr-12 h-14 bg-white/5 border-white/5 rounded-2xl focus:ring-primary focus:border-primary transition-all backdrop-blur-md font-bold"
+                                        className="w-full pr-10 h-10 bg-white/5 border-white/5 rounded-xl focus:ring-primary/30 text-xs font-bold"
                                     />
                                 </div>
                             </div>
                         </div>
 
-                        {/* Feed Content */}
-                        <ScrollArea className="flex-1 p-8 md:p-10 nc-scrollbar">
-                            {filteredNotifications.length === 0 ? (
-                                <div className="h-full flex flex-col items-center justify-center py-20 gap-6 opacity-30">
-                                    <div className="p-10 bg-white/5 rounded-full border border-white/5">
-                                        <Search size={64} />
-                                    </div>
-                                    <p className="text-xl font-bold italic">لا توجد تنبيهات ذكية حالياً</p>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 gap-5">
+                        {/* Content Area */}
+                        <div className="flex-1 min-h-0">
+                            <ScrollArea className="h-full">
+                                <div className="p-6 md:p-8">
                                     <AnimatePresence mode="popLayout">
-                                        {filteredNotifications.map((notif, idx) => (
-                                            <SmartActionCard
-                                                key={notif._id}
-                                                notif={notif}
-                                                onRead={() => markAsRead(notif._id)}
-                                                onDelete={() => deleteNotification(notif._id)}
-                                                onAction={() => performAction(notif._id)}
-                                                isLoading={activeActionId === notif._id}
-                                            />
-                                        ))}
+                                        {filteredNotifications.length === 0 ? (
+                                            <motion.div
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                className="py-20 flex flex-col items-center justify-center gap-4 opacity-40 text-center"
+                                            >
+                                                <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center border border-white/5 text-muted-foreground">
+                                                    <Layout size={32} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-lg font-black">لا توجد سجلات</h3>
+                                                    <p className="text-[10px] font-bold uppercase tracking-widest">Feed is Clear</p>
+                                                </div>
+                                            </motion.div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 gap-4">
+                                                {filteredNotifications.map((notif) => (
+                                                    <SmartActionCard
+                                                        key={notif._id}
+                                                        notif={notif}
+                                                        onRead={() => markAsRead(notif._id)}
+                                                        onDelete={() => deleteNotification(notif._id)}
+                                                        onAction={() => performAction(notif._id)}
+                                                        isLoading={activeActionId === notif._id}
+                                                    />
+                                                ))}
+                                            </div>
+                                        )}
                                     </AnimatePresence>
                                 </div>
-                            )}
-                        </ScrollArea>
+                            </ScrollArea>
+                        </div>
 
                         {/* Footer Controls */}
-                        <div className="p-8 bg-black/20 border-t border-white/5 flex items-center justify-between">
+                        <div className="p-8 bg-black/20 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-6">
                             <div className="flex items-center gap-6">
-                                <div className="flex items-center gap-3 text-foreground/30 text-[11px] font-black uppercase tracking-widest">
-                                    <Zap size={14} className="text-primary animate-pulse" />
-                                    Real-time Business Audit
+                                <div className="flex items-center gap-3 text-primary text-[11px] font-black uppercase tracking-[0.3em]">
+                                    <Zap size={14} className="animate-pulse" />
+                                    Real-time Operational Insight
                                 </div>
-                                <div className="h-4 w-[1px] bg-white/10" />
-                                <div className="text-[10px] font-bold text-foreground/20">
-                                    Last Sync: {new Date().toLocaleTimeString('ar-SA')}
+                                <div className="hidden sm:block h-4 w-[1px] bg-white/10" />
+                                <div className="text-[10px] font-bold text-muted-foreground/40 hidden sm:block">
+                                    SYNCHRONIZED WITH GLOBAL CLOUD
                                 </div>
                             </div>
-                            <div className="flex gap-4">
+                            <div className="flex gap-4 w-full sm:w-auto">
                                 <Button
                                     variant="ghost"
-                                    className="h-12 px-6 text-foreground/40 hover:text-rose-500 hover:bg-rose-500/10 font-black rounded-xl"
+                                    className="flex-1 sm:flex-none h-12 px-6 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 font-black rounded-xl transition-all"
                                     onClick={() => deleteNotification('all')}
                                 >
-                                    <Trash2 size={16} className="ml-3" /> مسح الكل
+                                    <Trash2 size={16} className="ml-3" /> مسح السجل
                                 </Button>
                                 <Button
-                                    className="h-12 px-10 bg-primary hover:bg-primary/90 text-white rounded-xl font-black shadow-lg shadow-primary/20"
+                                    className="flex-1 sm:flex-none h-12 px-10 bg-primary hover:bg-primary/90 text-white rounded-xl font-black shadow-xl shadow-primary/20 transition-all hover:scale-[1.02]"
                                     onClick={() => markAsRead('all')}
                                 >
                                     أرشفة جميع التنبيهات
@@ -266,17 +271,16 @@ export function SmartNotificationCenter() {
 }
 
 function SmartActionCard({ notif, onRead, onDelete, onAction, isLoading }) {
-    const isRead = notif.isRead;
     const style = CATEGORY_STYLES[notif.category] || CATEGORY_STYLES.SYSTEM;
     const Icon = style.icon;
 
     const getActionLabel = (type) => {
         switch (type) {
-            case 'COLLECT_DEBT': return 'تحصيل الآن';
-            case 'PAY_SUPPLIER': return 'سداد المورد';
-            case 'REORDER': return 'إعادة طلب';
-            case 'OPTIMIZE_PRICE': return 'تحسين السعر';
-            case 'VIEW_REPORT': return 'عرض التقرير';
+            case 'COLLECT_DEBT': return 'تحصيل المبالغ';
+            case 'PAY_SUPPLIER': return 'سداد الموردين';
+            case 'REORDER': return 'إصدار أمر شراء';
+            case 'OPTIMIZE_PRICE': return 'تعديل الأسعار';
+            case 'VIEW_REPORT': return 'تحليل البيانات';
             default: return 'اتخاذ إجراء';
         }
     };
@@ -284,90 +288,86 @@ function SmartActionCard({ notif, onRead, onDelete, onAction, isLoading }) {
     return (
         <motion.div
             layout
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.98 }}
             className={cn(
-                "group relative p-8 rounded-[2.5rem] border transition-all duration-500 overflow-hidden backdrop-blur-2xl",
-                !isRead
-                    ? "bg-white/[0.03] border-white/10 hover:border-white/20 shadow-2xl"
+                "group relative p-4 md:p-6 rounded-[1.5rem] border transition-all duration-300 overflow-hidden",
+                !notif.isRead
+                    ? "bg-white/[0.04] border-white/5 hover:border-white/10 shadow-lg backdrop-blur-xl"
                     : "opacity-40 grayscale pointer-events-none"
             )}
         >
-            <div className="flex flex-col lg:flex-row gap-8 items-start lg:items-center relative z-10">
-                {/* Visual Indicator */}
+            <div className="flex flex-col lg:flex-row gap-4 md:gap-6 items-start lg:items-center relative z-10">
+                {/* Visual Category */}
                 <div className={cn(
-                    "p-6 rounded-[2rem] border transition-all duration-500",
-                    !isRead ? `${style.bg} ${style.border}` : "bg-white/5 border-white/5"
+                    "p-4 rounded-xl border transition-all shadow-md shrink-0",
+                    style.bg, style.border, style.text
                 )}>
-                    <Icon className={cn("w-8 h-8", style.text)} />
+                    <Icon className="w-6 h-6" />
                 </div>
 
-                {/* Text Content */}
-                <div className="flex-1 space-y-3">
-                    <div className="flex items-center gap-4 flex-wrap">
-                        <span className={cn(
-                            "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border",
-                            style.bg, style.border, style.text
-                        )}>
-                            {notif.category}
-                        </span>
-                        <h4 className="text-xl font-black tracking-tight">{notif.title}</h4>
-                        <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5 text-[10px] font-bold text-foreground/40">
-                            <Clock size={12} />
+                {/* Main Content */}
+                <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <Badge variant="outline" className={cn("px-2 py-0.5 text-[8px] font-black uppercase tracking-widest border transition-all", style.bg, style.border, style.text)}>
+                            {style.label}
+                        </Badge>
+                        <h4 className="text-lg font-black tracking-tight">{notif.title}</h4>
+                        <div className="flex items-center gap-1.5 text-[8px] font-black text-muted-foreground/60 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
+                            <Clock size={10} className="text-primary" />
                             {formatDistanceToNow(new Date(notif.createdAt), { addSuffix: true, locale: ar })}
                         </div>
                     </div>
-                    <p className="text-base font-medium text-foreground/60 leading-relaxed max-w-3xl">
+                    <p className="text-sm font-medium text-muted-foreground leading-relaxed max-w-3xl line-clamp-2">
                         {notif.message}
                     </p>
                 </div>
 
-                {/* Actions */}
-                <div className="flex gap-4 w-full lg:w-auto shrink-0">
-                    {notif.actionType && !isRead ? (
+                {/* Actions Section */}
+                <div className="flex gap-2 w-full lg:w-auto shrink-0 mt-2 lg:mt-0">
+                    {notif.actionType && !notif.isRead ? (
                         <Button
                             className={cn(
-                                "flex-1 lg:flex-none h-16 px-10 rounded-2xl text-white font-black shadow-2xl transition-all hover:scale-[1.05]",
+                                "flex-1 lg:flex-none h-12 px-6 rounded-xl text-xs font-black shadow-lg transition-all hover:scale-[1.02] group/btn",
                                 notif.category === 'CRITICAL' ? "bg-rose-600 hover:bg-rose-700" : "bg-primary hover:bg-primary/90"
                             )}
                             onClick={onAction}
                             disabled={isLoading}
                         >
-                            {isLoading ? <Loader2 className="animate-spin" /> : getActionLabel(notif.actionType)}
-                            <ArrowRight className="mr-4" size={20} />
+                            {isLoading ? <Loader2 className="animate-spin w-4 h-4" /> : (
+                                <>
+                                    {getActionLabel(notif.actionType)}
+                                    <ArrowRight className="mr-2 group-hover/btn:mr-1 group-hover/btn:ml-1 transition-all" size={16} />
+                                </>
+                            )}
                         </Button>
-                    ) : !isRead && (
+                    ) : !notif.isRead && (
                         <Button
-                            variant="secondary"
-                            className="h-16 px-10 rounded-2xl font-black bg-white/5 border border-white/5 hover:bg-white/10"
+                            variant="outline"
+                            className="h-12 px-6 rounded-xl text-xs font-black bg-white/5 border-white/5 hover:bg-white/10 transition-all flex-1 lg:flex-none"
                             onClick={onRead}
                         >
-                            أرشفة
+                            أرشفة التنبيه
                         </Button>
                     )}
 
-                    <button
+                    <Button
+                        variant="ghost"
                         onClick={onDelete}
-                        className="h-16 w-16 rounded-2xl bg-white/5 text-foreground/40 flex items-center justify-center hover:bg-rose-500/20 hover:text-rose-500 transition-all border border-white/5"
+                        className="h-12 w-12 rounded-xl bg-white/5 text-muted-foreground flex items-center justify-center hover:bg-rose-500/10 hover:text-rose-500 transition-all border border-white/5"
                     >
-                        <Trash2 size={24} />
-                    </button>
+                        <Trash2 size={18} />
+                    </Button>
                 </div>
             </div>
 
-            {/* Glowing active line */}
-            {!isRead && (
-                <div className={cn(
-                    "absolute top-0 right-1/4 left-1/4 h-[2px] bg-gradient-to-r from-transparent to-transparent blur-md opacity-50",
-                    style.glow
-                )} />
+            {/* Premium Decorative elements */}
+            {!notif.isRead && (
+                <div className="absolute right-0 top-0 bottom-0 w-1 bg-primary rounded-l-full shadow-[0_0_15px_rgba(var(--primary),0.5)] opacity-50" />
             )}
-
-            {/* Backdrop shimmer */}
-            {!isRead && (
-                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
-            )}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.01] to-transparent pointer-events-none" />
         </motion.div>
     );
 }
+

@@ -13,7 +13,7 @@ export function useUserRole() {
         retry: 1
     });
 
-    const user = data?.user || null;
+    const user = data?.data?.user || null;
     const role = user?.role || null;
 
     return { role, user, loading: isLoading, refetch };

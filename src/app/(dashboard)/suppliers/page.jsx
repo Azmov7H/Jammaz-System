@@ -14,7 +14,8 @@ import { Label } from '@/components/ui/label';
 import { useSuppliers, useAddSupplier, useUpdateSupplier } from '@/hooks/useSuppliers';
 
 export default function SuppliersPage() {
-    const { data: suppliers = [], isLoading } = useSuppliers();
+    const { data: suppliersData, isLoading } = useSuppliers();
+    const suppliers = suppliersData?.suppliers || [];
     const addMutation = useAddSupplier();
     const updateMutation = useUpdateSupplier();
 
