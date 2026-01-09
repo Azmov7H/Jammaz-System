@@ -169,5 +169,30 @@ export const InvoiceService = {
                 limit: Number(limit)
             }
         };
+    },
+
+    async getById(id) {
+        await dbConnect();
+
+        const invoice = await Invoice.findById(id)
+            .populate('customer')
+            .populate('createdBy', 'name')
+            .populate({
+                path: 'items.productId',
+                select: 'name code'
+            })
+            .lean();
+
+        if (!invoice) return null;
+
+        // Transform items to include name and code at top level of item object
+        invoice.items = invoice.items.map(item => ({
+            ...item,
+            name: item.productId?.name || 'Unknown Product',
+            code: item.productId?.code || '-',
+            productId: item.productId?._id
+        }));
+
+        return invoice;
     }
 };

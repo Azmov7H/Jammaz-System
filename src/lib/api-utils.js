@@ -1,3 +1,5 @@
+import { NextResponse } from 'next/server';
+
 export async function fetcher(url, options = {}) {
     const {
         cache = 'default',
@@ -38,6 +40,8 @@ export async function fetcher(url, options = {}) {
     }
     return res.json();
 }
+
+
 
 export const api = {
     get: (url, options = {}) => fetcher(url, { ...options, method: 'GET' }),

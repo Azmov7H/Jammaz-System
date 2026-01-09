@@ -1,63 +1,46 @@
-import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
+import { apiHandler } from '@/lib/api-handler';
 import { PhysicalInventoryService } from '@/lib/services/physicalInventoryService';
 import { getCurrentUser } from '@/lib/auth';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
 
-export async function GET(request, { params }) {
-    try {
-        await dbConnect();
-        const { id } = await params;
+export const GET = apiHandler(async (req, { params }) => {
+    const { id } = await params;
+    const count = await PhysicalInventoryService.getCountById(id);
 
-        const count = await PhysicalInventoryService.getCountById(id);
-
-        if (!count) {
-            return NextResponse.json({ error: 'سجل الجرد غير موجود' }, { status: 404 });
-        }
-
-        return NextResponse.json({ count });
-
-    } catch (error) {
-        console.error('Error fetching physical count:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!count) {
+        return NextResponse.json({ success: false, error: 'سجل الجرد غير موجود' }, { status: 404 });
     }
-}
 
-// Update actual quantities
-export async function PATCH(request, { params }) {
-    try {
-        await dbConnect();
-        const user = await getCurrentUser();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return { count };
+});
 
-        const { id } = await params;
-        const body = await request.json();
-        const { items } = body;
+const updateItemsSchema = z.object({
+    items: z.array(z.object({
+        productId: z.string(),
+        actualQty: z.coerce.number().min(0),
+        reason: z.string().optional(),
+        justification: z.string().optional()
+    }))
+});
 
-        const count = await PhysicalInventoryService.updateActualQuantities(id, items, user.userId);
+export const PATCH = apiHandler(async (req, { params }) => {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-        return NextResponse.json({ count, success: true });
+    const { id } = await params;
+    const body = await req.json();
+    const { items } = updateItemsSchema.parse(body);
 
-    } catch (error) {
-        console.error('Error updating count:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-}
+    const count = await PhysicalInventoryService.updateActualQuantities(id, items, user.userId);
+    return { success: true, count };
+});
 
-// Delete a draft count
-export async function DELETE(request, { params }) {
-    try {
-        await dbConnect();
-        const user = await getCurrentUser();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export const DELETE = apiHandler(async (req, { params }) => {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-        const { id } = await params;
-
-        await PhysicalInventoryService.deleteCount(id, user.userId);
-
-        return NextResponse.json({ success: true, message: 'تم الحذف بنجاح' });
-
-    } catch (error) {
-        console.error('Error deleting count:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-}
+    const { id } = await params;
+    await PhysicalInventoryService.deleteCount(id, user.userId);
+    return { success: true, message: 'تم الحذف بنجاح' };
+});

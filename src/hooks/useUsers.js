@@ -90,7 +90,7 @@ export function useUsers() {
     });
 
     return {
-        users: usersQuery.data || [],
+        users: usersQuery.data?.data?.users || [],
         isLoading: usersQuery.isLoading,
         isError: usersQuery.isError,
         error: usersQuery.error,

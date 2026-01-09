@@ -1,46 +1,30 @@
+import { NextResponse } from 'next/server';
 import { apiHandler } from '@/lib/api-handler';
-import dbConnect from '@/lib/db';
-import Notification from '@/models/Notification';
-import { NotificationService } from '@/lib/services/notificationService';
 import { getCurrentUser } from '@/lib/auth';
+import { NotificationService } from '@/lib/services/notificationService';
 
-export const GET = apiHandler(async (request) => {
-    await dbConnect();
-
+export const GET = apiHandler(async (req) => {
     const user = await getCurrentUser();
-    if (!user) throw new Error('Unauthorized');
 
-    // Trigger sync in the background (Non-blocking)
-    NotificationService.syncAllAlerts().catch(err => {
-        console.error('Background Notification Sync Failed:', err);
+    // Parse query params
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const unreadOnly = searchParams.get('unreadOnly') === 'true';
+    const type = searchParams.get('type') || null;
+
+    // Trigger explicit sync if requested (optional, careful with performance)
+    // await NotificationService.syncAllAlerts();
+
+    const result = await NotificationService.getUserNotifications(user._id, {
+        page,
+        limit,
+        unreadOnly,
+        type
     });
 
-    // Fetch notifications for this user OR system-wide (null userId)
-    const notifications = await Notification.find({
-        $or: [{ userId: user.userId }, { userId: null }]
-    })
-        .sort({ createdAt: -1 })
-        .limit(20);
-
-    return { notifications };
-});
-
-export const POST = apiHandler(async (request) => {
-    await dbConnect();
-    const body = await request.json();
-    const notification = await Notification.create(body);
-    return notification;
-});
-
-export const DELETE = apiHandler(async (request) => {
-    await dbConnect();
-    const user = await getCurrentUser();
-    if (!user) throw new Error('Unauthorized');
-
-    // Delete all notifications for this user OR system-wide
-    await Notification.deleteMany({
-        $or: [{ userId: user.userId }, { userId: null }]
+    return NextResponse.json({
+        success: true,
+        data: result
     });
-
-    return { message: 'All notifications deleted' };
 });

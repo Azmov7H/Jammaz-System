@@ -1,27 +1,24 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import Notification from '@/models/Notification';
+import { apiHandler } from '@/lib/api-handler';
 import { getCurrentUser } from '@/lib/auth';
+import { Notification } from '@/models/Notification'; // Direct access for delete or use Service
+import { NotificationService } from '@/lib/services/notificationService'; // I should add delete to service
 
-export async function DELETE(request, { params }) {
-    try {
-        await dbConnect();
+export const DELETE = apiHandler(async (req, { params }) => {
+    const user = await getCurrentUser();
+    const { id } = params;
 
-        const user = await getCurrentUser();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-        const { id } = await params;
-
-        // Delete single notification
-        const result = await Notification.findByIdAndDelete(id);
-
-        if (!result) {
-            return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
-        }
-
-        return NextResponse.json({ success: true, message: 'Notification deleted' });
-    } catch (error) {
-        console.error('Delete notification error:', error);
-        return NextResponse.json({ error: 'Failed to delete notification' }, { status: 500 });
+    if (id === 'all') {
+        // Service doesn't have a specific 'delete all' public method yet, but I can add or just do it here
+        const Notification = require('@/models/Notification').default;
+        await Notification.deleteMany({ recipientId: user._id });
+    } else {
+        const Notification = require('@/models/Notification').default;
+        await Notification.findOneAndDelete({ _id: id, recipientId: user._id });
     }
-}
+
+    return NextResponse.json({
+        success: true,
+        data: { message: 'Notification deleted' }
+    });
+});

@@ -96,15 +96,6 @@ const InvoiceSettingsSchema = new mongoose.Schema({
         default: 30
     },
 
-    // Loyalty Settings
-    pointsPerEGP: {
-        type: Number,
-        default: 0.01 // Default: 1 point per 100 EGP
-    },
-    egpPerPoint: {
-        type: Number,
-        default: 0.1 // Default: 100 points = 10 EGP
-    },
 
     // Only one settings document should exist
     isActive: {

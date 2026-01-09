@@ -97,7 +97,12 @@ export function SmartNotificationCenter() {
     const filteredNotifications = useMemo(() => {
         let result = notifications;
         if (activeTab !== 'all') {
-            result = result.filter(n => n.category === activeTab);
+            result = result.filter(n => {
+                const category = n.metadata?.category || n.category;
+                if (activeTab === 'CRITICAL') return n.severity === 'critical' || category === 'CRITICAL';
+                if (activeTab === 'WARNING') return n.severity === 'warning' || category === 'WARNING';
+                return category === activeTab;
+            });
         }
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
@@ -271,7 +276,8 @@ export function SmartNotificationCenter() {
 }
 
 function SmartActionCard({ notif, onRead, onDelete, onAction, isLoading }) {
-    const style = CATEGORY_STYLES[notif.category] || CATEGORY_STYLES.SYSTEM;
+    const category = notif.metadata?.category || notif.category || 'SYSTEM';
+    const style = CATEGORY_STYLES[category] || CATEGORY_STYLES.SYSTEM;
     const Icon = style.icon;
 
     const getActionLabel = (type) => {

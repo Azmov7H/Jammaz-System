@@ -1,33 +1,35 @@
-import jwt from 'jsonwebtoken';
+import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1d';
 
-if (!JWT_SECRET) {
+if (!process.env.JWT_SECRET) {
     throw new Error('Please define the JWT_SECRET environment variable inside .env');
 }
 
 /**
  * Sign a JWT token with the user payload
- * @param {object} payload 
- * @returns {string} token
  */
-export function signToken(payload) {
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+export async function signToken(payload) {
+    const jwt = await new SignJWT(payload)
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime(JWT_EXPIRES_IN)
+        .sign(JWT_SECRET);
+    return jwt;
 }
 
 /**
  * Verify a JWT token
- * @param {string} token 
- * @returns {object|null} decoded payload or null
  */
-export function verifyToken(token) {
+export async function verifyToken(token) {
     try {
         if (!token) return null;
-        return jwt.verify(token, JWT_SECRET);
+        const { payload } = await jwtVerify(token, JWT_SECRET);
+        return payload;
     } catch (error) {
-        return null; // Invalid or expired
+        return null;
     }
 }
 
@@ -38,7 +40,7 @@ export async function getCurrentUser() {
     try {
         const cookieStore = await cookies();
         const token = cookieStore.get('token')?.value;
-        return verifyToken(token);
+        return await verifyToken(token);
     } catch (error) {
         return null;
     }

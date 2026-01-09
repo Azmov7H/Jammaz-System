@@ -1,59 +1,50 @@
 import { apiHandler } from '@/lib/api-handler';
-import dbConnect from '@/lib/db';
-import PurchaseOrder from '@/models/PurchaseOrder';
+import { PurchaseOrderService } from '@/lib/services/purchaseOrderService';
+import { poReceiveSchema } from '@/lib/validators';
 import { getCurrentUser } from '@/lib/auth';
+import { NextResponse } from 'next/server';
 
 export const GET = apiHandler(async (req, { params }) => {
-    await dbConnect();
     const { id } = await params;
-
-    const purchaseOrder = await PurchaseOrder.findById(id)
-        .populate('supplier', 'name phone address')
-        .populate('items.productId', 'name code');
+    const purchaseOrder = await PurchaseOrderService.getById(id);
 
     if (!purchaseOrder) {
-        throw new Error('أمر الشراء غير موجود');
+        return NextResponse.json({ success: false, error: 'أمر الشراء غير موجود' }, { status: 404 });
     }
 
-    return { purchaseOrder };
+    return NextResponse.json({ success: true, data: { purchaseOrder } });
 });
 
-/**
- * Update Purchase Order Status - especially RECEIVING
- */
 export const PATCH = apiHandler(async (req, { params }) => {
-    await dbConnect();
     const user = await getCurrentUser();
-    if (!user) throw new Error('غير مصرح لك بالقيام بهذه العملية');
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
     const { id } = await params;
-    const { status, paymentType = 'cash' } = await req.json();
+    const body = await req.json();
 
-    const purchaseOrder = await PurchaseOrder.findById(id).populate('items.productId');
+    // Using poReceiveSchema if status is RECEIVED, else partial? 
+    // Actually, poReceiveSchema is good for receiving. Let's make it flexible or just parse status first.
+    const status = body.status;
 
-    if (!purchaseOrder) {
-        throw new Error('أمر الشراء غير موجود');
+    try {
+        const purchaseOrder = await PurchaseOrderService.updateStatus(id, body, user.userId);
+        return NextResponse.json({
+            success: true,
+            message: status === 'RECEIVED' ? 'تم استلام الطلب وتحديث المخزون والحسابات' : 'تم تحديث حالة الطلب',
+            data: { purchaseOrder }
+        });
+    } catch (error) {
+        return NextResponse.json({
+            success: false,
+            error: typeof error === 'string' ? error : 'خطأ أثناء تحديث أمر الشراء'
+        }, { status: 400 });
     }
+});
 
-    // If marking as RECEIVED, execute business logic
-    if (status === 'RECEIVED' && purchaseOrder.status !== 'RECEIVED') {
-        const { FinanceService } = await import('@/lib/services/financeService');
-        await FinanceService.recordPurchaseReceive(purchaseOrder, user.userId, paymentType);
+export const DELETE = apiHandler(async (req, { params }) => {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-        // Return updated PO after business logic
-        const updatedPO = await PurchaseOrder.findById(id)
-            .populate('supplier', 'name phone address')
-            .populate('items.productId', 'name code');
-
-        return {
-            message: 'تم استلام الطلب وتحديث المخزون والخزينة والحسابات',
-            purchaseOrder: updatedPO
-        };
-    }
-
-    // Other status updates
-    purchaseOrder.status = status;
-    await purchaseOrder.save();
-
-    return { purchaseOrder };
+    const { id } = await params;
+    return await PurchaseOrderService.delete(id);
 });

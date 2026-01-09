@@ -41,11 +41,14 @@
 
 ## هيكلية المشروع
 
-- `src/app`: صفحات الموقع و API Routes (App Router).
-- `src/components`: مكونات الواجهة (Header, Sidebar, UI).
-- `src/lib`: دوال مساعدة (DB connection, Auth).
-- `src/models`: مخططات قاعدة البيانات (Mongoose Schemas).
-- `scripts`: سكربتات مساعدة (seed.js).
+يرجى مراجعة [ARCHITECTURE.md](file:///c:/Users/DRC/Desktop/Next.js/Nkl/transfer/ARCHITECTURE.md) للحصول على تفاصيل كاملة حول بنية المشروع.
+
+- `src/app/(public)`: الصفحات العامة (تسجيل الدخول).
+- `src/app/(protected)`: صفحات لوحة التحكم المحمية.
+- `src/app/api`: منطق الخلفية وواجهات البرمجيات.
+- `src/lib/services`: منطق الأعمال المستقل.
+- `src/models`: مخططات MongoDB.
+- `src/config/navigation.js`: إعدادات التنقل المركزية.
 
 ## المصادقة (Authentication)
 يعتمد النظام على Google OAuth. عند تسجيل الدخول:

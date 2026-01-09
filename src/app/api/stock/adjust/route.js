@@ -1,48 +1,36 @@
-import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import { InventoryService } from '@/lib/services/inventoryService';
+import { apiHandler } from '@/lib/api-handler';
+import { StockService } from '@/lib/services/stockService';
 import { getCurrentUser } from '@/lib/auth';
 import { hasPermission } from '@/lib/permissions';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
 
-export async function POST(request) {
-    try {
-        await dbConnect();
+const stockAdjustSchema = z.object({
+    productId: z.string().min(1),
+    warehouseQty: z.coerce.number().min(0, 'الكمية لا يمكن أن تكون سالبة'),
+    shopQty: z.coerce.number().min(0, 'الكمية لا يمكن أن تكون سالبة'),
+    note: z.string().optional().default('Manually Adjusted')
+});
 
-        // 1. Auth & RBAC
-        const user = await getCurrentUser();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export const POST = apiHandler(async (req) => {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-        // Requires high-level permission for audit/correction
-        const canAudit = hasPermission(user.role, 'stock:audit') || user.role === 'manager' || user.role === 'owner';
-
-        if (!canAudit) {
-            return NextResponse.json({ error: 'Forbidden: Requires Audit Permissions' }, { status: 403 });
-        }
-
-        // 2. Validate Body
-        const { productId, warehouseQty, shopQty, note } = await request.json();
-
-        if (!productId || warehouseQty === undefined || shopQty === undefined) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-        }
-
-        if (Number(warehouseQty) < 0 || Number(shopQty) < 0) {
-            return NextResponse.json({ error: 'Quantities cannot be negative' }, { status: 400 });
-        }
-
-        // 3. Execute
-        const result = await InventoryService.forceAdjust(
-            productId,
-            Number(warehouseQty),
-            Number(shopQty),
-            user.userId,
-            note || 'Manual Correction'
-        );
-
-        return NextResponse.json(result);
-
-    } catch (error) {
-        console.error('Audit Error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    const canAudit = hasPermission(user.role, 'stock:audit') || user.role === 'manager' || user.role === 'owner';
+    if (!canAudit) {
+        return NextResponse.json({ success: false, error: 'غير مسموح لك بتعديل المخزون يدوياً' }, { status: 403 });
     }
-}
+
+    const body = await req.json();
+    const validated = stockAdjustSchema.parse(body);
+
+    const result = await StockService.adjustStock(
+        validated.productId,
+        validated.warehouseQty,
+        validated.shopQty,
+        validated.note,
+        user.userId
+    );
+
+    return NextResponse.json({ success: true, data: result });
+});

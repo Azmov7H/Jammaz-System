@@ -44,20 +44,10 @@ export function useCustomers({ search } = {}) {
         onError: (error) => toast.error(error.message),
     });
 
-    const redeemMutation = useMutation({
-        mutationFn: ({ id, points }) => api.post('/api/customers/loyalty', { customerId: id, points }),
-        onSuccess: () => {
-            queryClient.invalidateQueries(['customers']);
-            toast.success('تم استبدال النقاط برصيد بنجاح');
-        },
-        onError: (error) => toast.error(error.message),
-    });
-
     return {
         ...query, // data, isLoading, etc.
         addMutation,
         updateMutation,
         deleteMutation,
-        redeemMutation,
     };
 }

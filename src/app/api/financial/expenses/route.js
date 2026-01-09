@@ -1,7 +1,7 @@
 import { apiHandler } from '@/lib/api-handler';
-import { TreasuryService } from '@/lib/services/treasuryService';
-import { AccountingService } from '@/lib/services/accountingService';
+import { FinanceService } from '@/lib/services/financeService';
 import { getCurrentUser } from '@/lib/auth';
+import { expenseSchema } from '@/lib/validators';
 import { NextResponse } from 'next/server';
 
 export const POST = apiHandler(async (req) => {
@@ -9,25 +9,15 @@ export const POST = apiHandler(async (req) => {
     if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { amount, reason, category, date } = body;
+    const validated = expenseSchema.parse(body);
 
-    // 1. Record in Treasury
-    await TreasuryService.addManualExpense(
-        date || new Date(),
-        parseFloat(amount),
-        reason,
-        category,
-        user.userId
-    );
-
-    // 2. Record in Accounting
-    await AccountingService.createExpenseEntry(
-        parseFloat(amount),
-        category,
-        reason,
-        user.userId,
-        date || new Date()
-    );
-
-    return { success: true };
+    try {
+        const result = await FinanceService.recordExpense(validated, user.userId);
+        return NextResponse.json({ success: true, data: result });
+    } catch (error) {
+        return NextResponse.json({
+            success: false,
+            error: typeof error === 'string' ? error : 'خطأ أثناء تسجيل المصروف'
+        }, { status: 400 });
+    }
 });

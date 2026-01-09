@@ -1,6 +1,6 @@
 'use client';
 
-import { Calendar, User, Trash2 } from 'lucide-react';
+import { Calendar, User, Trash2, Receipt, Wallet, Banknote, CreditCard, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -16,87 +16,108 @@ export function InvoiceListItem({ invoice, onDelete }) {
     return (
         <motion.div
             layout
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            className="group"
         >
             <Link href={`/invoices/${invoice._id}`}>
-                <div className="glass-card p-5 rounded-[2rem] border border-white/5 hover:bg-white/5 hover:border-purple-500/20 transition-all group relative overflow-hidden">
-                    {/* Colored indicator line */}
+                <div className="bg-card border border-white/5 rounded-[2rem] p-6 shadow-custom-md hover:shadow-custom-xl hover:bg-white/[0.02] transition-all duration-500 relative overflow-hidden flex flex-col md:flex-row md:items-center gap-6">
+                    {/* Visual Accent */}
                     <div className={cn(
-                        "absolute top-0 right-0 w-1 h-full transition-all group-hover:w-2",
-                        isCash ? "bg-emerald-500" : "bg-amber-500"
+                        "absolute right-0 top-0 bottom-0 w-1.5 transition-all duration-500 group-hover:w-3",
+                        isCash ? "bg-emerald-500/40" : "bg-amber-500/40"
                     )} />
 
-                    <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6 relative z-10">
-                        {/* ID & Date */}
-                        <div className="flex items-center gap-3 md:gap-4">
-                            <div className={cn(
-                                "h-12 w-12 md:h-14 md:w-14 min-w-[48px] md:min-w-[56px] rounded-xl md:rounded-2xl flex items-center justify-center font-black text-sm md:text-base group-hover:scale-105 transition-transform shrink-0",
-                                isCash ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500"
-                            )}>
-                                <span className="truncate px-1">#{invoice.number}</span>
+                    {/* Left Section: ID & Date */}
+                    <div className="flex items-center gap-5">
+                        <div className={cn(
+                            "h-16 w-16 rounded-2xl flex items-center justify-center font-black text-lg shadow-inner transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3",
+                            isCash ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500"
+                        )}>
+                            <Receipt className="w-8 h-8 opacity-20 absolute" />
+                            <span className="relative">#{invoice.number}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <Calendar className="w-3.5 h-3.5" />
+                                <span className="text-xs font-bold uppercase tracking-wider">
+                                    {format(new Date(invoice.date), 'eeee, d MMMM yyyy', { locale: ar })}
+                                </span>
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1.5 md:gap-2 mb-1">
-                                    <Calendar className="h-3 w-3 md:h-3.5 md:w-3.5 shrink-0 text-muted-foreground" />
-                                    <span className="text-xs md:text-sm font-semibold text-foreground/80 truncate">
-                                        {format(new Date(invoice.date), 'dd MMM yyyy', { locale: ar })}
-                                    </span>
-                                </div>
-                                <Badge
-                                    variant="outline"
-                                    className={cn(
-                                        "text-[9px] md:text-[10px] h-5 font-bold",
-                                        isCash
-                                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
-                                            : "bg-amber-500/10 border-amber-500/20 text-amber-500"
+                            <div className="flex items-center gap-2">
+                                <Badge variant="outline" className={cn(
+                                    "px-3 py-0.5 rounded-full font-black text-[10px] uppercase tracking-widest border-2 transition-colors",
+                                    isCash ? "bg-emerald-500/5 text-emerald-500 border-emerald-500/20" : "bg-amber-500/5 text-amber-500 border-amber-500/20"
+                                )}>
+                                    {isCash ? (
+                                        <div className="flex items-center gap-1.5">
+                                            <Banknote className="w-3 h-3" />
+                                            <span>دفع نقدي</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-1.5">
+                                            <CreditCard className="w-3 h-3" />
+                                            <span>دفع آجل</span>
+                                        </div>
                                     )}
-                                >
-                                    {isCash ? '💵 نقدي' : '📋 آجل'}
                                 </Badge>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Customer */}
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                                <div className="p-1.5 bg-purple-500/10 rounded-lg shrink-0">
-                                    <User className="h-3 w-3 md:h-3.5 md:w-3.5 text-purple-500" />
-                                </div>
-                                <h3 className="font-bold text-base md:text-lg text-foreground group-hover:text-purple-500 transition-colors truncate">
+                    {/* Middle Section: Customer */}
+                    <div className="flex-1 min-w-0 pr-4 border-r border-white/5">
+                        <div className="flex items-center gap-3 group/info">
+                            <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary group-hover/info:bg-primary group-hover/info:text-white transition-all">
+                                <User className="w-5 h-5" />
+                            </div>
+                            <div className="flex flex-col">
+                                <h3 className="text-lg font-black text-foreground group-hover:text-primary transition-colors truncate">
                                     {invoice.customerName || invoice.customer?.name || 'عميل نقدي'}
                                 </h3>
+                                <p className="text-[10px] font-bold text-muted-foreground/60 flex items-center gap-1.5">
+                                    بواسطة <span className="text-foreground/80">{invoice.createdBy?.name || 'النظام'}</span>
+                                </p>
                             </div>
-                            <div className="text-[10px] md:text-xs text-foreground/60 flex items-center gap-2 mr-6 md:mr-7 truncate">
-                                <span className="truncate font-medium">بواسطة: {invoice.createdBy?.name || '-'}</span>
-                            </div>
-                        </div>
-
-                        {/* Amount */}
-                        <div className="text-left md:pl-6 md:border-l border-white/5 mt-2 md:mt-0">
-                            <div className="text-xl md:text-2xl font-black text-purple-500 tracking-tight flex items-baseline gap-1 md:gap-1.5 justify-end">
-                                {invoice.total.toFixed(2)}
-                                <span className="text-xs md:text-sm text-foreground/60 font-bold">ج.م</span>
-                            </div>
-                            <div className="text-[10px] md:text-xs text-foreground/50 font-bold text-right mt-0.5 md:mt-1 uppercase tracking-wider">الإجمالي</div>
                         </div>
                     </div>
 
-                    {/* Actions (Hidden by default, shown on hover) */}
-                    <div className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                        <Button
-                            variant="destructive"
-                            size="icon"
-                            className="h-9 w-9 rounded-xl shadow-xl hover:shadow-2xl hover:scale-110 transition-all bg-red-500 hover:bg-red-600"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                onDelete(invoice._id);
-                            }}
-                        >
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
+                    {/* Right Section: Financials & Action */}
+                    <div className="flex items-center justify-between md:justify-end gap-8 md:pl-4">
+                        <div className="text-left">
+                            <div className="flex items-baseline gap-2 justify-end">
+                                <span className="text-2xl md:text-3xl font-black text-primary tracking-tighter">
+                                    {invoice.total?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </span>
+                                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">EGP</span>
+                            </div>
+                            <div className="flex items-center justify-end gap-2 mt-1">
+                                <span className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">إجمالي الفاتورة</span>
+                                <div className="h-1 w-8 bg-primary/20 rounded-full" />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    onDelete(invoice._id);
+                                }}
+                                className="h-12 w-12 rounded-2xl hover:bg-rose-500/10 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100"
+                            >
+                                <Trash2 className="w-5 h-5" />
+                            </Button>
+                            <div className="h-12 w-12 rounded-2xl bg-white/5 flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-white transition-all shadow-xl">
+                                <ArrowRight className="w-5 h-5 rotate-180" />
+                            </div>
+                        </div>
                     </div>
+
+                    {/* Background Decor */}
+                    <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-primary/5 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                 </div>
             </Link>
         </motion.div>

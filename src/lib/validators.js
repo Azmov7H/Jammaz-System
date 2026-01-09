@@ -118,3 +118,10 @@ export const poReceiveSchema = z.object({
     status: z.literal('RECEIVED'),
     paymentType: z.enum(['cash', 'bank', 'deferred']).default('cash')
 });
+
+export const expenseSchema = z.object({
+    amount: z.coerce.number().positive('المبلغ يجب أن يكون أكبر من صفر'),
+    reason: z.string().min(2, 'يجب ذكر سبب المصروف'),
+    category: z.string().min(2, 'يجب اختيار التصنيف'),
+    date: z.string().optional().nullable()
+});

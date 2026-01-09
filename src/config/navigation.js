@@ -18,8 +18,7 @@ export const navigationConfig = [
     {
         title: 'الرئيسية',
         items: [
-            { name: 'لوحة التحكم', href: '/dashboard', icon: LayoutDashboard, permission: 'dashboard:view' },
-            { name: 'استراتيجيات النمو', href: '/dashboard/strategy', icon: TrendingUp, permission: 'dashboard:view' },
+            { name: 'لوحة التحكم', href: '/', icon: LayoutDashboard, permission: 'dashboard:view' },
         ]
     },
     {
