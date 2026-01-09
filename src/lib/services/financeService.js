@@ -8,6 +8,7 @@ import { AccountingService } from './accountingService';
 import { TreasuryService } from './treasuryService';
 import { DailySalesService } from './dailySalesService';
 import { LogService } from './logService';
+import { DebtService } from './financial/debtService'; // Imported
 
 /**
  * Finance Service
@@ -41,14 +42,27 @@ export const FinanceService = {
             }, userId);
         }
 
-        // 4. Update Customer Balance (Debt)
-        if (invoice.customer && invoice.paymentType === 'credit') {
+        // 4. Update Customer Balance (Legacy Simple Debt) AND Create Granular Debt Record
+        if (invoice.customer && (invoice.paymentType === 'credit' || invoice.paymentType === 'partial')) {
             const customer = await Customer.findById(invoice.customer);
             if (customer) {
                 const remainingDebt = invoice.total - invoice.paidAmount;
                 if (remainingDebt > 0) {
+                    // Update Legacy Balance
                     customer.balance = (customer.balance || 0) + remainingDebt;
                     await customer.save();
+
+                    // Create New Debt Record
+                    await DebtService.createDebt({
+                        debtorType: 'Customer',
+                        debtorId: customer._id,
+                        amount: remainingDebt,
+                        dueDate: invoice.dueDate || new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // Default 15 days if null
+                        referenceType: 'Invoice',
+                        referenceId: invoice._id,
+                        description: `فاتورة مبيعات #${invoice.number}`,
+                        createdBy: userId
+                    });
                 }
             }
         }
@@ -57,14 +71,9 @@ export const FinanceService = {
         await DailySalesService.updateDailySales(invoice, userId);
 
         if (invoice.customer) {
-            const InvoiceSettings = require('@/models/InvoiceSettings').default;
-            const settings = await InvoiceSettings.getSettings();
-            const pointsToAward = Math.floor(invoice.total * (settings.pointsPerEGP || 0.01));
-
             await Customer.findByIdAndUpdate(invoice.customer, {
                 $inc: {
-                    totalPurchases: invoice.total,
-                    loyaltyPoints: pointsToAward
+                    totalPurchases: invoice.total
                 },
                 lastPurchaseDate: new Date()
             });
@@ -113,9 +122,22 @@ export const FinanceService = {
             await po.save();
             const supplier = await Supplier.findById(po.supplier);
             if (supplier) {
+                // Legacy Update
                 supplier.balance = (supplier.balance || 0) + po.totalCost;
                 supplier.lastSupplyDate = new Date();
                 await supplier.save();
+
+                // New Debt Record
+                await DebtService.createDebt({
+                    debtorType: 'Supplier',
+                    debtorId: supplier._id,
+                    amount: po.totalCost,
+                    dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Default 30 days
+                    referenceType: 'PurchaseOrder',
+                    referenceId: po._id,
+                    description: `أمر شراء #${po.poNumber}`,
+                    createdBy: userId
+                });
             }
         }
 
@@ -305,5 +327,77 @@ export const FinanceService = {
         }
 
         return { salesReturn, invoice };
+    },
+
+    /**
+     * Record a General Expense
+     */
+    async recordExpense(data, userId) {
+        await dbConnect();
+        const { amount, reason, category, date = new Date() } = data;
+
+        if (!amount || amount <= 0 || !reason || !category) {
+            throw 'بيانات المصروفات غير مكتملة';
+        }
+
+        // 1. Record in Treasury
+        const treasuryRecord = await TreasuryService.addManualExpense(
+            date,
+            parseFloat(amount),
+            reason,
+            category,
+            userId
+        );
+
+        // 2. Record in Accounting
+        const accountingEntry = await AccountingService.createExpenseEntry(
+            parseFloat(amount),
+            category,
+            reason,
+            userId,
+            date
+        );
+
+        // 3. Optional: Log the expense
+        await LogService.logAction({
+            userId,
+            action: 'CREATE_EXPENSE',
+            entity: 'Treasury',
+            entityId: treasuryRecord._id,
+            diff: { amount, category, reason },
+            note: `General expense recorded: ${reason}`
+        });
+
+        return { treasuryRecord, accountingEntry };
+    },
+
+    /**
+     * Consistently settle debts (receivables or payables)
+     */
+    async settleDebt(data, userId) {
+        await dbConnect();
+        const { type, id, amount, method = 'cash', note = '' } = data;
+
+        if (!type || !id || !amount || amount <= 0) {
+            throw 'بيانات غير صحيحة لسداد الدين';
+        }
+
+        if (type === 'receivable') {
+            const invoice = await Invoice.findById(id).populate('customer');
+            if (!invoice) throw 'الفاتورة غير موجودة';
+
+            await this.recordCustomerPayment(invoice, amount, method, note, userId);
+            return { message: 'تم تحصيل الدفعة بنجاح' };
+
+        } else if (type === 'payable') {
+            const PurchaseOrder = (await import('@/models/PurchaseOrder')).default;
+            const po = await PurchaseOrder.findById(id).populate('supplier');
+            if (!po) throw 'أمر الشراء غير موجود';
+
+            await this.recordSupplierPayment(po, amount, method, note, userId);
+            return { message: 'تم سداد الدفعة للمورد بنجاح' };
+        }
+
+        throw 'نوع عملية غير معروف';
     }
 };

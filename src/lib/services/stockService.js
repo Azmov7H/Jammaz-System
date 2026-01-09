@@ -2,6 +2,7 @@ import Product from '@/models/Product';
 import StockMovement from '@/models/StockMovement';
 import Invoice from '@/models/Invoice';
 import PurchaseOrder from '@/models/PurchaseOrder';
+import dbConnect from '@/lib/db';
 
 /**
  * Stock Management Service

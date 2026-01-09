@@ -8,15 +8,16 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 active:scale-[0.98]",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-lg shadow-destructive/20",
         outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+          "border-2 border-input bg-background hover:bg-accent hover:text-accent-foreground active:bg-accent/50",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-md",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        premium: "gradient-primary text-white hover:opacity-90 shadow-colored active:translate-y-0.5",
       },
       size: {
         default: "h-10 px-4 py-2",
@@ -47,4 +48,15 @@ const Button = React.forwardRef(({ className, variant, size, fullWidth, asChild 
 })
 Button.displayName = "Button"
 
-export { Button, buttonVariants }
+const Card = React.forwardRef(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "rounded-[1.5rem] border bg-card text-card-foreground shadow-custom-md transition-all duration-300 hover:shadow-custom-lg",
+      className
+    )}
+    {...props} />
+))
+Card.displayName = "Card"
+
+export { Button, buttonVariants, Card }

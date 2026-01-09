@@ -53,8 +53,6 @@ const CustomerSchema = new mongoose.Schema({
     },
     paymentTerms: { type: Number, default: 0 }, // 0 means use global default
 
-    // Loyalty Program
-    loyaltyPoints: { type: Number, default: 0, min: 0 }
 }, { timestamps: true });
 
 // Indexes for search and performance

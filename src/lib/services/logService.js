@@ -35,6 +35,24 @@ export const LogService = {
     },
 
     /**
+     * Get all logs with pagination
+     * @param {object} query - Query parameters
+     * @param {number} query.limit - Number of logs per page
+     * @param {number} query.page - Page number
+     */
+    async getAll({ limit = 100, page = 1 } = {}) {
+        await dbConnect();
+        const skip = (page - 1) * limit;
+
+        return await Log.find({})
+            .populate('userId', 'name')
+            .sort({ date: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+    },
+
+    /**
      * Get logs for an entity
      */
     async getEntityLogs(entity, entityId) {

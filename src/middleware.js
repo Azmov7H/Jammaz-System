@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
+import { jwtVerify } from 'jose';
 
-export function middleware(request) {
-    // Simple check for cookie existence in Edge Runtime
-    // 'jsonwebtoken' is not compatible with Edge Runtime by default in some bundlers
-    // Detailed verification happens in API Routes (Node Runtime)
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
+export async function middleware(request) {
     const { pathname } = request.nextUrl;
     const isApiRoute = pathname.startsWith('/api');
     const isAuthRoute = pathname.startsWith('/api/auth') || pathname.startsWith('/login');
@@ -13,34 +12,31 @@ export function middleware(request) {
 
     const token = request.cookies.get('token')?.value;
 
-    // Fast check for protected routes
-    const isProtectedRoute = !isApiRoute && (
-        pathname === '/' ||
-        pathname.startsWith('/dashboard') ||
-        pathname.startsWith('/products') ||
-        pathname.startsWith('/invoices') ||
-        pathname.startsWith('/stock') ||
-        pathname.startsWith('/receivables') ||
-        pathname.startsWith('/suppliers') ||
-        pathname.startsWith('/users') ||
-        pathname.startsWith('/settings') ||
-        pathname.startsWith('/accounting') ||
-        pathname.startsWith('/reports') ||
-        pathname.startsWith('/log')
-    );
-
-    if (isProtectedRoute) {
-        if (!token) {
-            const url = request.nextUrl.clone();
-            url.pathname = '/login';
-            return NextResponse.redirect(url);
+    let payload = null;
+    if (token) {
+        try {
+            const { payload: decoded } = await jwtVerify(token, JWT_SECRET);
+            payload = decoded;
+        } catch (err) {
+            // Token invalid or expired
+            console.log('Middleware: Invalid token');
         }
     }
 
-    if (isApiRoute) {
-        if (!token) {
+    // Protection logic
+    // Any route not in (public) matcher is essentially protected
+    const isPublic = pathname === '/login' || pathname.startsWith('/api/auth') || pathname.startsWith('/_next');
+
+    // Check if it's an API route vs Page route
+    if (!payload) {
+        if (isApiRoute) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        // Redirect to login if not already there
+        const url = request.nextUrl.clone();
+        url.pathname = '/login';
+        return NextResponse.redirect(url);
     }
 
     return NextResponse.next();
@@ -48,18 +44,8 @@ export function middleware(request) {
 
 export const config = {
     // Updated matcher to cover all known routes
+    // Updated matcher to cover all known routes
     matcher: [
-        '/dashboard/:path*',
-        '/api/:path*',
-        '/products/:path*',
-        '/invoices/:path*',
-        '/stock/:path*',
-        '/receivables/:path*',
-        '/suppliers/:path*',
-        '/users/:path*',
-        '/settings/:path*',
-        '/accounting/:path*',
-        '/reports/:path*',
-        '/log/:path*'
+        '/((?!api/auth|_next/static|_next/image|favicon.ico|login|public).*)',
     ],
 };

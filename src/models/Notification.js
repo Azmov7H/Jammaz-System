@@ -5,25 +5,41 @@ const NotificationSchema = new mongoose.Schema({
     message: { type: String, required: true },
     type: {
         type: String,
-        enum: ['INFO', 'WARNING', 'SUCCESS', 'ERROR', 'CRITICAL', 'OPPORTUNITY'],
-        default: 'INFO'
+        enum: ['system', 'business', 'user', 'admin'],
+        default: 'system',
+        index: true
     },
-    category: {
+    severity: {
         type: String,
-        enum: ['CRITICAL', 'OPPORTUNITY', 'INSIGHT', 'SYSTEM', 'FINANCIAL', 'WARNING'],
-        default: 'SYSTEM'
+        enum: ['info', 'warning', 'critical', 'success', 'error'], // Added success/error for compatibility/UI
+        default: 'info'
     },
-    isRead: { type: Boolean, default: false },
-    link: String,
-    actionType: {
-        type: String,
-        enum: ['COLLECT_DEBT', 'PAY_SUPPLIER', 'REORDER', 'OPTIMIZE_PRICE', 'VIEW_REPORT', null],
-        default: null
-    },
-    actionParams: { type: Object, default: {} }, // Custom params for actions
-    relatedId: mongoose.Schema.Types.ObjectId,
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    createdAt: { type: Date, default: Date.now, expires: '30d' }
+    source: { type: String, default: 'system' }, // e.g., 'InventoryService', 'AuthService'
+
+    // Targeting
+    recipientId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
+    targetRole: { type: String, enum: ['owner', 'manager', 'cashier', 'warehouse', null], default: null, index: true },
+    isGlobal: { type: Boolean, default: false, index: true },
+
+    // State
+    isRead: { type: Boolean, default: false, index: true },
+
+    // Context & Actions
+    link: String, // URL to navigate to
+    metadata: { type: Map, of: mongoose.Schema.Types.Mixed, default: {} }, // Flexible data for UI/Actions
+
+    // Legacy fields mapped or kept for temporary compat if needed, but checking service usage:
+    // we will migrate service usage to metadata/new fields.
+
+    expiresAt: { type: Date }
+}, {
+    timestamps: true
 });
+
+// TTL Index: if expiresAt is set, doc deletes automatically
+NotificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+// Compound index for efficient user queries: "Give me unread notifs for this user"
+NotificationSchema.index({ recipientId: 1, isRead: 1, createdAt: -1 });
 
 export default mongoose.models.Notification || mongoose.model('Notification', NotificationSchema);

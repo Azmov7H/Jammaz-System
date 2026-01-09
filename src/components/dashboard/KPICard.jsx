@@ -5,12 +5,12 @@ import { cn } from '@/lib/utils';
 
 export function KPICard({ title, value, unit, icon: Icon, subtitle, variant = 'default' }) {
     const variants = {
-        primary: 'border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent hover:from-primary/15',
-        success: 'border-green-500/20 bg-gradient-to-br from-green-500/10 via-green-500/5 to-transparent hover:from-green-500/15',
-        warning: 'border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent hover:from-amber-500/15',
-        destructive: 'border-red-500/20 bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent hover:from-red-500/15',
-        secondary: 'border-secondary/20 bg-gradient-to-br from-secondary/10 via-secondary/5 to-transparent hover:from-secondary/15',
-        default: 'border-border bg-card hover:bg-muted/20'
+        primary: 'border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent hover:from-primary/15 shadow-sm hover:shadow-primary/20',
+        success: 'border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent hover:from-emerald-500/15 shadow-sm hover:shadow-emerald-500/20',
+        warning: 'border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent hover:from-amber-500/15 shadow-sm hover:shadow-amber-500/20',
+        destructive: 'border-rose-500/20 bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-transparent hover:from-rose-500/15 shadow-sm hover:shadow-rose-500/20',
+        secondary: 'border-secondary/20 bg-gradient-to-br from-secondary/10 via-secondary/5 to-transparent hover:from-secondary/15 shadow-sm hover:shadow-secondary/20',
+        default: 'border-border bg-card hover:bg-muted/20 shadow-sm'
     };
 
     const iconColors = {

@@ -1,7 +1,7 @@
 import { apiHandler } from '@/lib/api-handler';
 import { StockService } from '@/lib/services/stockService';
-import { stockMoveSchema } from '@/lib/validators';
 import { getCurrentUser } from '@/lib/auth';
+import { stockMoveSchema } from '@/lib/validators';
 import { NextResponse } from 'next/server';
 
 export const POST = apiHandler(async (req) => {
@@ -11,9 +11,23 @@ export const POST = apiHandler(async (req) => {
     const body = await req.json();
     const validated = stockMoveSchema.parse(body);
 
-    if (validated.items) {
-        return await StockService.bulkMoveStock({ ...validated, userId: user.userId });
+    if (validated.items && validated.items.length > 0) {
+        // Bulk move
+        const result = await StockService.bulkMoveStock({
+            items: validated.items,
+            type: validated.type,
+            userId: user.userId
+        });
+        return NextResponse.json({ success: true, data: result });
     } else {
-        return await StockService.moveStock({ ...validated, userId: user.userId });
+        // Single move
+        const result = await StockService.moveStock({
+            productId: validated.productId,
+            qty: validated.qty,
+            type: validated.type,
+            userId: user.userId,
+            note: validated.note
+        });
+        return NextResponse.json({ success: true, data: result });
     }
 });

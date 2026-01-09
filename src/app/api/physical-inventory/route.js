@@ -1,57 +1,40 @@
-import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
+import { apiHandler } from '@/lib/api-handler';
 import { PhysicalInventoryService } from '@/lib/services/physicalInventoryService';
 import { getCurrentUser } from '@/lib/auth';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
 
-// Create new physical count
-export async function POST(request) {
-    try {
-        await dbConnect();
-        const user = await getCurrentUser();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+const createCountSchema = z.object({
+    location: z.enum(['warehouse', 'shop', 'both']),
+    category: z.string().optional().nullable(),
+    isBlind: z.boolean().optional().default(false)
+});
 
-        const body = await request.json();
-        const { location, category, isBlind } = body;
+export const POST = apiHandler(async (req) => {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-        if (!location || !['warehouse', 'shop', 'both'].includes(location)) {
-            return NextResponse.json({ error: 'الموقع غير صحيح' }, { status: 400 });
-        }
+    const body = await req.json();
+    const validated = createCountSchema.parse(body);
 
-        const count = await PhysicalInventoryService.createCount(location, user.userId, {
-            category,
-            isBlind
-        });
+    const count = await PhysicalInventoryService.createCount(
+        validated.location,
+        user.userId,
+        { category: validated.category, isBlind: validated.isBlind }
+    );
 
-        return NextResponse.json({ count, success: true }, { status: 201 });
+    return NextResponse.json({ success: true, count }, { status: 201 });
+});
 
-    } catch (error) {
-        console.error('Error creating physical count:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-}
+export const GET = apiHandler(async (req) => {
+    const { searchParams } = new URL(req.url);
+    const filters = {
+        location: searchParams.get('location'),
+        status: searchParams.get('status'),
+        startDate: searchParams.get('startDate'),
+        endDate: searchParams.get('endDate')
+    };
 
-// Get all counts or filter
-export async function GET(request) {
-    try {
-        await dbConnect();
-        const { searchParams } = new URL(request.url);
-
-        const location = searchParams.get('location');
-        const status = searchParams.get('status');
-        const startDate = searchParams.get('startDate');
-        const endDate = searchParams.get('endDate');
-
-        const counts = await PhysicalInventoryService.getCounts({
-            location,
-            status,
-            startDate,
-            endDate
-        });
-
-        return NextResponse.json({ counts });
-
-    } catch (error) {
-        console.error('Error fetching counts:', error);
-        return NextResponse.json({ error: 'Error fetching data' }, { status: 500 });
-    }
-}
+    const counts = await PhysicalInventoryService.getCounts(filters);
+    return { counts };
+});
