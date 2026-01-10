@@ -25,3 +25,15 @@ export function useCreateInvoice() {
         onError: (error) => toast.error(error.message)
     });
 }
+
+export function useDeleteInvoice() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id) => api.delete(`/api/invoices/${id}`),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['invoices'] });
+            toast.success('تم حذف الفاتورة بنجاح');
+        },
+        onError: (error) => toast.error(error.message)
+    });
+}

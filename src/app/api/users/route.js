@@ -34,11 +34,3 @@ export const POST = apiHandler(async (req) => {
 
     return NextResponse.json({ success: true, user: newUser }, { status: 201 });
 });
-    }
-
-const body = await req.json();
-const validated = userSchema.parse(body);
-const newUser = await UserService.create(validated);
-
-return NextResponse.json({ success: true, user: newUser }, { status: 201 });
-});

@@ -31,10 +31,3 @@ export const POST = apiHandler(async (req) => {
         return NextResponse.json({ success: true, data: result });
     }
 });
-type: validated.type,
-    userId: user.userId,
-        note: validated.note
-        });
-return NextResponse.json({ success: true, data: result });
-    }
-});
