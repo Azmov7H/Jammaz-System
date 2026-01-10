@@ -1,2 +1,0 @@
-Status Code: 200
-Body: {"success":true,"message":"Product saved","product":"ديسك قطع حديد 14 بوصة - بوش"}

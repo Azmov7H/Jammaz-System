@@ -10,14 +10,14 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, ArrowUpRight, History } from 'lucide-react';
+import { MoreHorizontal, ArrowUpRight, History, Calendar, User, FileText, Layers } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 
 const STATUS_STYLES = {
@@ -34,80 +34,115 @@ const STATUS_LABELS = {
     'written-off': 'مشطوب',
 };
 
-export function DebtTable({ debts, onRecordPayment }) {
+export function DebtTable({ debts, onRecordPayment, onScheduleInstallment }) {
     const router = useRouter();
 
     return (
-        <div className="rounded-xl border border-white/5 overflow-hidden">
+        <div className="overflow-hidden">
             <Table>
-                <TableHeader className="bg-white/5">
-                    <TableRow className="border-white/5 hover:bg-transparent">
-                        <TableHead className="text-right">المرجع</TableHead>
-                        <TableHead className="text-right">المدين / الدائن</TableHead>
-                        <TableHead className="text-right">تاريخ الاستحقاق</TableHead>
-                        <TableHead className="text-right">المبلغ الأصلي</TableHead>
-                        <TableHead className="text-right">المتبقي</TableHead>
-                        <TableHead className="text-center">الحالة</TableHead>
-                        <TableHead className="w-[50px]"></TableHead>
+                <TableHeader className="bg-muted/30">
+                    <TableRow className="border-white/5 hover:bg-transparent h-16">
+                        <TableHead className="font-black text-xs uppercase tracking-widest text-right px-6">المرجع</TableHead>
+                        <TableHead className="font-black text-xs uppercase tracking-widest text-right">المدين / الدائن</TableHead>
+                        <TableHead className="font-black text-xs uppercase tracking-widest text-right">تاريخ الاستحقاق</TableHead>
+                        <TableHead className="font-black text-xs uppercase tracking-widest text-right">المبلغ</TableHead>
+                        <TableHead className="font-black text-xs uppercase tracking-widest text-center">الحالة</TableHead>
+                        <TableHead className="w-[80px]"></TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {debts.map((debt) => (
-                        <TableRow key={debt._id} className="border-white/5 hover:bg-white/5 transition-colors group">
-                            <TableCell className="font-medium">
-                                <div className="flex flex-col">
-                                    <span className="font-bold text-foreground">
-                                        {debt.referenceType === 'Invoice' ? 'فاتورة' : 'أمر شراء'}
-                                    </span>
-                                    <span className="text-[10px] text-muted-foreground font-mono">
-                                        #{debt.referenceId?.toString().slice(-6) || 'N/A'}
-                                    </span>
+                        <TableRow key={debt._id} className="border-white/5 hover:bg-muted/50 transition-colors group h-20">
+                            <TableCell className="px-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                                        <FileText size={18} />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-black text-foreground text-sm">
+                                                {debt.referenceType === 'Invoice' ? 'فاتورة مبيعات' : 'أمر شراء'}
+                                            </span>
+                                            {debt.meta?.isScheduled && (
+                                                <Badge variant="outline" className="text-[8px] font-black h-4 px-1 border-primary/20 bg-primary/5 text-primary">مجدول</Badge>
+                                            )}
+                                        </div>
+                                        <span className="text-[10px] text-muted-foreground font-bold font-mono">
+                                            #{debt.referenceId?.toString().slice(-6).toUpperCase() || 'N/A'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </TableCell>
+                            <TableCell>
+                                <div className="flex items-center gap-2">
+                                    <User size={14} className="text-muted-foreground" />
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-sm">{debt.debtorId?.name || 'غير معروف'}</span>
+                                        <span className="text-[10px] text-muted-foreground font-medium">{debt.debtorId?.phone}</span>
+                                    </div>
+                                </div>
+                            </TableCell>
+                            <TableCell>
+                                <div className="flex items-center gap-2">
+                                    <Calendar size={14} className="text-muted-foreground" />
+                                    <span className="font-mono text-xs font-bold">{formatDate(debt.dueDate)}</span>
                                 </div>
                             </TableCell>
                             <TableCell>
                                 <div className="flex flex-col">
-                                    <span className="font-bold">{debt.debtorId?.name || 'Unknown'}</span>
-                                    <span className="text-[10px] text-muted-foreground">{debt.debtorId?.phone}</span>
+                                    <div className="flex items-center gap-1 font-black text-foreground">
+                                        <span className="font-mono text-base">{debt.remainingAmount.toLocaleString()}</span>
+                                        <span className="text-[10px] text-muted-foreground italic">د.ل</span>
+                                    </div>
+                                    {debt.originalAmount !== debt.remainingAmount && (
+                                        <span className="text-[9px] text-muted-foreground line-through opacity-50">
+                                            من {debt.originalAmount.toLocaleString()}
+                                        </span>
+                                    )}
                                 </div>
-                            </TableCell>
-                            <TableCell>
-                                <div className="flex flex-col">
-                                    <span className="font-mono text-xs">{formatDate(debt.dueDate)}</span>
-                                    {/* Show days remaining/overdue logic here if needed */}
-                                </div>
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                                {formatCurrency(debt.originalAmount)}
-                            </TableCell>
-                            <TableCell className="font-black text-foreground">
-                                {formatCurrency(debt.remainingAmount)}
                             </TableCell>
                             <TableCell className="text-center">
-                                <Badge variant="outline" className={`font-bold ${STATUS_STYLES[debt.status] || ''}`}>
+                                <Badge
+                                    variant="outline"
+                                    className={cn(
+                                        "font-black text-[10px] h-6 px-3 rounded-lg border-2",
+                                        STATUS_STYLES[debt.status] || ''
+                                    )}
+                                >
                                     {STATUS_LABELS[debt.status] || debt.status}
                                 </Badge>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="px-4">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <MoreHorizontal size={14} />
+                                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-primary/10 hover:text-primary transition-all">
+                                            <MoreHorizontal size={18} />
                                         </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-40 bg-card border-white/10">
+                                    <DropdownMenuContent align="end" className="w-56 p-2 bg-card border-white/10 rounded-2xl shadow-custom-xl">
                                         <DropdownMenuItem
-                                            className="gap-2 cursor-pointer"
+                                            className="gap-2 p-3 rounded-xl cursor-pointer font-bold focus:bg-primary/10 transition-colors"
                                             onClick={() => router.push(`/financial/debt-center/${debt._id}`)}
                                         >
-                                            <History size={14} /> التفاصيل
+                                            <History size={16} className="text-primary" /> تفاصيل المديونية
                                         </DropdownMenuItem>
+
                                         {debt.remainingAmount > 0 && (
-                                            <DropdownMenuItem
-                                                className="gap-2 cursor-pointer text-emerald-500 focus:text-emerald-500"
-                                                onClick={() => onRecordPayment(debt)}
-                                            >
-                                                <ArrowUpRight size={14} /> تسجيل دفعة
-                                            </DropdownMenuItem>
+                                            <>
+                                                <DropdownMenuItem
+                                                    className="gap-2 p-3 rounded-xl cursor-pointer font-bold text-primary focus:text-primary focus:bg-primary/10 transition-colors"
+                                                    onClick={() => onScheduleInstallment(debt)}
+                                                >
+                                                    <Layers size={16} /> جدولة المديونية (أقساط)
+                                                </DropdownMenuItem>
+
+                                                <DropdownMenuItem
+                                                    className="gap-2 p-3 rounded-xl cursor-pointer font-bold text-emerald-500 focus:text-emerald-500 focus:bg-emerald-500/10 transition-colors"
+                                                    onClick={() => onRecordPayment(debt)}
+                                                >
+                                                    <ArrowUpRight size={16} /> تسجيل دفعة سداد
+                                                </DropdownMenuItem>
+                                            </>
                                         )}
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -116,13 +151,21 @@ export function DebtTable({ debts, onRecordPayment }) {
                     ))}
                     {debts.length === 0 && (
                         <TableRow>
-                            <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                                لا توجد ديون مسجلة
+                            <TableCell colSpan={6} className="h-64 text-center text-muted-foreground font-black opacity-50">
+                                <div className="flex flex-col items-center gap-4">
+                                    <FileText size={48} />
+                                    <p>لا توجد ديون مسجلة حالياً</p>
+                                </div>
                             </TableCell>
                         </TableRow>
                     )}
                 </TableBody>
             </Table>
-        </div>
+        </div >
     );
+}
+
+// Helper to handle class merging if needed, or import from @/lib/utils if available
+function cn(...inputs) {
+    return inputs.filter(Boolean).join(' ');
 }

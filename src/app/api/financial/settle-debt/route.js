@@ -1,7 +1,6 @@
-import { apiHandler } from '@/lib/api-handler';
+import { apiHandler } from '@/lib/core/api-handler';
 import { FinanceService } from '@/lib/services/financeService';
-import { getCurrentUser } from '@/lib/auth';
-import { NextResponse } from 'next/server';
+import { getCurrentUser } from '@/lib/core/auth';
 import { z } from 'zod';
 
 const settleDebtSchema = z.object({
@@ -14,18 +13,11 @@ const settleDebtSchema = z.object({
 
 export const POST = apiHandler(async (req) => {
     const user = await getCurrentUser();
-    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    if (!user) throw 'Unauthorized';
 
     const body = await req.json();
     const validated = settleDebtSchema.parse(body);
 
-    try {
-        const result = await FinanceService.settleDebt(validated, user.userId);
-        return NextResponse.json({ success: true, ...result });
-    } catch (error) {
-        return NextResponse.json({
-            success: false,
-            error: typeof error === 'string' ? error : 'خطأ أثناء سداد الدين'
-        }, { status: 400 });
-    }
+    const result = await FinanceService.settleDebt(validated, user.userId);
+    return result;
 });

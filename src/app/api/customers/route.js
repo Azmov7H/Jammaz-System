@@ -1,7 +1,7 @@
-import { apiHandler } from '@/lib/api-handler';
+import { apiHandler } from '@/lib/core/api-handler';
 import { CustomerService } from '@/lib/services/customerService';
-import { customerSchema } from '@/lib/validators';
-import { getCurrentUser } from '@/lib/auth';
+import { customerSchema } from '@/lib/core/validators';
+import { getCurrentUser } from '@/lib/core/auth';
 import { NextResponse } from 'next/server';
 
 export const GET = apiHandler(async (req) => {

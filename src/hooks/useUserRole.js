@@ -5,11 +5,9 @@ export function useUserRole() {
     const { data, isLoading, refetch } = useQuery({
         queryKey: ['user-session'],
         queryFn: async () => {
-            // using api helper ensures cache-control headers are sent
-            const res = await api.get('/api/auth/session');
-            return res;
+            return await api.get('/api/auth/session');
         },
-        staleTime: 1000 * 60 * 5, // 5 minutes check
+        staleTime: 1000 * 60 * 5,
         retry: 1
     });
 

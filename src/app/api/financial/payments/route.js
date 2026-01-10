@@ -1,27 +1,28 @@
-import { NextResponse } from 'next/server';
-import { apiHandler } from '@/lib/api-handler';
+import { apiHandler } from '@/lib/core/api-handler';
 import { PaymentService } from '@/lib/services/financial/paymentService';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/core/auth';
 
 export const GET = apiHandler(async (req) => {
     const { searchParams } = new URL(req.url);
     const debtId = searchParams.get('debtId');
 
     if (!debtId) {
-        throw new Error('debtId is required');
+        throw 'debtId is required';
     }
 
     const payments = await PaymentService.getDebtPayments(debtId);
-    return NextResponse.json({ success: true, data: payments });
+    return payments;
 });
 
 export const POST = apiHandler(async (req) => {
     const user = await getCurrentUser();
+    if (!user) throw 'Unauthorized';
+
     const body = await req.json();
 
     // Force recorder
-    body.recordedBy = user._id;
+    body.recordedBy = user.userId;
 
     const payment = await PaymentService.recordPayment(body);
-    return NextResponse.json({ success: true, data: payment });
+    return payment;
 });

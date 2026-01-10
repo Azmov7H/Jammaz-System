@@ -1,8 +1,7 @@
-import { apiHandler } from '@/lib/api-handler';
+import { apiHandler } from '@/lib/core/api-handler';
 import { ProductService } from '@/lib/services/productService';
-import { productSchema } from '@/lib/validators';
-import { getCurrentUser } from '@/lib/auth';
-import { NextResponse } from 'next/server';
+import { productSchema } from '@/lib/core/validators';
+import { getCurrentUser } from '@/lib/core/auth';
 
 export const GET = apiHandler(async (req) => {
     const { searchParams } = new URL(req.url);
@@ -12,10 +11,7 @@ export const GET = apiHandler(async (req) => {
 
 export const POST = apiHandler(async (req) => {
     const user = await getCurrentUser();
-    if (!user) {
-        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
+    if (!user) throw 'Unauthorized';
     const body = await req.json();
     const validated = productSchema.parse(body);
     return await ProductService.create(validated, user.userId);

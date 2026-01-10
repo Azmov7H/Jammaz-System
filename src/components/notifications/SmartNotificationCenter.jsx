@@ -85,11 +85,13 @@ export function SmartNotificationCenter() {
     const { isSidebarOpen, setIsSidebarOpen } = useNotificationCenter();
     const {
         notifications,
+        unreadCount,
+        isLoading,
         markAsRead,
         deleteNotification,
         performAction,
-        activeActionId
-    } = useNotifications();
+        actionLoadingId
+    } = useNotificationCenter();
 
     const [activeTab, setActiveTab] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
@@ -113,8 +115,6 @@ export function SmartNotificationCenter() {
         }
         return result;
     }, [notifications, activeTab, searchQuery]);
-
-    const unreadCount = notifications.filter(n => !n.isRead).length;
 
     return (
         <AnimatePresence>
@@ -230,7 +230,7 @@ export function SmartNotificationCenter() {
                                                         onRead={() => markAsRead(notif._id)}
                                                         onDelete={() => deleteNotification(notif._id)}
                                                         onAction={() => performAction(notif._id)}
-                                                        isLoading={activeActionId === notif._id}
+                                                        isLoading={actionLoadingId === notif._id}
                                                     />
                                                 ))}
                                             </div>

@@ -60,6 +60,30 @@ export class PaymentService {
 
             await debt.save({ session });
 
+            // 4.5 Update Payment Schedules (New: Link installments to payments)
+            const { default: PaymentSchedule } = await import('@/models/PaymentSchedule');
+            const schedules = await PaymentSchedule.find({
+                debtId,
+                status: { $in: ['PENDING', 'OVERDUE'] }
+            }).sort({ dueDate: 1 }).session(session);
+
+            let remainingForSchedule = amount;
+            for (const schedule of schedules) {
+                if (remainingForSchedule <= 0) break;
+
+                if (remainingForSchedule >= schedule.amount) {
+                    remainingForSchedule -= schedule.amount;
+                    schedule.status = 'PAID';
+                    schedule.notes = (schedule.notes || '') + ` (تم السداد بالعملية #${payment[0]._id.toString().slice(-6)})`;
+                    await schedule.save({ session });
+                } else {
+                    schedule.amount -= remainingForSchedule;
+                    schedule.notes = (schedule.notes || '') + ` (سداد جزئي ${remainingForSchedule.toLocaleString()} د.ل)`;
+                    remainingForSchedule = 0;
+                    await schedule.save({ session });
+                }
+            }
+
             // 5. Accounting Entries
             // Determine accounts based on Debtor Type
             if (debt.debtorType === 'Customer') {

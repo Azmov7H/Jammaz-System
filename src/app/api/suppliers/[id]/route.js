@@ -1,7 +1,6 @@
-import { apiHandler } from '@/lib/api-handler';
+import { apiHandler } from '@/lib/core/api-handler';
 import { SupplierService } from '@/lib/services/supplierService';
-import { getCurrentUser } from '@/lib/auth';
-import { NextResponse } from 'next/server';
+import { getCurrentUser } from '@/lib/core/auth';
 
 /**
  * GET single supplier by ID
@@ -17,9 +16,7 @@ export const GET = apiHandler(async (req, { params }) => {
  */
 export const PUT = apiHandler(async (req, { params }) => {
     const user = await getCurrentUser();
-    if (!user) {
-        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!user) throw 'Unauthorized';
 
     const { id } = await params;
     const body = await req.json();
@@ -32,9 +29,7 @@ export const PUT = apiHandler(async (req, { params }) => {
  */
 export const DELETE = apiHandler(async (req, { params }) => {
     const user = await getCurrentUser();
-    if (!user) {
-        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!user) throw 'Unauthorized';
 
     const { id } = await params;
     await SupplierService.delete(id);

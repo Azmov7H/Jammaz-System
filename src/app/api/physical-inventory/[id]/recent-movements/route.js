@@ -1,37 +1,30 @@
-import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
+import { apiHandler } from '@/lib/core/api-handler';
 import PhysicalInventory from '@/models/PhysicalInventory';
 import StockMovement from '@/models/StockMovement';
 
-export async function GET(req, { params }) {
-    try {
-        await dbConnect();
-        const { id } = await params;
+export const GET = apiHandler(async (req, { params }) => {
+    const { id } = await params;
 
-        const count = await PhysicalInventory.findById(id);
-        if (!count) {
-            return NextResponse.json({ error: 'Count not found' }, { status: 404 });
-        }
-
-        // Find movements for the products in this count that happened AFTER the count was created
-        // and before now (or completion)
-        const productIds = count.items.map(i => i.productId);
-
-        const movements = await StockMovement.find({
-            productId: { $in: productIds },
-            createdAt: { $gt: count.date },
-            location: count.location === 'both' ? { $in: ['warehouse', 'shop'] } : count.location
-        }).select('productId type quantity createdAt');
-
-        // Group by productId
-        const summary = {};
-        movements.forEach(m => {
-            summary[m.productId] = true;
-        });
-
-        return NextResponse.json({ movements: summary });
-    } catch (error) {
-        console.error('Error fetching recent movements:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    const count = await PhysicalInventory.findById(id);
+    if (!count) {
+        throw 'سجل الجرد غير موجود';
     }
-}
+
+    // Find movements for the products in this count that happened AFTER the count was created
+    // and before now (or completion)
+    const productIds = count.items.map(i => i.productId);
+
+    const movements = await StockMovement.find({
+        productId: { $in: productIds },
+        createdAt: { $gt: count.date },
+        location: count.location === 'both' ? { $in: ['warehouse', 'shop'] } : count.location
+    }).select('productId type qty createdAt');
+
+    // Group by productId
+    const summary = {};
+    movements.forEach(m => {
+        summary[m.productId] = true;
+    });
+
+    return { movements: summary };
+});

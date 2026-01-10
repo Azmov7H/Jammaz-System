@@ -2,13 +2,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-utils';
 import { toast } from 'sonner';
 
-export function useInvoices(search = '') {
+export function useInvoices(params = {}) {
     return useQuery({
-        queryKey: ['invoices', search],
+        queryKey: ['invoices', params],
         queryFn: async () => {
-            const query = search ? `?search=${search}` : '';
-            const data = await api.get(`/api/invoices${query}`);
-            return data.data;
+            const searchParams = new URLSearchParams(params);
+            const res = await api.get(`/api/invoices?${searchParams.toString()}`);
+            return res.data;
         }
     });
 }
@@ -16,19 +16,13 @@ export function useInvoices(search = '') {
 export function useCreateInvoice() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async (data) => {
-            const res = await api.post('/api/invoices', data);
-            return res.data;
-        },
-        onSuccess: (data) => {
+        mutationFn: (data) => api.post('/api/invoices', data),
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['invoices'] });
-            queryClient.invalidateQueries({ queryKey: ['products'] }); // Stock changes
-            // toast moved to component to handle redirect, or here
+            queryClient.invalidateQueries({ queryKey: ['products'] });
             toast.success('تم إنشاء الفاتورة بنجاح');
         },
-        onError: (err) => {
-            toast.error(err.message || 'فشل إنشاء الفاتورة');
-        }
+        onError: (error) => toast.error(error.message)
     });
 }
 
@@ -38,11 +32,8 @@ export function useDeleteInvoice() {
         mutationFn: (id) => api.delete(`/api/invoices/${id}`),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['invoices'] });
-            queryClient.invalidateQueries({ queryKey: ['products'] }); // Stock might return
-            toast.success('تم حذف الفاتورة');
+            toast.success('تم حذف الفاتورة بنجاح');
         },
-        onError: (err) => {
-            toast.error(err.message || 'فشل الحذف');
-        }
+        onError: (error) => toast.error(error.message)
     });
 }

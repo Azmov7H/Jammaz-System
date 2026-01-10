@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { apiHandler } from '@/lib/api-handler';
+import { apiHandler } from '@/lib/core/api-handler';
 import { DebtService } from '@/lib/services/financial/debtService';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/core/auth';
 
 export const GET = apiHandler(async (req) => {
     const { searchParams } = new URL(req.url);
@@ -16,16 +16,18 @@ export const GET = apiHandler(async (req) => {
     const limit = parseInt(searchParams.get('limit') || '20');
 
     const result = await DebtService.getDebts(filter, { page, limit });
-    return NextResponse.json({ success: true, data: result });
+    return result; // apiHandler handles NextResponse.json({success, data})
 });
 
 export const POST = apiHandler(async (req) => {
     const user = await getCurrentUser();
+    if (!user) throw 'Unauthorized';
+
     const body = await req.json();
 
     // Force creator
-    body.createdBy = user._id;
+    body.createdBy = user.userId;
 
     const debt = await DebtService.createDebt(body);
-    return NextResponse.json({ success: true, data: debt });
+    return debt;
 });
