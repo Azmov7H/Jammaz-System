@@ -31,10 +31,20 @@ export function useUsers() {
         onError: (error) => toast.error(error.message)
     });
 
+    const deleteUserMutation = useMutation({
+        mutationFn: (id) => api.delete(`/api/users/${id}`),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['users'] });
+            toast.success('تم حذف المستخدم بنجاح');
+        },
+        onError: (error) => toast.error(error.message)
+    });
+
     return {
         users: usersQuery.data?.users || [],
         isLoading: usersQuery.isLoading,
-        createUserMutation,
-        updateUserMutation
+        createUser: createUserMutation,
+        updateUser: updateUserMutation,
+        deleteUser: deleteUserMutation
     };
 }

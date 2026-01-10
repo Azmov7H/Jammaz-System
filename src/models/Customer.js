@@ -35,7 +35,6 @@ const CustomerSchema = new mongoose.Schema({
     lastPurchaseDate: Date
 }, { timestamps: true });
 
-CustomerSchema.index({ phone: 1 });
 CustomerSchema.index({ balance: 1 });
 
 export default mongoose.models.Customer || mongoose.model('Customer', CustomerSchema);
