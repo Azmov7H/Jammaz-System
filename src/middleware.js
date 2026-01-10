@@ -18,22 +18,14 @@ export async function middleware(request) {
             const { payload: decoded } = await jwtVerify(token, JWT_SECRET);
             payload = decoded;
         } catch (err) {
-            // Token invalid or expired
             console.log('Middleware: Invalid token');
         }
     }
 
-    // Protection logic
-    // Any route not in (public) matcher is essentially protected
-    const isPublic = pathname === '/login' || pathname.startsWith('/api/auth') || pathname.startsWith('/_next');
-
-    // Check if it's an API route vs Page route
-    if (!payload) {
+    if (!payload && !isAuthRoute) {
         if (isApiRoute) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
-
-        // Redirect to login if not already there
         const url = request.nextUrl.clone();
         url.pathname = '/login';
         return NextResponse.redirect(url);
@@ -43,8 +35,6 @@ export async function middleware(request) {
 }
 
 export const config = {
-    // Updated matcher to cover all known routes
-    // Updated matcher to cover all known routes
     matcher: [
         '/((?!api/auth|_next/static|_next/image|favicon.ico|login|public).*)',
     ],

@@ -12,6 +12,11 @@ const PaymentScheduleSchema = new mongoose.Schema({
         refPath: 'entityType',
         required: true
     },
+    debtId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Debt',
+        index: true
+    },
 
     // Payment Details
     amount: {
@@ -42,5 +47,10 @@ const PaymentScheduleSchema = new mongoose.Schema({
 // Index for efficient querying by entity and due date
 PaymentScheduleSchema.index({ entityType: 1, entityId: 1, status: 1 });
 PaymentScheduleSchema.index({ dueDate: 1, status: 1 });
+
+// Force model refresh if schema changed
+if (mongoose.models.PaymentSchedule) {
+    delete mongoose.models.PaymentSchedule;
+}
 
 export default mongoose.models.PaymentSchedule || mongoose.model('PaymentSchedule', PaymentScheduleSchema);

@@ -1,6 +1,6 @@
-import { apiHandler } from '@/lib/api-handler';
+import { apiHandler } from '@/lib/core/api-handler';
 import { PhysicalInventoryService } from '@/lib/services/physicalInventoryService';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/core/auth';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -12,18 +12,16 @@ const createCountSchema = z.object({
 
 export const POST = apiHandler(async (req) => {
     const user = await getCurrentUser();
-    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    if (!user) throw 'Unauthorized';
 
     const body = await req.json();
     const validated = createCountSchema.parse(body);
 
-    const count = await PhysicalInventoryService.createCount(
+    return await PhysicalInventoryService.createCount(
         validated.location,
         user.userId,
         { category: validated.category, isBlind: validated.isBlind }
     );
-
-    return NextResponse.json({ success: true, count }, { status: 201 });
 });
 
 export const GET = apiHandler(async (req) => {

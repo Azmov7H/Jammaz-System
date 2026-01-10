@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
 import {
     Table,
     TableBody,
@@ -11,7 +10,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -25,7 +24,6 @@ import { Badge } from '@/components/ui/badge';
 import {
     Plus,
     Search,
-    Filter,
     Loader2,
     Eye,
     ClipboardCheck,
@@ -33,16 +31,14 @@ import {
     Store,
     Layers,
     Calendar,
-    ChevronLeft,
     EyeOff,
-    TrendingUp,
-    TrendingDown,
     Activity
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { usePhysicalInventory } from '@/hooks/usePhysicalInventory';
 
 export default function PhysicalInventoryPage() {
     const router = useRouter();
@@ -50,20 +46,8 @@ export default function PhysicalInventoryPage() {
     const [statusFilter, setStatusFilter] = useState('all');
     const [locationFilter, setLocationFilter] = useState('all');
 
-    const fetchCounts = async () => {
-        const params = new URLSearchParams();
-        if (statusFilter !== 'all') params.append('status', statusFilter);
-        if (locationFilter !== 'all') params.append('location', locationFilter);
-
-        const res = await fetch(`/api/physical-inventory?${params.toString()}`);
-        if (!res.ok) throw new Error('Failed to fetch counts');
-        return res.json();
-    };
-
-    const { data, isLoading, error } = useQuery({
-        queryKey: ['physical-inventory', statusFilter, locationFilter],
-        queryFn: fetchCounts,
-    });
+    const { useCounts } = usePhysicalInventory();
+    const { data: counts, isLoading } = useCounts({ status: statusFilter, location: locationFilter });
 
     const getStatusBadge = (status) => {
         switch (status) {
@@ -106,6 +90,12 @@ export default function PhysicalInventoryPage() {
             </div>
         );
     };
+
+    const filteredCounts = counts?.filter(count =>
+        count._id.toLowerCase().includes(search.toLowerCase()) ||
+        count.category?.toLowerCase().includes(search.toLowerCase()) ||
+        count.createdBy?.name?.toLowerCase().includes(search.toLowerCase())
+    );
 
     return (
         <div className="container max-w-7xl mx-auto space-y-8 pb-20 px-4">
@@ -199,7 +189,7 @@ export default function PhysicalInventoryPage() {
                                             </div>
                                         </TableCell>
                                     </TableRow>
-                                ) : data?.counts?.length === 0 ? (
+                                ) : filteredCounts?.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={6} className="h-64 text-center">
                                             <div className="flex flex-col items-center justify-center gap-4 opacity-40">
@@ -210,7 +200,7 @@ export default function PhysicalInventoryPage() {
                                     </TableRow>
                                 ) : (
                                     <AnimatePresence mode="popLayout">
-                                        {data?.counts?.map((count, index) => (
+                                        {filteredCounts?.map((count, index) => (
                                             <motion.tr
                                                 key={count._id}
                                                 initial={{ opacity: 0, y: 10 }}
@@ -267,7 +257,7 @@ export default function PhysicalInventoryPage() {
                                                 </TableCell>
 
                                                 <TableCell className="text-center">
-                                                    {count.status === 'draft' && count.isBlind ? (
+                                                    {(count.status === 'draft' && count.isBlind) ? (
                                                         <span className="text-muted-foreground/30 font-black italic">مخفي</span>
                                                     ) : (
                                                         <div className="flex flex-col items-center">
@@ -305,4 +295,3 @@ export default function PhysicalInventoryPage() {
         </div>
     );
 }
-

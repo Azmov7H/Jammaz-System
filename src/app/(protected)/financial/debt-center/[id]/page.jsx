@@ -15,15 +15,24 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { PaymentDialog } from '@/components/financial/PaymentDialog';
-import { useState } from 'react';
+import { useDebtInstallments } from '@/hooks/useFinancial';
+import { useState, useEffect } from 'react';
 
 export default function DebtDetailPage({ params }) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { id } = params;
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+
+    // Auto-open payment dialog if requested via link
+    useEffect(() => {
+        if (searchParams.get('autoPay') === 'true') {
+            setIsPaymentOpen(true);
+        }
+    }, [searchParams]);
 
     // Fetch Debt Details
     const { data: debtData, isLoading } = useQuery({
@@ -32,7 +41,7 @@ export default function DebtDetailPage({ params }) {
             const res = await fetch(`/api/financial/debts?_id=${id}`);
             if (!res.ok) throw new Error('Failed to fetch debt');
             const json = await res.json();
-            return json.data.debts[0]; // Reuse list API heavily filtered
+            return json.data.debts[0];
         }
     });
 
@@ -47,8 +56,11 @@ export default function DebtDetailPage({ params }) {
         enabled: !!id
     });
 
+    const { data: installments } = useDebtInstallments(id);
+
     const debt = debtData;
     const payments = paymentsData?.data || [];
+    const schedule = installments || [];
 
     if (isLoading) return <div className="p-12 text-center text-muted-foreground">جاري تحميل التفاصيل...</div>;
     if (!debt) return <div className="p-12 text-center text-rose-500">الدين غير موجود</div>;
@@ -184,6 +196,40 @@ export default function DebtDetailPage({ params }) {
 
                 {/* Sidebar Info */}
                 <div className="space-y-6">
+                    {schedule.length > 0 && (
+                        <Card className="border-white/5 bg-primary/5 border-primary/10">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm flex items-center gap-2">
+                                    <Calendar className="w-4 h-4 text-primary" /> جدولة الأقساط
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-3">
+                                    {schedule.map((item, idx) => (
+                                        <div key={item._id} className="flex items-center justify-between p-2 rounded-lg bg-black/20 text-xs">
+                                            <div className="flex flex-col">
+                                                <span className="font-bold">القسط {idx + 1}</span>
+                                                <span className="text-[10px] text-muted-foreground font-mono">{formatDate(item.dueDate)}</span>
+                                            </div>
+                                            <div className="flex flex-col items-end gap-1">
+                                                <span className="font-black">{formatCurrency(item.amount)}</span>
+                                                <Badge
+                                                    variant="outline"
+                                                    className={`text-[8px] h-4 px-1 ${item.status === 'PAID'
+                                                        ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                                                        : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                                        }`}
+                                                >
+                                                    {item.status === 'PAID' ? 'تم السداد' : 'انتظار'}
+                                                </Badge>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
                     <Card className="border-white/5 bg-white/[0.02]">
                         <CardHeader>
                             <CardTitle className="text-base">معلومات الاتصال</CardTitle>
@@ -225,6 +271,7 @@ export default function DebtDetailPage({ params }) {
                 open={isPaymentOpen}
                 onOpenChange={setIsPaymentOpen}
                 debt={debt}
+                targetInstallmentId={searchParams.get('installmentId')}
             />
         </div>
     );

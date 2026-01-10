@@ -4,6 +4,7 @@ import Invoice from '@/models/Invoice';
 import ShortageReport from '@/models/ShortageReport';
 import PriceHistory from '@/models/PriceHistory';
 import { ACCOUNTS } from '@/lib/services/accountingService';
+import { NotificationService } from '@/lib/services/notificationService';
 
 const expenseAccountsList = [
     ACCOUNTS.COGS,
@@ -154,11 +155,26 @@ export const ReportingService = {
      */
     async createShortageReport(data, userId, userName) {
         await dbConnect();
-        return await ShortageReport.create({
+        const report = await ShortageReport.create({
             ...data,
             requester: userId,
             requesterName: userName
         });
+
+        // Trigger Notification
+        await NotificationService.create({
+            title: `بلاغ نقص: ${data.productName}`,
+            message: `قام ${userName} بالإبلاغ عن نقص في ${data.productName}. الكمية المطلوبة: ${data.requestedQty}. الملاحظات: ${data.notes || 'لا يوجد'}`,
+            type: 'business',
+            severity: 'warning',
+            source: 'InventoryService',
+            targetRole: 'manager',
+            link: '/reports/shortage',
+            deduplicationKey: `shortage_${data.product}_${Date.now()}`, // Unique enough
+            metadata: { reportId: report._id, productId: data.product }
+        });
+
+        return report;
     },
 
     /**
@@ -175,5 +191,66 @@ export const ReportingService = {
             .populate('productId', 'name code')
             .populate('changedBy', 'name')
             .lean();
+    },
+
+    /**
+     * Debt Maturity & Cash Flow Projection
+     */
+    async getDebtMaturityReport() {
+        await dbConnect();
+        const { default: PaymentSchedule } = await import('@/models/PaymentSchedule');
+
+        const now = new Date();
+        const thirtyDays = new Date();
+        thirtyDays.setDate(thirtyDays.getDate() + 30);
+        const sixtyDays = new Date();
+        sixtyDays.setDate(sixtyDays.getDate() + 60);
+
+        return await PaymentSchedule.aggregate([
+            {
+                $match: {
+                    status: { $in: ['PENDING', 'OVERDUE'] }
+                }
+            },
+            {
+                $project: {
+                    amount: 1,
+                    entityType: 1,
+                    dueDate: 1,
+                    range: {
+                        $cond: [
+                            { $lt: ['$dueDate', now] }, 'overdue',
+                            {
+                                $cond: [
+                                    { $lte: ['$dueDate', thirtyDays] }, '0-30',
+                                    { $cond: [{ $lte: ['$dueDate', sixtyDays] }, '31-60', '61+'] }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: { range: '$range', type: '$entityType' },
+                    total: { $sum: '$amount' },
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $group: {
+                    _id: '$_id.range',
+                    breakdown: {
+                        $push: {
+                            type: '$_id.type',
+                            amount: '$total',
+                            count: '$count'
+                        }
+                    },
+                    total: { $sum: '$total' }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
     }
 };

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,61 +26,37 @@ import {
     SearchX
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { usePhysicalInventory } from '@/hooks/usePhysicalInventory';
+import { useProductMetadata } from '@/hooks/useProducts';
 
 export default function NewPhysicalInventoryPage() {
     const router = useRouter();
-    const [loading, setLoading] = useState(false);
     const [location, setLocation] = useState('');
     const [category, setCategory] = useState('all');
     const [isBlind, setIsBlind] = useState(false);
-    const [categories, setCategories] = useState([]);
-    const [fetchingMetadata, setFetchingMetadata] = useState(true);
 
-    useEffect(() => {
-        const fetchMetadata = async () => {
-            try {
-                const res = await fetch('/api/products/metadata');
-                const data = await res.json();
-                if (data.categories) {
-                    setCategories(data.categories);
-                }
-            } catch (error) {
-                console.error('Error fetching metadata:', error);
-            } finally {
-                setFetchingMetadata(false);
-            }
-        };
-        fetchMetadata();
-    }, []);
+    const { createMutation } = usePhysicalInventory();
+    const { data: metadata, isLoading: fetchingMetadata } = useProductMetadata();
+    const categories = metadata?.categories || [];
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!location) return;
 
-        setLoading(true);
-        try {
-            const res = await fetch('/api/physical-inventory', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    location,
-                    category: category === 'all' ? null : category,
-                    isBlind
-                }),
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) throw new Error(data.error || 'Failed to create count');
-
-            toast.success('تم بدء عملية الجرد بنجاح');
-            router.push(`/physical-inventory/${data.count._id}`);
-        } catch (error) {
-            toast.error(error.message);
-        } finally {
-            setLoading(false);
-        }
+        createMutation.mutate({
+            location,
+            category: category === 'all' ? null : category,
+            isBlind
+        }, {
+            onSuccess: (res) => {
+                toast.success('تم بدء عملية الجرد بنجاح');
+                router.push(`/physical-inventory/${res.data._id}`);
+            },
+            onError: (error) => {
+                toast.error(error.message || 'فشل بدء الجرد');
+            }
+        });
     };
 
     return (
@@ -132,8 +108,8 @@ export default function NewPhysicalInventoryPage() {
                                             type="button"
                                             onClick={() => setLocation(loc.id)}
                                             className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all duration-300 ${location === loc.id
-                                                    ? 'border-primary bg-primary/5 shadow-inner-lg'
-                                                    : 'border-transparent bg-muted/30 hover:bg-muted/50'
+                                                ? 'border-primary bg-primary/5 shadow-inner-lg'
+                                                : 'border-transparent bg-muted/30 hover:bg-muted/50'
                                                 }`}
                                         >
                                             <loc.icon className={`w-6 h-6 ${location === loc.id ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -148,9 +124,9 @@ export default function NewPhysicalInventoryPage() {
                                 <Label className="text-sm font-black flex items-center gap-2 text-primary/80">
                                     <LayoutGrid className="w-4 h-4" /> القسم المختار
                                 </Label>
-                                <Select value={category} onValueChange={setCategory}>
+                                <Select value={category} onValueChange={setCategory} disabled={fetchingMetadata}>
                                     <SelectTrigger className="h-14 rounded-2xl border-0 bg-muted/30 font-bold focus:ring-2 ring-primary/20">
-                                        <SelectValue placeholder="اختر القسم (أو جرد شامل)" />
+                                        <SelectValue placeholder={fetchingMetadata ? "جاري تحميل الأقسام..." : "اختر القسم (أو جرد شامل)"} />
                                     </SelectTrigger>
                                     <SelectContent className="rounded-2xl border-0 shadow-custom-xl">
                                         <SelectItem value="all" className="font-bold py-3 text-primary">كل الأقسام (جرد شامل)</SelectItem>
@@ -183,9 +159,9 @@ export default function NewPhysicalInventoryPage() {
                             <Button
                                 type="submit"
                                 className="w-full h-16 rounded-[1.5rem] gradient-primary text-lg font-black shadow-lg shadow-primary/30 hover-scale group"
-                                disabled={!location || loading}
+                                disabled={!location || createMutation.isPending}
                             >
-                                {loading ? (
+                                {createMutation.isPending ? (
                                     <Loader2 className="ml-2 h-5 w-5 animate-spin" />
                                 ) : (
                                     <Sparkles className="ml-2 h-5 w-5 group-hover:rotate-12 transition-transform" />

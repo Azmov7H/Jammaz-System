@@ -90,7 +90,7 @@ export class NotificationService {
         const user = await User.findById(userId).select('role');
         const role = user?.role;
 
-        const query = {
+        const query = role === 'owner' ? {} : {
             $or: [
                 { recipientId: userId },
                 { isGlobal: true },
@@ -139,14 +139,14 @@ export class NotificationService {
         if (markAll) {
             const user = await User.findById(userId).select('role');
             const role = user?.role;
-            const query = {
-                $or: [
+            const query = { isRead: false };
+            if (role !== 'owner') {
+                query.$or = [
                     { recipientId: userId },
                     { isGlobal: true },
                     { targetRole: role }
-                ],
-                isRead: false
-            };
+                ];
+            }
             await Notification.updateMany(query, { isRead: true });
         } else if (Array.isArray(ids) && ids.length > 0) {
             await Notification.updateMany(
@@ -155,6 +155,37 @@ export class NotificationService {
             );
         }
 
+        return { success: true };
+    }
+
+    /**
+     * Delete specific notification
+     */
+    static async delete(userId, id) {
+        await dbConnect();
+        const user = await User.findById(userId).select('role');
+        const role = user?.role;
+
+        const query = { _id: id };
+        if (role !== 'owner') {
+            query.recipientId = userId;
+        }
+
+        const notification = await Notification.findOneAndDelete(query);
+        if (!notification) throw 'Notification not found';
+        return { success: true };
+    }
+
+    /**
+     * Delete all notifications for user
+     */
+    static async deleteAll(userId) {
+        await dbConnect();
+        const user = await User.findById(userId).select('role');
+        const role = user?.role;
+
+        const query = role === 'owner' ? {} : { recipientId: userId };
+        await Notification.deleteMany(query);
         return { success: true };
     }
 
@@ -248,6 +279,7 @@ export class NotificationService {
         const minAmount = settings.minDebtNotificationAmount || 10;
         const now = new Date();
 
+        // 1. Overdue Invoices
         const overdueInvoices = await Invoice.find({
             paymentStatus: { $in: ['pending', 'partial'] },
             paymentType: 'credit',
@@ -268,6 +300,84 @@ export class NotificationService {
                 link: `/invoices/${inv._id}`,
                 deduplicationKey: `inv_overdue_${inv._id}`,
                 metadata: { invoiceId: inv._id, balance, action: 'COLLECT_DEBT', category: 'FINANCIAL' }
+            });
+        }
+
+        // 2. Upcoming Collections (Control Period)
+        const collectionDays = settings.customerCollectionAlertDays || 3;
+        const targetDate = new Date();
+        targetDate.setDate(targetDate.getDate() + collectionDays);
+
+        const upcomingInvoices = await Invoice.find({
+            paymentStatus: { $in: ['pending', 'partial'] },
+            paymentType: 'credit',
+            dueDate: { $lte: targetDate, $gte: now },
+            total: { $gte: minAmount }
+        }).populate('customer', 'name');
+
+        for (const inv of upcomingInvoices) {
+            const balance = inv.total - inv.paidAmount;
+            await this.create({
+                title: `تحصيل قريب: ${inv.customer.name}`,
+                message: `الفاتورة #${inv.number} تستحق خلال ${collectionDays} أيام بقيمة ${balance.toLocaleString()} ج.م.`,
+                type: 'business',
+                severity: 'info',
+                targetRole: 'manager',
+                link: `/invoices/${inv._id}`,
+                deduplicationKey: `inv_due_soon_${inv._id}`,
+                metadata: { invoiceId: inv._id, balance, action: 'COLLECT_DEBT', category: 'FINANCIAL' }
+            });
+        }
+    }
+
+    /**
+     * Scanner: Payment Schedules (Installments)
+     */
+    static async syncInstallmentReminders(settings = null) {
+        const { default: PaymentSchedule } = await import('@/models/PaymentSchedule');
+        const { default: Debt } = await import('@/models/Debt');
+        const now = new Date();
+        const alertDays = settings?.customerCollectionAlertDays || 3;
+        const targetDate = new Date();
+        targetDate.setDate(targetDate.getDate() + alertDays);
+
+        console.log(`[NotificationScanner] Checking installments due before ${targetDate.toLocaleDateString()}`);
+
+        const soonInstallments = await PaymentSchedule.find({
+            status: { $in: ['PENDING', 'OVERDUE'] },
+            dueDate: { $lte: targetDate }
+        }).populate({
+            path: 'debtId',
+            populate: { path: 'debtorId' }
+        });
+
+        console.log(`[NotificationScanner] Found ${soonInstallments.length} installments matching criteria`);
+
+        for (const schedule of soonInstallments) {
+            if (!schedule.debtId) {
+                console.warn(`[NotificationScanner] Schedule ${schedule._id} has no linked debtId`);
+                continue;
+            }
+
+            const debtor = schedule.debtId.debtorId;
+            const isOverdue = schedule.dueDate < now;
+            const type = schedule.entityType === 'Customer' ? 'تحصيل' : 'سداد';
+            const statusLabel = isOverdue ? 'متأخر' : 'قادم';
+
+            await this.create({
+                title: `${type} قسط ${statusLabel}: ${debtor?.name || 'مجهول'}`,
+                message: `قسط بقيمة ${schedule.amount.toLocaleString()} د.ل يستحق في ${schedule.dueDate.toLocaleDateString('ar-EG')}.`,
+                type: 'business',
+                severity: isOverdue ? 'critical' : 'info',
+                targetRole: 'manager',
+                link: `/financial/debt-center/${schedule.debtId._id}?autoPay=true`,
+                deduplicationKey: `schedule_${schedule._id}_${isOverdue ? 'overdue' : 'soon'}`,
+                metadata: {
+                    debtId: schedule.debtId._id,
+                    installmentId: schedule._id,
+                    amount: schedule.amount,
+                    action: schedule.entityType === 'Customer' ? 'COLLECT_DEBT' : 'PAY_SUPPLIER'
+                }
             });
         }
     }
@@ -291,7 +401,8 @@ export class NotificationService {
         await Promise.allSettled([
             this.syncStockAlerts(settings),
             this.syncSupplierAlerts(settings),
-            this.syncDebtReminders(null, settings)
+            this.syncDebtReminders(null, settings),
+            this.syncInstallmentReminders(settings)
         ]);
 
         await SystemMeta.findOneAndUpdate(

@@ -8,7 +8,8 @@ import { AccountingService } from './accountingService';
 import { TreasuryService } from './treasuryService';
 import { DailySalesService } from './dailySalesService';
 import { LogService } from './logService';
-import { DebtService } from './financial/debtService'; // Imported
+import { DebtService } from './financial/debtService';
+import InvoiceSettings from '@/models/InvoiceSettings';
 
 /**
  * Finance Service
@@ -52,12 +53,16 @@ export const FinanceService = {
                     customer.balance = (customer.balance || 0) + remainingDebt;
                     await customer.save();
 
+                    // Get Default Terms from Settings
+                    const settings = await InvoiceSettings.getSettings();
+                    const defaultDays = settings.defaultCustomerTerms || 15;
+
                     // Create New Debt Record
                     await DebtService.createDebt({
                         debtorType: 'Customer',
                         debtorId: customer._id,
                         amount: remainingDebt,
-                        dueDate: invoice.dueDate || new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // Default 15 days if null
+                        dueDate: invoice.dueDate || new Date(Date.now() + defaultDays * 24 * 60 * 60 * 1000),
                         referenceType: 'Invoice',
                         referenceId: invoice._id,
                         description: `فاتورة مبيعات #${invoice.number}`,
@@ -127,12 +132,16 @@ export const FinanceService = {
                 supplier.lastSupplyDate = new Date();
                 await supplier.save();
 
+                // Get Default Terms from Settings
+                const settings = await InvoiceSettings.getSettings();
+                const defaultDays = settings.defaultSupplierTerms || 30;
+
                 // New Debt Record
                 await DebtService.createDebt({
                     debtorType: 'Supplier',
                     debtorId: supplier._id,
                     amount: po.totalCost,
-                    dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Default 30 days
+                    dueDate: po.expectedDate || new Date(Date.now() + defaultDays * 24 * 60 * 60 * 1000),
                     referenceType: 'PurchaseOrder',
                     referenceId: po._id,
                     description: `أمر شراء #${po.poNumber}`,

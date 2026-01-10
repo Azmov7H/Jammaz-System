@@ -1,7 +1,7 @@
-import { apiHandler } from '@/lib/api-handler';
+import { apiHandler } from '@/lib/core/api-handler';
 import { UserService } from '@/lib/services/userService';
-import { userSchema } from '@/lib/validators';
-import { getCurrentUser } from '@/lib/auth';
+import { userSchema } from '@/lib/core/validators';
+import { getCurrentUser } from '@/lib/core/auth';
 import { hasPermission } from '@/lib/permissions';
 import { NextResponse } from 'next/server';
 
@@ -33,4 +33,12 @@ export const POST = apiHandler(async (req) => {
     const newUser = await UserService.create(validated);
 
     return NextResponse.json({ success: true, user: newUser }, { status: 201 });
+});
+    }
+
+const body = await req.json();
+const validated = userSchema.parse(body);
+const newUser = await UserService.create(validated);
+
+return NextResponse.json({ success: true, user: newUser }, { status: 201 });
 });

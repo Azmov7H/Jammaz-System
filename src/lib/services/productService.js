@@ -8,7 +8,7 @@ export const ProductService = {
     async getAll({ page = 1, limit = 10, search, category, brand, outOfStock }) {
         await dbConnect();
 
-        const query = {};
+        const query = { isActive: true };
         if (search) {
             query.$or = [
                 { name: { $regex: search, $options: 'i' } },
@@ -17,17 +17,11 @@ export const ProductService = {
         }
         if (category && category !== 'all') query.category = category;
         if (brand && brand !== 'all') query.brand = brand;
-        if (outOfStock === 'true') query.stockQty = 0;
+        if (outOfStock === 'true') query.stockQty = { $lte: 0 };
 
-        // Use cached method if available and no specific filters prevent it, 
-        // OR just plain find for now to be safe with standard mongoose.
-        // Assuming getAllCached exists on Model as per previous check.
-        // But for complexity, efficient filtering is better done on DB directly.
-
-        const skip = (page - 1) * limit;
+        const skip = (Number(page) - 1) * Number(limit);
         const [products, total] = await Promise.all([
-            // Retaining existing optimized code with lean()
-            Product.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+            Product.find(query).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)).lean(),
             Product.countDocuments(query)
         ]);
 
@@ -35,7 +29,7 @@ export const ProductService = {
             products,
             pagination: {
                 total,
-                pages: Math.ceil(total / limit),
+                pages: Math.ceil(total / Number(limit)),
                 page: Number(page),
                 limit: Number(limit)
             }
@@ -52,43 +46,20 @@ export const ProductService = {
     async create(data, userId) {
         await dbConnect();
         const existing = await Product.findOne({ code: data.code });
-        if (existing) {
-            throw 'كود المنتج موجود مسبقاً';
-        }
-
-        const {
-            name, code, sellPrice, buyPrice,
-            warehouseQty = 0, shopQty = 0,
-            minLevel, brand, category, subsection, size, color, gender, season, unit,
-            minProfitMargin = 0, images
-        } = data;
-
-        const finalWarehouse = Number(warehouseQty);
-        const finalShop = Number(shopQty);
-        const totalStock = finalWarehouse + finalShop;
+        if (existing) throw 'كود المنتج موجود مسبقاً';
 
         const product = await Product.create({
-            name, code,
-            retailPrice: Number(sellPrice),
-            buyPrice: Number(buyPrice),
-            warehouseQty: finalWarehouse,
-            shopQty: finalShop,
-            stockQty: totalStock,
-            openingWarehouseQty: finalWarehouse,
-            openingShopQty: finalShop,
-            openingBuyPrice: Number(buyPrice),
-            minLevel, brand, category, subsection, size, color, gender, season, unit,
-            minProfitMargin,
-            images,
+            ...data,
             createdBy: userId
         });
 
-        if (totalStock > 0) {
+        // Register initial stock if provided
+        if ((Number(data.warehouseQty) || 0) + (Number(data.shopQty) || 0) > 0) {
             await StockService.registerInitialBalance(
                 product._id,
-                finalWarehouse,
-                finalShop,
-                Number(buyPrice),
+                Number(data.warehouseQty) || 0,
+                Number(data.shopQty) || 0,
+                Number(data.buyPrice) || 0,
                 userId
             );
         }
@@ -99,8 +70,6 @@ export const ProductService = {
 
     async update(id, data, userId) {
         await dbConnect();
-
-        // Prevent duplicate code if code is changed
         if (data.code) {
             const existing = await Product.findOne({ code: data.code, _id: { $ne: id } });
             if (existing) throw 'كود المنتج موجود بالفعل لمنتج آخر';
@@ -115,10 +84,26 @@ export const ProductService = {
 
     async delete(id) {
         await dbConnect();
-        const deleted = await Product.findByIdAndDelete(id);
-        if (!deleted) throw 'Product not found';
+        const product = await Product.findById(id);
+        if (!product) throw 'Product not found';
+
+        product.isActive = false;
+        await product.save();
 
         revalidateTag(CACHE_TAGS.PRODUCTS);
-        return { message: 'Product deleted' };
+        return { message: 'Product deactivated' };
+    },
+
+    async getMetadata() {
+        await dbConnect();
+        const [brands, categories] = await Promise.all([
+            Product.distinct('brand', { isActive: true }),
+            Product.distinct('category', { isActive: true })
+        ]);
+
+        return {
+            brands: brands.filter(Boolean).map(b => ({ label: b, value: b })),
+            categories: categories.filter(Boolean).map(c => ({ label: c, value: c }))
+        };
     }
 };

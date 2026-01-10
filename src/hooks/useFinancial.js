@@ -6,8 +6,8 @@ export function useTreasury() {
     return useQuery({
         queryKey: ['treasury'],
         queryFn: async () => {
-            const data = await api.get('/api/financial/treasury');
-            return data.data || { balance: 0, transactions: [] };
+            const res = await api.get('/api/financial/treasury');
+            return res.data;
         }
     });
 }
@@ -15,13 +15,68 @@ export function useTreasury() {
 export function useAddTransaction() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (data) => api.post('/api/financial/transaction', data),
+        mutationFn: (data) => api.post('/api/financial/transactions', data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['treasury'] });
             toast.success('تم تسجيل المعاملة بنجاح');
-        },
-        onError: (err) => {
-            toast.error(err.message || 'فشل تسجيل المعاملة');
         }
+    });
+}
+
+export function useDebts(params = {}) {
+    return useQuery({
+        queryKey: ['debts', params],
+        queryFn: async () => {
+            const searchParams = new URLSearchParams(params);
+            const res = await api.get(`/api/financial/debts?${searchParams}`);
+            return res.data;
+        }
+    });
+}
+
+export function useDebtOverview() {
+    return useQuery({
+        queryKey: ['debt-overview'],
+        queryFn: async () => {
+            const res = await api.get('/api/financial/debt-overview');
+            return res.data;
+        }
+    });
+}
+
+export function useAddPayment() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data) => api.post('/api/financial/payments', data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['debts'] });
+            queryClient.invalidateQueries({ queryKey: ['debt-overview'] });
+            toast.success('تم تسجيل الدفعة بنجاح');
+        },
+        onError: (err) => toast.error(err.message || 'فشل تسجيل الدفعة')
+    });
+}
+
+export function useDebtInstallments(debtId) {
+    return useQuery({
+        queryKey: ['debt-installments', debtId],
+        queryFn: async () => {
+            const res = await api.get(`/api/financial/debts/${debtId}/installments`);
+            return res.data;
+        },
+        enabled: !!debtId
+    });
+}
+
+export function useCreateInstallments() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ debtId, data }) => api.post(`/api/financial/debts/${debtId}/installments`, data),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['debts'] });
+            queryClient.invalidateQueries({ queryKey: ['debt-installments', variables.debtId] });
+            toast.success('تم جدولة المديونية بنجاح');
+        },
+        onError: (err) => toast.error(err.message || 'فشل جدولة المديونية')
     });
 }

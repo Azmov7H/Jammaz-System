@@ -1,7 +1,6 @@
-import { apiHandler } from '@/lib/api-handler';
+import { apiHandler } from '@/lib/core/api-handler';
 import { PhysicalInventoryService } from '@/lib/services/physicalInventoryService';
-import { getCurrentUser } from '@/lib/auth';
-import { NextResponse } from 'next/server';
+import { getCurrentUser } from '@/lib/core/auth';
 import { z } from 'zod';
 
 const unlockSchema = z.object({
@@ -10,7 +9,7 @@ const unlockSchema = z.object({
 
 export const POST = apiHandler(async (req, { params }) => {
     const user = await getCurrentUser();
-    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    if (!user) throw 'Unauthorized';
 
     const { id } = await params;
     const body = await req.json();
@@ -19,7 +18,6 @@ export const POST = apiHandler(async (req, { params }) => {
     const count = await PhysicalInventoryService.unlockCount(id, password, user.userId);
 
     return {
-        success: true,
         message: 'تم فتح الجرد للتعديل بنجاح',
         count
     };

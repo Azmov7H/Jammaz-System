@@ -7,49 +7,63 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { useAddPayment, useDebtInstallments } from '@/hooks/useFinancial';
 import { formatCurrency } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Coins, Sparkles } from 'lucide-react';
+import { useEffect } from 'react';
 
-export function PaymentDialog({ open, onOpenChange, debt }) {
-    const queryClient = useQueryClient();
+export function PaymentDialog({ open, onOpenChange, debt, targetInstallmentId }) {
     const [amount, setAmount] = useState('');
     const [method, setMethod] = useState('cash');
     const [notes, setNotes] = useState('');
 
-    const mutation = useMutation({
-        mutationFn: async (data) => {
-            const res = await fetch('/api/financial/payments', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Failed to record payment');
+    const { mutate: addPayment, isPending } = useAddPayment();
+    const { data: installments, isLoading: isLoadingInstallments } = useDebtInstallments(debt?._id);
+
+    // Auto-suggest installment amount
+    useEffect(() => {
+        if (!open || !debt) return;
+
+        if (debt.meta?.isScheduled) {
+            if (installments && installments.length > 0) {
+                let target;
+                if (targetInstallmentId) {
+                    target = installments.find(i => i._id === targetInstallmentId);
+                }
+
+                if (!target) {
+                    target = installments.find(i => i.status === 'PENDING');
+                }
+
+                if (target) {
+                    setAmount(target.amount.toString());
+                    setNotes(`سداد القسط المستحق بتاريخ ${new Date(target.dueDate).toLocaleDateString('ar-EG')}`);
+                } else {
+                    setAmount(debt.remainingAmount.toString());
+                }
+            } else if (!isLoadingInstallments) {
+                setAmount(debt.remainingAmount.toString());
             }
-            return res.json();
-        },
-        onSuccess: () => {
-            toast.success('تم تسجيل الدفعة بنجاح');
-            queryClient.invalidateQueries(['debts']);
-            onOpenChange(false);
-            setAmount('');
-            setNotes('');
-        },
-        onError: (err) => toast.error(err.message)
-    });
+        } else {
+            setAmount(debt.remainingAmount.toString());
+        }
+    }, [open, debt?._id, installments, isLoadingInstallments, targetInstallmentId]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!debt) return;
 
-        mutation.mutate({
+        addPayment({
             debtId: debt._id,
             amount: parseFloat(amount),
             method,
             notes
+        }, {
+            onSuccess: () => {
+                onOpenChange(false);
+                setAmount('');
+                setNotes('');
+            }
         });
     };
 
@@ -57,21 +71,55 @@ export function PaymentDialog({ open, onOpenChange, debt }) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md bg-card border-white/10">
+            <DialogContent className="sm:max-w-md bg-card/95 border-white/10 backdrop-blur-2xl rounded-[1.5rem]" dir="rtl">
                 <DialogHeader>
-                    <DialogTitle>تسجيل دفعة جديدة</DialogTitle>
+                    <DialogTitle className="text-xl font-black flex items-center gap-2">
+                        <Coins className="text-primary" /> تسجيل دفعة جديدة
+                    </DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-                    <div className="p-4 rounded-lg bg-white/5 border border-white/5 space-y-1">
-                        <span className="text-xs text-muted-foreground block">المبلغ المستحق</span>
-                        <div className="text-2xl font-black tracking-tight">{formatCurrency(debt.remainingAmount)}</div>
-                        <div className="text-xs text-muted-foreground opacity-70">
-                            {debt.debtorId?.name} | {debt.referenceType === 'Invoice' ? 'فاتورة' : 'أمر شراء'}
-                        </div>
+                <form onSubmit={handleSubmit} className="space-y-6 pt-4">
+                    <div className="p-5 rounded-2xl bg-primary/5 border border-primary/10 space-y-1 shadow-sm">
+                        {debt.meta?.isScheduled && (isLoadingInstallments || (installments && installments.find(i => i.status === 'PENDING'))) ? (
+                            isLoadingInstallments ? (
+                                <div className="h-16 flex items-center justify-center">
+                                    <Loader2 className="w-6 h-6 animate-spin text-primary opacity-50" />
+                                </div>
+                            ) : (
+                                <>
+                                    <span className="text-[10px] uppercase font-black tracking-widest text-primary opacity-60 block">قيمة القسط المستحق</span>
+                                    <div className="text-3xl font-black tracking-tighter text-foreground flex items-baseline gap-1">
+                                        {formatCurrency(installments.find(i => i.status === 'PENDING')?.amount || 0)}
+                                        <span className="text-xs text-muted-foreground font-bold italic">د.ل</span>
+                                    </div>
+                                    <div className="text-[11px] text-muted-foreground font-bold mt-2 pt-2 border-t border-primary/10 flex justify-between items-center">
+                                        <span>{debt.debtorId?.name} • {debt.referenceType === 'Invoice' ? 'فاتورة' : 'أمر شراء'}</span>
+                                        <span className="text-rose-500 bg-rose-500/5 px-2 py-0.5 rounded-full border border-rose-500/10 font-black">إجمالي المتبقي: {formatCurrency(debt.remainingAmount)}</span>
+                                    </div>
+                                </>
+                            )
+                        ) : (
+                            <>
+                                <span className="text-[10px] uppercase font-black tracking-widest text-primary opacity-60 block">المبلغ المتبقي حالياً</span>
+                                <div className="text-3xl font-black tracking-tighter text-foreground flex items-baseline gap-1">
+                                    {formatCurrency(debt.remainingAmount)}
+                                    <span className="text-xs text-muted-foreground font-bold italic">د.ل</span>
+                                </div>
+                                <div className="text-[11px] text-muted-foreground font-bold mt-2 pt-2 border-t border-primary/10">
+                                    {debt.debtorId?.name} • {debt.referenceType === 'Invoice' ? 'فاتورة' : 'أمر شراء'}
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     <div className="space-y-2">
-                        <Label>قيمة الدفعة</Label>
+                        <div className="flex justify-between items-center mr-1">
+                            <Label className="text-xs font-bold">قيمة الدفعة *</Label>
+                            {debt.meta?.isScheduled && (
+                                <span className="text-[10px] font-black text-primary flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full animate-pulse">
+                                    <Sparkles size={10} /> اقتراح القسط القادم
+                                </span>
+                            )}
+                        </div>
                         <Input
                             type="number"
                             step="0.01"
@@ -79,15 +127,15 @@ export function PaymentDialog({ open, onOpenChange, debt }) {
                             value={amount}
                             onChange={(e) => setAmount(e.target.value)}
                             placeholder="0.00"
-                            className="bg-white/5 font-mono font-bold"
+                            className="h-12 rounded-xl bg-muted/30 border-white/10 font-mono font-bold text-lg"
                             required
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <Label>طريقة الدفع</Label>
+                        <Label className="text-xs font-bold mr-1">طريقة السداد</Label>
                         <Select value={method} onValueChange={setMethod}>
-                            <SelectTrigger className="bg-white/5">
+                            <SelectTrigger className="h-12 rounded-xl bg-muted/30 border-white/10 font-bold">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -100,22 +148,26 @@ export function PaymentDialog({ open, onOpenChange, debt }) {
                     </div>
 
                     <div className="space-y-2">
-                        <Label>ملاحظات (اختياري)</Label>
+                        <Label className="text-xs font-bold mr-1">ملاحظات إضافية</Label>
                         <Textarea
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
-                            placeholder="رقم العملية، رقم الشيك، ملاحظات..."
-                            className="bg-white/5 resize-none h-20"
+                            placeholder="رقم العملية، رقم الشيك، أو أي تفاصيل أخرى..."
+                            className="bg-muted/30 border-white/10 rounded-xl resize-none h-24 font-bold"
                         />
                     </div>
 
-                    <DialogFooter>
-                        <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                    <DialogFooter className="gap-3">
+                        <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="rounded-xl px-6 h-12 font-bold">
                             إلغاء
                         </Button>
-                        <Button type="submit" disabled={mutation.isPending || !amount} className="bg-primary text-white">
-                            {mutation.isPending ? <Loader2 className="animate-spin w-4 h-4 ml-2" /> : null}
-                            تأكيد الدفع
+                        <Button
+                            type="submit"
+                            disabled={isPending || !amount}
+                            className="h-12 rounded-xl px-8 font-black gradient-primary shadow-colored border-0 hover:scale-105 transition-all"
+                        >
+                            {isPending && <Loader2 className="animate-spin w-4 h-4 ml-2" />}
+                            تأكيد وتسجيل العملية
                         </Button>
                     </DialogFooter>
                 </form>

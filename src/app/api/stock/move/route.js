@@ -1,7 +1,7 @@
-import { apiHandler } from '@/lib/api-handler';
+import { apiHandler } from '@/lib/core/api-handler';
 import { StockService } from '@/lib/services/stockService';
-import { getCurrentUser } from '@/lib/auth';
-import { stockMoveSchema } from '@/lib/validators';
+import { getCurrentUser } from '@/lib/core/auth';
+import { stockMoveSchema } from '@/lib/core/validators';
 import { NextResponse } from 'next/server';
 
 export const POST = apiHandler(async (req) => {
@@ -29,5 +29,12 @@ export const POST = apiHandler(async (req) => {
             note: validated.note
         });
         return NextResponse.json({ success: true, data: result });
+    }
+});
+type: validated.type,
+    userId: user.userId,
+        note: validated.note
+        });
+return NextResponse.json({ success: true, data: result });
     }
 });

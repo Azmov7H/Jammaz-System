@@ -1,4 +1,4 @@
-import { apiHandler } from '@/lib/api-handler';
+import { apiHandler } from '@/lib/core/api-handler';
 import { StockService } from '@/lib/services/stockService';
 import { NextResponse } from 'next/server';
 
@@ -22,4 +22,5 @@ export const GET = apiHandler(async (req) => {
     return await StockService.getProductHistory(productId, limit);
 });
 
+// Helper for POST is in stock/move/route.js, let's see if we consolidate.
 // Helper for POST is in stock/move/route.js, let's see if we consolidate.

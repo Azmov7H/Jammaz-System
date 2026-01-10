@@ -1,7 +1,7 @@
-import { apiHandler } from '@/lib/api-handler';
+import { apiHandler } from '@/lib/core/api-handler';
 import { SupplierService } from '@/lib/services/supplierService';
-import { supplierSchema } from '@/lib/validators';
-import { getCurrentUser } from '@/lib/auth';
+import { supplierSchema } from '@/lib/core/validators';
+import { getCurrentUser } from '@/lib/core/auth';
 import { NextResponse } from 'next/server';
 
 export const GET = apiHandler(async (req) => {
@@ -12,7 +12,7 @@ export const GET = apiHandler(async (req) => {
 
 export const POST = apiHandler(async (req) => {
     const user = await getCurrentUser();
-    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    if (!user) throw 'Unauthorized';
 
     const body = await req.json();
     const validated = supplierSchema.parse(body);
