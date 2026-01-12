@@ -133,34 +133,34 @@ CashboxDailySchema.pre('save', async function () {
 });
 
 // Method to add manual income
-CashboxDailySchema.methods.addIncome = function (amount, reason, userId) {
+CashboxDailySchema.methods.addIncome = function (amount, reason, userId, session = null) {
     this.manualIncome.push({
         amount,
         reason,
         createdBy: userId
     });
-    return this.save();
+    return this.save({ session });
 };
 
 // Method to add manual expense
-CashboxDailySchema.methods.addExpense = function (amount, reason, category, userId) {
+CashboxDailySchema.methods.addExpense = function (amount, reason, category, userId, session = null) {
     this.manualExpenses.push({
         amount,
         reason,
         category: category || 'other',
         createdBy: userId
     });
-    return this.save();
+    return this.save({ session });
 };
 
 // Method to reconcile
-CashboxDailySchema.methods.reconcile = function (actualClosingBalance, userId, notes) {
+CashboxDailySchema.methods.reconcile = function (actualClosingBalance, userId, notes, session = null) {
     this.closingBalance = actualClosingBalance;
     this.isReconciled = true;
     this.reconciledBy = userId;
     this.reconciledAt = new Date();
     this.reconciliationNotes = notes;
-    return this.save();
+    return this.save({ session });
 };
 
 CashboxDailySchema.index({ date: -1 });

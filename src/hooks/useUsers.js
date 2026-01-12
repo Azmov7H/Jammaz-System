@@ -23,7 +23,7 @@ export function useUsers() {
     });
 
     const updateUserMutation = useMutation({
-        mutationFn: ({ id, ...data }) => api.put(`/api/users/${id}`, data),
+        mutationFn: ({ id, data }) => api.put(`/api/users/${id}`, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['users'] });
             toast.success('تم تحديث المستخدم بنجاح');

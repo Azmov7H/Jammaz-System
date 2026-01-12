@@ -38,7 +38,7 @@ export const AccountingService = {
     /**
      * Create accounting entries for a cash sale
      */
-    async createSaleEntries(invoice, userId) {
+    async createSaleEntries(invoice, userId, session = null) {
         await dbConnect();
 
         const entries = [];
@@ -55,7 +55,8 @@ export const AccountingService = {
             refType: 'Invoice',
             refId: invoice._id,
             userId,
-            date: invoice.date
+            date: invoice.date,
+            session
         });
         entries.push(saleEntry);
 
@@ -70,7 +71,8 @@ export const AccountingService = {
                 refType: 'Invoice',
                 refId: invoice._id,
                 userId,
-                date: invoice.date
+                date: invoice.date,
+                session
             });
             entries.push(cogsEntry);
         }
@@ -81,7 +83,7 @@ export const AccountingService = {
     /**
      * Create accounting entries for a credit sale
      */
-    async createCreditSaleEntries(invoice, userId) {
+    async createCreditSaleEntries(invoice, userId, session = null) {
         await dbConnect();
 
         const entries = [];
@@ -96,7 +98,8 @@ export const AccountingService = {
             refType: 'Invoice',
             refId: invoice._id,
             userId,
-            date: invoice.date
+            date: invoice.date,
+            session
         });
         entries.push(saleEntry);
 
@@ -111,7 +114,8 @@ export const AccountingService = {
                 refType: 'Invoice',
                 refId: invoice._id,
                 userId,
-                date: invoice.date
+                date: invoice.date,
+                session
             });
             entries.push(cogsEntry);
         }
@@ -122,7 +126,7 @@ export const AccountingService = {
     /**
      * Create accounting entries for payment collection
      */
-    async createPaymentEntries(invoice, paymentAmount, userId, date = new Date()) {
+    async createPaymentEntries(invoice, paymentAmount, userId, date = new Date(), session = null) {
         await dbConnect();
 
         // Debit Cash, Credit Receivables
@@ -135,7 +139,8 @@ export const AccountingService = {
             refType: 'Invoice',
             refId: invoice._id,
             userId,
-            date
+            date,
+            session
         });
     },
 
@@ -145,7 +150,7 @@ export const AccountingService = {
     /**
      * Create accounting entries for a purchase
      */
-    async createPurchaseEntries(purchaseOrder, userId, paymentType = 'cash') {
+    async createPurchaseEntries(purchaseOrder, userId, paymentType = 'cash', session = null) {
         await dbConnect();
 
         let creditAccount;
@@ -172,14 +177,15 @@ export const AccountingService = {
             refType: 'PurchaseOrder',
             refId: purchaseOrder._id,
             userId,
-            date: purchaseOrder.receivedDate || purchaseOrder.createdAt
+            date: purchaseOrder.receivedDate || purchaseOrder.createdAt,
+            session
         });
     },
 
     /**
      * Create accounting entries for paying supplier debt
      */
-    async createSupplierPaymentEntries(purchaseOrder, amount, userId, date = new Date()) {
+    async createSupplierPaymentEntries(purchaseOrder, amount, userId, date = new Date(), session = null) {
         await dbConnect();
 
         // Debit Payables, Credit Cash/Bank
@@ -194,14 +200,15 @@ export const AccountingService = {
             refType: 'PurchaseOrder',
             refId: purchaseOrder._id,
             userId,
-            date
+            date,
+            session
         });
     },
 
     /**
      * Create accounting entries for physical inventory adjustments
      */
-    async createInventoryAdjustmentEntries(physicalInventory, userId) {
+    async createInventoryAdjustmentEntries(physicalInventory, userId, session = null) {
         await dbConnect();
 
         const entries = [];
@@ -232,7 +239,8 @@ export const AccountingService = {
                 refType: 'PhysicalInventory',
                 refId: physicalInventory._id,
                 userId,
-                date: physicalInventory.approvedAt || physicalInventory.date
+                date: physicalInventory.approvedAt || physicalInventory.date,
+                session
             });
             entries.push(entry);
         }
@@ -243,7 +251,7 @@ export const AccountingService = {
     /**
      * Create manual expense entry
      */
-    async createExpenseEntry(amount, category, description, userId, date = new Date()) {
+    async createExpenseEntry(amount, category, description, userId, date = new Date(), session = null) {
         await dbConnect();
 
         let expenseAccount;
@@ -273,14 +281,15 @@ export const AccountingService = {
             refType: 'Manual',
             userId,
             date,
-            isSystemGenerated: false
+            isSystemGenerated: false,
+            session
         });
     },
 
     /**
      * Create manual income entry
      */
-    async createIncomeEntry(amount, description, userId, date = new Date()) {
+    async createIncomeEntry(amount, description, userId, date = new Date(), session = null) {
         await dbConnect();
 
         return await AccountingEntry.createEntry({
@@ -292,7 +301,8 @@ export const AccountingService = {
             refType: 'Manual',
             userId,
             date,
-            isSystemGenerated: false
+            isSystemGenerated: false,
+            session
         });
     },
 
@@ -437,7 +447,7 @@ export const AccountingService = {
     /**
      * Create accounting entries for Sales Return
      */
-    async createReturnEntries(salesReturn, totalCostOfReturnedGoods, userId) {
+    async createReturnEntries(salesReturn, totalCostOfReturnedGoods, userId, session = null) {
         await dbConnect();
 
         const entries = [];
@@ -455,7 +465,8 @@ export const AccountingService = {
             refType: 'SalesReturn',
             refId: salesReturn._id,
             userId,
-            date: salesReturn.date
+            date: salesReturn.date,
+            session
         });
         entries.push(returnEntry);
 
@@ -471,7 +482,8 @@ export const AccountingService = {
                 refType: 'SalesReturn',
                 refId: salesReturn._id,
                 userId,
-                date: salesReturn.date
+                date: salesReturn.date,
+                session
             });
             entries.push(inventoryEntry);
         }

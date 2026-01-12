@@ -57,6 +57,32 @@ const InvoiceSchema = new mongoose.Schema({
     toObject: { virtuals: true }
 });
 
+// Method to record payment
+InvoiceSchema.methods.recordPayment = function (amount, method, note, userId, session = null) {
+    this.payments.push({
+        amount,
+        method,
+        note,
+        recordedBy: userId,
+        date: new Date()
+    });
+
+    this.paidAmount = (this.paidAmount || 0) + amount;
+
+    // Update status
+    if (this.paidAmount >= this.total) {
+        this.paymentStatus = 'paid';
+        // Cap paid amount if it slightly exceeds due to rounding
+        if (this.paidAmount > this.total) this.paidAmount = this.total;
+    } else if (this.paidAmount > 0) {
+        this.paymentStatus = 'partial';
+    } else {
+        this.paymentStatus = 'pending';
+    }
+
+    return this.save({ session });
+};
+
 // Indexes for common queries
 InvoiceSchema.index({ date: -1 });
 InvoiceSchema.index({ customer: 1 });

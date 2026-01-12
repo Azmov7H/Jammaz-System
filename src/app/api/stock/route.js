@@ -1,5 +1,5 @@
-import { apiHandler } from '@/lib/core/api-handler';
-import { StockService } from '@/lib/services/stockService';
+import { apiHandler } from '@/lib/api-handler';
+import { StockService } from '@/services/stockService';
 import { NextResponse } from 'next/server';
 
 export const GET = apiHandler(async (req) => {

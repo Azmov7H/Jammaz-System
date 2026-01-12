@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Plus, UserCog, Trash2, Shield } from 'lucide-react';
 import { ExportButton } from '@/components/common/ExportButton';
 import { useUserRole } from '@/hooks/useUserRole';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils';
 import { useUsers } from '@/hooks/useUsers';
 import { UserFormDialog } from '@/components/users/UserFormDialog';
 
@@ -32,12 +32,15 @@ export default function UsersPage() {
     };
 
     const handleSubmit = (formData) => {
+        const payload = { ...formData };
+        if (!payload.password) delete payload.password;
+
         if (selectedUser) {
-            updateUser.mutate({ id: selectedUser._id, data: formData }, {
+            updateUser.mutate({ id: selectedUser._id, data: payload }, {
                 onSuccess: () => setIsDialogOpen(false)
             });
         } else {
-            createUser.mutate(formData, {
+            createUser.mutate(payload, {
                 onSuccess: () => setIsDialogOpen(false)
             });
         }

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils';
 
 export function SidebarGroup({ title, children, isCollapsed, defaultExpanded = true }) {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);

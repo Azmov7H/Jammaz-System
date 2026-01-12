@@ -14,7 +14,7 @@ export const productSchema = z.object({
 
     // Pricing
     buyPrice: z.coerce.number().min(0),
-    sellPrice: z.coerce.number().min(0),
+    retailPrice: z.coerce.number().min(0),
     minProfitMargin: z.coerce.number().min(0).max(100).default(0),
 
     // Inventory

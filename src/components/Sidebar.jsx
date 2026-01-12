@@ -1,7 +1,5 @@
 'use client';
 
-import { useMemo } from 'react';
-import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     LogOut,
@@ -10,51 +8,21 @@ import {
     Sparkles,
     Loader2
 } from 'lucide-react';
-import { useUserRole } from '@/hooks/useUserRole';
-import { hasPermission } from '@/lib/permissions';
-import { useSidebar } from '@/providers/SidebarProvider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils';
+import { useSidebarLogic } from '@/hooks/useSidebarLogic';
 import { SidebarItem } from './sidebar/SidebarItem';
 import { SidebarGroup } from './sidebar/SidebarGroup';
-import { navigationConfig } from '@/config/navigation';
 
 export default function Sidebar() {
-    const pathname = usePathname();
-    const { role, user, loading } = useUserRole();
-    const { isOpen, toggleSidebar, isMobile, closeSidebar } = useSidebar();
-
-    const isAllowed = (item) => {
-        if (loading) return true; // Show while loading, Skeleton will handle visual
-        if (!role) return false;
-        if (role === 'owner') return true;
-        if (!item.permission) return true;
-        return hasPermission(role, item.permission);
-    };
-
-    const getRoleDisplay = () => {
-        if (loading) return 'جاري التحميل...';
-        switch (role) {
-            case 'owner': return 'المالك';
-            case 'manager': return 'مدير فرع';
-            case 'cashier': return 'كاشير';
-            case 'warehouse': return 'أمين مستودع';
-            default: return 'مستخدم';
-        }
-    };
-
-    const handleLogout = async () => {
-        await fetch('/api/auth/logout', { method: 'POST' });
-        window.location.href = '/login';
-    };
-
-    const sidebarWidth = useMemo(() => {
-        if (isMobile) return '100vw';
-        return isOpen ? 280 : 80;
-    }, [isOpen, isMobile]);
-
+    const {
+        room, user, loading,
+        isOpen, toggleSidebar, isMobile, closeSidebar,
+        getRoleDisplay, handleLogout, sidebarWidth,
+        filteredNavigation, pathname
+    } = useSidebarLogic();
     return (
         <>
             {/* Mobile Overlay */}
@@ -141,35 +109,30 @@ export default function Sidebar() {
                                 ))}
                             </div>
                         ) : (
-                            navigationConfig.map((group, groupIndex) => {
-                                const allowedItems = group.items.filter(isAllowed);
-                                if (allowedItems.length === 0) return null;
-
-                                return (
-                                    <SidebarGroup
-                                        key={group.title}
-                                        title={group.title}
-                                        isCollapsed={!isOpen && !isMobile}
-                                    >
-                                        <div className="space-y-1.5 mt-2">
-                                            {allowedItems.map((item, itemIndex) => {
-                                                const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
-                                                return (
-                                                    <SidebarItem
-                                                        key={item.href}
-                                                        icon={item.icon}
-                                                        label={item.name}
-                                                        href={item.href}
-                                                        isActive={isActive}
-                                                        isCollapsed={!isOpen && !isMobile}
-                                                        onClick={() => isMobile && closeSidebar()}
-                                                    />
-                                                );
-                                            })}
-                                        </div>
-                                    </SidebarGroup>
-                                );
-                            })
+                            filteredNavigation.map((group) => (
+                                <SidebarGroup
+                                    key={group.title}
+                                    title={group.title}
+                                    isCollapsed={!isOpen && !isMobile}
+                                >
+                                    <div className="space-y-1.5 mt-2">
+                                        {group.items.map((item) => {
+                                            const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+                                            return (
+                                                <SidebarItem
+                                                    key={item.href}
+                                                    icon={item.icon}
+                                                    label={item.name}
+                                                    href={item.href}
+                                                    isActive={isActive}
+                                                    isCollapsed={!isOpen && !isMobile}
+                                                    onClick={() => isMobile && closeSidebar()}
+                                                />
+                                            );
+                                        })}
+                                    </div>
+                                </SidebarGroup>
+                            ))
                         )}
                     </div>
                 </ScrollArea>

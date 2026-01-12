@@ -15,11 +15,11 @@ export const LogService = {
      * @param {object} diff - Details of the change (optional)
      * @param {string} note - Human readable note (optional)
      */
-    async logAction({ userId, action, entity, entityId, diff, note }) {
+    async logAction({ userId, action, entity, entityId, diff, note }, session = null) {
         try {
             await dbConnect();
 
-            await Log.create({
+            await Log.create([{
                 userId,
                 action,
                 entity,
@@ -27,7 +27,7 @@ export const LogService = {
                 diff,
                 note,
                 date: new Date()
-            });
+            }], { session });
         } catch (error) {
             // Non-blocking error logging
             console.error('Failed to create system log:', error);

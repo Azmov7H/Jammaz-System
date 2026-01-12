@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+
 import {
     Search, Bell, LogOut, Settings,
     Menu, Sun, Moon, Sparkles, Command,
     UserCircle, ShieldCheck
 } from 'lucide-react';
-import { useTheme } from 'next-themes';
+
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -17,11 +17,10 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { useSidebar } from '@/providers/SidebarProvider';
-import { useUserRole } from '@/hooks/useUserRole';
+import { useHeader } from '@/hooks/useHeader';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils';
 import { useNotificationCenter } from '@/context/NotificationContext';
 import { useNotifications } from '@/hooks/useNotifications';
 import { motion } from 'framer-motion';
@@ -46,23 +45,13 @@ function NotificationTrigger() {
 }
 
 export default function Header() {
-    const { theme, setTheme } = useTheme();
-    const { toggleSidebar } = useSidebar();
-    const { user, role, loading } = useUserRole();
-    const [scrolled, setScrolled] = useState(false);
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-        const handleScroll = () => setScrolled(window.scrollY > 10);
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
-
-    const handleLogout = async () => {
-        await fetch('/api/auth/logout', { method: 'POST' });
-        window.location.href = '/login';
-    };
+    const {
+        theme, setTheme,
+        toggleSidebar,
+        user, role, loading,
+        scrolled, mounted,
+        handleLogout
+    } = useHeader();
 
     if (!mounted) return null;
 

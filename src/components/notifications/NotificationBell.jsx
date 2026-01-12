@@ -2,7 +2,7 @@
 
 import { Bell } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils';
 
 export function NotificationBell({ className, ...props }) {
     const { unreadCount } = useNotifications();

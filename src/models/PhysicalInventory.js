@@ -116,11 +116,11 @@ PhysicalInventorySchema.index({ location: 1 });
 PhysicalInventorySchema.index({ status: 1 });
 
 // Method to complete count and mark as approved
-PhysicalInventorySchema.methods.complete = function (userId) {
+PhysicalInventorySchema.methods.complete = function (userId, session = null) {
     this.status = 'completed';
     this.approvedBy = userId;
     this.approvedAt = new Date();
-    return this.save();
+    return this.save({ session });
 };
 
 export default mongoose.models.PhysicalInventory || mongoose.model('PhysicalInventory', PhysicalInventorySchema);

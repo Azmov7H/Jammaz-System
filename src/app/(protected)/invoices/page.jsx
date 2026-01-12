@@ -1,57 +1,42 @@
 'use client';
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Plus, Trash2, FileText, Loader2, Search, Filter, Calendar, User, ShoppingBag, Banknote, CreditCard, Receipt, TrendingUp, Wallet } from 'lucide-react';
-import Link from 'next/link';
-import { useInvoices, useDeleteInvoice } from '@/hooks/useInvoices';
+import { useInvoicesPage } from '@/hooks/useInvoicesPage';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { motion, AnimatePresence } from 'framer-motion';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 
 import { KPICard } from '@/components/dashboard/KPICard';
 import { InvoiceListItem } from '@/components/invoices/InvoiceListItem';
 
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import {
+    Receipt,
+    Plus,
+    Search,
+    ShoppingBag,
+    TrendingUp,
+    FileText,
+    Banknote,
+    CreditCard,
+    Loader2
+} from 'lucide-react';
+
 export default function InvoicesPage() {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [debouncedSearch, setDebouncedSearch] = useState('');
-    const [filterType, setFilterType] = useState('all'); // all, cash, credit
+    const {
+        searchTerm,
+        filterType, setFilterType,
+        handleSearch,
+        handleDelete,
+        filteredInvoices,
+        isLoading,
+        stats
+    } = useInvoicesPage();
 
-    const handleSearch = (e) => {
-        const val = e.target.value;
-        setSearchTerm(val);
-        clearTimeout(window.searchTimeout);
-        window.searchTimeout = setTimeout(() => setDebouncedSearch(val), 500);
-    };
-
-    const { data: invoicesData, isLoading } = useInvoices(debouncedSearch);
-    const invoices = invoicesData?.invoices || [];
-    const deleteMutation = useDeleteInvoice();
-
-    const handleDelete = (id) => {
-        if (!confirm('هل أنت متأكد من حذف الفاتورة؟ سيتم استرجاع الكميات للمخزن.')) return;
-        deleteMutation.mutate(id);
-    };
-
-    // Filter Logic
-    const filteredInvoices = invoices.filter(inv => {
-        if (filterType === 'all') return true;
-        // Assuming paymentType exists, default to cash if not
-        const type = inv.paymentType || 'cash';
-        if (filterType === 'cash') return type === 'cash';
-        if (filterType === 'credit') return type === 'credit' || type === 'bank';
-        return true;
-    });
-
-    // Stats
-    const totalSales = filteredInvoices.reduce((sum, inv) => sum + inv.total, 0);
-    const invoicesCount = filteredInvoices.length;
-    const cashInvoices = filteredInvoices.filter(inv => (inv.paymentType || 'cash') === 'cash');
-    const creditInvoices = filteredInvoices.filter(inv => (inv.paymentType || 'cash') !== 'cash');
-    const avgInvoiceValue = invoicesCount > 0 ? totalSales / invoicesCount : 0;
+    const { totalSales, invoicesCount, cashInvoices, creditInvoices } = stats;
 
     return (
         <div className="space-y-8 animate-fade-in-up" dir="rtl">

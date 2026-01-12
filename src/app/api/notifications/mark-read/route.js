@@ -1,6 +1,6 @@
-import { apiHandler } from '@/lib/core/api-handler';
-import { NotificationService } from '@/lib/services/notificationService';
-import { getCurrentUser } from '@/lib/core/auth';
+import { apiHandler } from '@/lib/api-handler';
+import { NotificationService } from '@/services/notificationService';
+import { getCurrentUser } from '@/lib/auth';
 
 export const PATCH = apiHandler(async (req) => {
     const user = await getCurrentUser();

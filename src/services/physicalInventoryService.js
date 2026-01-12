@@ -6,6 +6,7 @@ import { LogService } from './logService';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
 import dbConnect from '@/lib/db';
+import mongoose from 'mongoose';
 
 /**
  * Physical Inventory Service
@@ -148,83 +149,95 @@ export const PhysicalInventoryService = {
      */
     async completeCount(countId, userId) {
         await dbConnect();
+        const session = await mongoose.startSession();
+        session.startTransaction();
 
-        const count = await PhysicalInventory.findById(countId).populate('items.productId');
+        try {
+            const count = await PhysicalInventory.findById(countId).populate('items.productId').session(session);
 
-        if (!count) {
-            throw new Error('سجل الجرد غير موجود');
-        }
-
-        if (count.status !== 'draft') {
-            throw new Error('الجرد مكتمل بالفعل');
-        }
-
-        // Complete the count
-        await count.complete(userId);
-
-        // [NEW] Log Action
-        await LogService.logAction({
-            userId,
-            action: 'COMPLETE_INVENTORY',
-            entity: 'PhysicalInventory',
-            entityId: count._id,
-            diff: { valueImpact: count.valueImpact, netDifference: count.netDifference },
-            note: `Inventory count completed for ${count.location}`
-        });
-
-        // Generate stock adjustments for discrepancies
-        const adjustments = [];
-
-        for (const item of count.items) {
-            if (item.difference !== 0) {
-                const product = await Product.findById(item.productId);
-
-                if (!product) continue;
-
-                let newWarehouseQty = product.warehouseQty;
-                let newShopQty = product.shopQty;
-
-                // Adjust based on location
-                if (count.location === 'warehouse') {
-                    newWarehouseQty = item.actualQty;
-                } else if (count.location === 'shop') {
-                    newShopQty = item.actualQty;
-                } else if (count.location === 'both') {
-                    // Proportional adjustment
-                    const totalStock = (product.warehouseQty || 0) + (product.shopQty || 0);
-
-                    if (totalStock > 0) {
-                        const ratio = (product.warehouseQty || 0) / totalStock;
-                        newWarehouseQty = Math.round(item.actualQty * ratio);
-                        newShopQty = item.actualQty - newWarehouseQty;
-                    } else {
-                        // If total stock was zero, put everything in warehouse by default
-                        newWarehouseQty = item.actualQty;
-                        newShopQty = 0;
-                    }
-                }
-
-                // Use stock service to adjust
-                const adjustment = await StockService.adjustStock(
-                    item.productId,
-                    newWarehouseQty,
-                    newShopQty,
-                    `جرد فعلي - ${item.reason || 'تصحيح الكمية'}`,
-                    userId
-                );
-
-                adjustments.push(adjustment);
+            if (!count) {
+                throw new Error('سجل الجرد غير موجود');
             }
+
+            if (count.status !== 'draft') {
+                throw new Error('الجرد مكتمل بالفعل');
+            }
+
+            // Complete the count
+            await count.complete(userId, session);
+
+            // [NEW] Log Action
+            await LogService.logAction({
+                userId,
+                action: 'COMPLETE_INVENTORY',
+                entity: 'PhysicalInventory',
+                entityId: count._id,
+                diff: { valueImpact: count.valueImpact, netDifference: count.netDifference },
+                note: `Inventory count completed for ${count.location}`
+            }, session);
+
+            // Generate stock adjustments for discrepancies
+            const adjustments = [];
+
+            for (const item of count.items) {
+                if (item.difference !== 0) {
+                    const product = await Product.findById(item.productId).session(session);
+
+                    if (!product) continue;
+
+                    let newWarehouseQty = product.warehouseQty;
+                    let newShopQty = product.shopQty;
+
+                    // Adjust based on location
+                    if (count.location === 'warehouse') {
+                        newWarehouseQty = item.actualQty;
+                    } else if (count.location === 'shop') {
+                        newShopQty = item.actualQty;
+                    } else if (count.location === 'both') {
+                        // Proportional adjustment
+                        const totalStock = (product.warehouseQty || 0) + (product.shopQty || 0);
+
+                        if (totalStock > 0) {
+                            const ratio = (product.warehouseQty || 0) / totalStock;
+                            newWarehouseQty = Math.round(item.actualQty * ratio);
+                            newShopQty = item.actualQty - newWarehouseQty;
+                        } else {
+                            // If total stock was zero, put everything in warehouse by default
+                            newWarehouseQty = item.actualQty;
+                            newShopQty = 0;
+                        }
+                    }
+
+                    // Use stock service to adjust
+                    const adjustment = await StockService.adjustStock(
+                        item.productId,
+                        newWarehouseQty,
+                        newShopQty,
+                        `جرد فعلي - ${item.reason || 'تصحيح الكمية'}`,
+                        userId,
+                        session
+                    );
+
+                    adjustments.push(adjustment);
+                }
+            }
+
+            // Create accounting entries
+            await AccountingService.createInventoryAdjustmentEntries(count, userId, session);
+
+            await session.commitTransaction();
+
+            return {
+                count,
+                adjustments,
+                totalAdjustments: adjustments.length
+            };
+        } catch (error) {
+            await session.abortTransaction();
+            throw error;
+        } finally {
+            session.endSession();
         }
-
-        // Create accounting entries
-        await AccountingService.createInventoryAdjustmentEntries(count, userId);
-
-        return {
-            count,
-            adjustments,
-            totalAdjustments: adjustments.length
-        };
     },
 
     /**
@@ -330,34 +343,44 @@ export const PhysicalInventoryService = {
      */
     async unlockCount(countId, password, userId) {
         await dbConnect();
+        const session = await mongoose.startSession();
+        session.startTransaction();
 
-        const count = await PhysicalInventory.findById(countId);
-        if (!count) throw new Error('سجل الجرد غير موجود');
-        if (count.status !== 'completed') throw new Error('الجرد غير مكتمل بالفعل');
+        try {
+            const count = await PhysicalInventory.findById(countId).session(session);
+            if (!count) throw new Error('سجل الجرد غير موجود');
+            if (count.status !== 'completed') throw new Error('الجرد غير مكتمل بالفعل');
 
-        // Find the owner user to verify password
-        const owner = await User.findOne({ role: 'owner' });
-        if (!owner) throw new Error('لا يوجد مالك مسجل في النظام');
+            // Find the owner user to verify password
+            const owner = await User.findOne({ role: 'owner' }).session(session);
+            if (!owner) throw new Error('لا يوجد مالك مسجل في النظام');
 
-        // Verify password
-        const isValid = await bcrypt.compare(password, owner.password);
-        if (!isValid) throw new Error('كلمة المرور غير صحيحة');
+            // Verify password
+            const isValid = await bcrypt.compare(password, owner.password);
+            if (!isValid) throw new Error('كلمة المرور غير صحيحة');
 
-        // Revert status to draft
-        count.status = 'draft';
-        count.approvedBy = null;
-        count.approvedAt = null;
-        await count.save();
+            // Revert status to draft
+            count.status = 'draft';
+            count.approvedBy = null;
+            count.approvedAt = null;
+            await count.save({ session });
 
-        // Log action
-        await LogService.logAction({
-            userId,
-            action: 'UNLOCK_INVENTORY',
-            entity: 'PhysicalInventory',
-            entityId: count._id,
-            note: `Inventory count unlocked by owner for modification`
-        });
+            // Log action
+            await LogService.logAction({
+                userId,
+                action: 'UNLOCK_INVENTORY',
+                entity: 'PhysicalInventory',
+                entityId: count._id,
+                note: `Inventory count unlocked by owner for modification`
+            }, session);
 
-        return count;
-    }
+            await session.commitTransaction();
+            return count;
+        } catch (error) {
+            await session.abortTransaction();
+            throw error;
+        } finally {
+            session.endSession();
+        }
+    },
 };

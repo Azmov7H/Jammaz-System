@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { apiHandler } from '@/lib/core/api-handler';
-import { DebtService } from '@/lib/services/financial/debtService';
-import { getCurrentUser } from '@/lib/core/auth';
+import { apiHandler } from '@/lib/api-handler';
+import { DebtService } from '@/services/financial/debtService';
+import { getCurrentUser } from '@/lib/auth';
 
 export const GET = apiHandler(async (req) => {
     const { searchParams } = new URL(req.url);

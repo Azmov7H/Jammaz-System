@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/table';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Search, Plus, FileEdit, Trash2, Phone, MapPin, Loader2, Wallet, Building2, Activity, CalendarClock, History } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils';
 import { useRouter } from 'next/navigation';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { SupplierFormDialog } from '@/components/suppliers/SupplierFormDialog';

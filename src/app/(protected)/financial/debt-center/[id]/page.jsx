@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/utils';
 import { PaymentDialog } from '@/components/financial/PaymentDialog';
 import { useDebtInstallments } from '@/hooks/useFinancial';
 import { useState, useEffect } from 'react';

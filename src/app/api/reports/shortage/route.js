@@ -1,5 +1,5 @@
 import { apiHandler } from '@/lib/api-handler';
-import { ReportingService } from '@/lib/services/reportingService';
+import { ReportingService } from '@/services/reportingService';
 import { getCurrentUser } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 

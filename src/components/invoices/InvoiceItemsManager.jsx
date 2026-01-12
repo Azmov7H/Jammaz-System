@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils';
 import { toast } from 'sonner';
 
 export function InvoiceItemsManager({ items, setItems, onReportShortage }) {
@@ -150,7 +150,7 @@ export function InvoiceItemsManager({ items, setItems, onReportShortage }) {
                                         </div>
                                     </div>
                                     <div className="text-left">
-                                        <div className="font-bold text-purple-500">{p.sellPrice || p.retailPrice} ج.م</div>
+                                        <div className="font-bold text-purple-500">{p.retailPrice || p.sellPrice} ج.م</div>
                                         <div className={`text-xs font-medium ${qty > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                                             متوفر: {qty}
                                         </div>

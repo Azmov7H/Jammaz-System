@@ -1,6 +1,6 @@
-import { apiHandler } from '@/lib/core/api-handler';
-import { getCurrentUser } from '@/lib/core/auth';
-import { NotificationService } from '@/lib/services/notificationService';
+import { apiHandler } from '@/lib/api-handler';
+import { getCurrentUser } from '@/lib/auth';
+import { NotificationService } from '@/services/notificationService';
 
 export const DELETE = apiHandler(async (req, { params }) => {
     const user = await getCurrentUser();

@@ -6,8 +6,8 @@ import Product from '@/models/Product';
 import Customer from '@/models/Customer';
 import Treasury from '@/models/Treasury';
 import TreasuryTransaction from '@/models/TreasuryTransaction';
-import { StockService } from '@/lib/services/stockService';
-import { AccountingService } from '@/lib/services/accountingService';
+import { StockService } from '@/services/stockService';
+import { AccountingService } from '@/services/accountingService';
 import { getCurrentUser } from '@/lib/auth';
 
 export async function POST(request, { params }) {
@@ -61,7 +61,7 @@ export async function POST(request, { params }) {
 
         // 3. Execute Business Logic via centralized FinanceService
         try {
-            const { FinanceService } = await import('@/lib/services/financeService');
+            const { FinanceService } = await import('@/services/financeService');
 
             const returnData = {
                 returnItems: returnItems,

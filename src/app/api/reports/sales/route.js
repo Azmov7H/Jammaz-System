@@ -1,5 +1,5 @@
 import { apiHandler } from '@/lib/api-handler';
-import { DailySalesService } from '@/lib/services/dailySalesService';
+import { DailySalesService } from '@/services/dailySalesService';
 import { getCurrentUser } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 

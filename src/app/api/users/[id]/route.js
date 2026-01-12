@@ -1,7 +1,7 @@
-import { apiHandler } from '@/lib/core/api-handler';
-import { UserService } from '@/lib/services/userService';
-import { getCurrentUser } from '@/lib/core/auth';
-import { updateUserSchema } from '@/lib/core/validators';
+import { apiHandler } from '@/lib/api-handler';
+import { UserService } from '@/services/userService';
+import { getCurrentUser } from '@/lib/auth';
+import { updateUserSchema } from '@/validations/validators';
 import { NextResponse } from 'next/server';
 
 export const PUT = apiHandler(async (req, { params }) => {
@@ -12,7 +12,9 @@ export const PUT = apiHandler(async (req, { params }) => {
 
     const { id } = await params;
     const body = await req.json();
+    console.log('DEBUG: Updating user', id, 'Body:', body);
     const validated = updateUserSchema.parse(body);
+    console.log('DEBUG: Validated data:', validated);
     return await UserService.update(id, validated);
 });
 

@@ -1,5 +1,5 @@
-import { apiHandler } from '@/lib/core/api-handler';
-import { DailySalesService } from '@/lib/services/dailySalesService';
+import { apiHandler } from '@/lib/api-handler';
+import { DailySalesService } from '@/services/dailySalesService';
 
 export const GET = apiHandler(async (req) => {
     const { searchParams } = new URL(req.url);

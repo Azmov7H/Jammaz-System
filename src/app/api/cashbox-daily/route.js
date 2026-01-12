@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
-import { TreasuryService } from '@/lib/services/treasuryService';
+import { TreasuryService } from '@/services/treasuryService';
 import { getCurrentUser } from '@/lib/auth';
 
 /**

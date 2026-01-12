@@ -1,6 +1,6 @@
-import { apiHandler } from '@/lib/core/api-handler';
-import { PhysicalInventoryService } from '@/lib/services/physicalInventoryService';
-import { getCurrentUser } from '@/lib/core/auth';
+import { apiHandler } from '@/lib/api-handler';
+import { PhysicalInventoryService } from '@/services/physicalInventoryService';
+import { getCurrentUser } from '@/lib/auth';
 
 export const POST = apiHandler(async (req, { params }) => {
     const user = await getCurrentUser();

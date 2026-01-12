@@ -8,7 +8,7 @@ import { ArrowLeftRight, Loader2 } from 'lucide-react';
 import { hasPermission } from '@/lib/permissions';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useStockMovements, useAddStockMovement } from '@/hooks/useStock';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils';
 import { StockMovementDialog } from '@/components/stock/StockMovementDialog';
 
 export default function StockPage() {

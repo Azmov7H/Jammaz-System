@@ -34,7 +34,7 @@ export async function fetcher(url, options = {}) {
     const res = await fetch(url, config);
     if (!res.ok) {
         const errorBody = await res.json().catch(() => ({}));
-        const error = new Error(errorBody.error || 'API Request Failed');
+        const error = new Error(errorBody.message || errorBody.error || 'API Request Failed');
         error.status = res.status;
         throw error;
     }

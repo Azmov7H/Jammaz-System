@@ -1,7 +1,7 @@
 
 
 import { Card, CardContent } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils';
 
 export function KPICard({ title, value, unit, icon: Icon, subtitle, variant = 'default' }) {
     const variants = {

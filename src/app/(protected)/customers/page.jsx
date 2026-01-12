@@ -26,7 +26,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Search, Plus, FileEdit, Trash2, Phone, MapPin, Loader2, Wallet, Users, AlertTriangle, ArrowRightLeft, Activity } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 

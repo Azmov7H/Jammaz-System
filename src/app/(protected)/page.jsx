@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useDashboard } from '@/hooks/useDashboard';
 import { motion } from 'framer-motion';
 import {
     TrendingUp, DollarSign, Package,
@@ -13,23 +13,21 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 
 export default function DashboardPage() {
-    const { data, isLoading, refetch } = useQuery({
-        queryKey: ['dashboard-kpis'],
-        queryFn: async () => {
-            const res = await fetch('/api/dashboard/kpis');
-            const json = await res.json();
-            return json.data;
-        }
-    });
+    const {
+        kpis,
+        monthSummary,
+        recentActivity,
+        lowStockProducts,
+        isLoading,
+        refetch
+    } = useDashboard();
 
     if (isLoading) return <DashboardSkeleton />;
-
-    const { kpis, monthSummary, recentActivity, lowStockProducts } = data;
 
     return (
         <div className="space-y-8 animate-fade-in-up" dir="rtl">
