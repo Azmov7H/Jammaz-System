@@ -76,10 +76,9 @@ const AccountingEntrySchema = new mongoose.Schema({
 // Auto-generate entry number
 AccountingEntrySchema.pre('save', async function () {
     if (this.isNew && !this.entryNumber) {
-        // Use the model from 'this.constructor' if possible, or fallback to mongoose.models
-        const Model = this.constructor;
-        const count = await Model.countDocuments();
-        this.entryNumber = `JE-${String(count + 1).padStart(6, '0')}`;
+        const { getNextSequence } = await import('./Counter');
+        const seq = await getNextSequence('accountingEntry');
+        this.entryNumber = `JE-${String(seq).padStart(6, '0')}`;
     }
 });
 
@@ -101,9 +100,10 @@ AccountingEntrySchema.statics.createEntry = async function ({
     refId,
     userId,
     notes,
-    date
+    date,
+    session
 }) {
-    return await this.create({
+    const entry = new this({
         type,
         debitAccount,
         creditAccount,
@@ -115,14 +115,12 @@ AccountingEntrySchema.statics.createEntry = async function ({
         notes,
         date: date || new Date()
     });
+    return await entry.save({ session });
 };
 
 // Safe Model registration for Next.js
-let AccountingEntry;
-try {
-    AccountingEntry = mongoose.model('AccountingEntry');
-} catch (e) {
-    AccountingEntry = mongoose.model('AccountingEntry', AccountingEntrySchema);
-}
+// Safe Model registration for Next.js
+delete mongoose.models.AccountingEntry;
+const AccountingEntry = mongoose.model('AccountingEntry', AccountingEntrySchema);
 
 export default AccountingEntry;

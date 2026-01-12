@@ -6,7 +6,7 @@ import Customer from '@/models/Customer';
 import Supplier from '@/models/Supplier';
 import PurchaseOrder from '@/models/PurchaseOrder';
 import AccountingEntry from '@/models/AccountingEntry';
-import { AccountingService } from '@/lib/services/accountingService';
+import { AccountingService } from '@/services/accountingService';
 import { startOfDay, startOfMonth, startOfWeek, endOfDay, subMonths } from 'date-fns';
 
 export const DashboardService = {

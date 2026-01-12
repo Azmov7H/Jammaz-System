@@ -7,7 +7,7 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils';
 import { useNotifications } from '@/hooks/useNotifications';
 import { NotificationList } from './NotificationList';
 import { NotificationBell } from './NotificationBell';

@@ -1,5 +1,5 @@
 import { apiHandler } from '@/lib/api-handler';
-import { LogService } from '@/lib/services/logService';
+import { LogService } from '@/services/logService';
 import { getCurrentUser } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 

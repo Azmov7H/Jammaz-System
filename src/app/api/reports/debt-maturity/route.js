@@ -1,6 +1,6 @@
-import { apiHandler } from '@/lib/core/api-handler';
-import { ReportingService } from '@/lib/services/reportingService';
-import { getCurrentUser } from '@/lib/core/auth';
+import { apiHandler } from '@/lib/api-handler';
+import { ReportingService } from '@/services/reportingService';
+import { getCurrentUser } from '@/lib/auth';
 
 export const GET = apiHandler(async (req) => {
     const user = await getCurrentUser();

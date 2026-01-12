@@ -15,7 +15,7 @@ export class DebtService {
         referenceId,
         description,
         createdBy
-    }) {
+    }, session = null) {
         await dbConnect();
 
         // 1. Validation
@@ -24,14 +24,14 @@ export class DebtService {
         }
 
         // 2. duplication check (same reference)
-        const existing = await Debt.findOne({ referenceType, referenceId, debtorType, debtorId });
+        const existing = await Debt.findOne({ referenceType, referenceId, debtorType, debtorId }).session(session);
         if (existing) {
             console.log(`Debt already exists for ${referenceType} ${referenceId}`);
             return existing;
         }
 
         // 3. Create
-        const debt = await Debt.create({
+        const debt = new Debt({
             debtorType,
             debtorId,
             originalAmount: amount,
@@ -43,6 +43,7 @@ export class DebtService {
             status: 'active',
             createdBy
         });
+        await debt.save({ session });
 
         return debt;
     }

@@ -11,9 +11,9 @@ export const TreasuryService = {
     /**
      * Record income from a sale (invoice)
      */
-    async recordSaleIncome(invoice, userId) {
+    async recordSaleIncome(invoice, userId, session = null) {
         // Create treasury transaction
-        const transaction = await TreasuryTransaction.create({
+        const transaction = await TreasuryTransaction.create([{
             type: 'INCOME',
             amount: invoice.total,
             description: `مبيعات - فاتورة #${invoice.number}`,
@@ -21,21 +21,21 @@ export const TreasuryService = {
             referenceId: invoice._id,
             date: invoice.date || new Date(),
             createdBy: userId
-        });
+        }], { session });
 
         // Update daily cashbox
         await this.updateDailyCashbox(invoice.date || new Date(), {
             salesIncome: invoice.total
-        });
+        }, session);
 
-        return transaction;
+        return transaction[0];
     },
 
     /**
      * Record collection of a payment for an invoice (Debt repayment)
      */
-    async recordPaymentCollection(invoice, amount, userId) {
-        const transaction = await TreasuryTransaction.create({
+    async recordPaymentCollection(invoice, amount, userId, session = null) {
+        const transaction = await TreasuryTransaction.create([{
             type: 'INCOME',
             amount: amount,
             description: `تحصيل دفعة - فاتورة #${invoice.number}`,
@@ -43,21 +43,21 @@ export const TreasuryService = {
             referenceId: invoice._id,
             date: new Date(),
             createdBy: userId
-        });
+        }], { session });
 
         await this.updateDailyCashbox(new Date(), {
             salesIncome: amount
-        });
+        }, session);
 
-        return transaction;
+        return transaction[0];
     },
 
     /**
      * Record expense from a purchase
      */
-    async recordPurchaseExpense(purchaseOrder, userId) {
+    async recordPurchaseExpense(purchaseOrder, userId, session = null) {
         // Create treasury transaction
-        const transaction = await TreasuryTransaction.create({
+        const transaction = await TreasuryTransaction.create([{
             type: 'EXPENSE',
             amount: purchaseOrder.totalCost,
             description: `مشتريات - أمر شراء #${purchaseOrder.poNumber}`,
@@ -65,21 +65,21 @@ export const TreasuryService = {
             referenceId: purchaseOrder._id,
             date: purchaseOrder.receivedDate || new Date(),
             createdBy: userId
-        });
+        }], { session });
 
         // Update daily cashbox
         await this.updateDailyCashbox(purchaseOrder.receivedDate || new Date(), {
             purchaseExpenses: purchaseOrder.totalCost
-        });
+        }, session);
 
-        return transaction;
+        return transaction[0];
     },
 
     /**
      * Record payment made to a supplier (Debt repayment)
      */
-    async recordSupplierPayment(supplier, amount, poNumber, poId, userId) {
-        const transaction = await TreasuryTransaction.create({
+    async recordSupplierPayment(supplier, amount, poNumber, poId, userId, session = null) {
+        const transaction = await TreasuryTransaction.create([{
             type: 'EXPENSE',
             amount: amount,
             description: `سداد للمورد: ${supplier.name} - أمر #${poNumber}`,
@@ -87,37 +87,38 @@ export const TreasuryService = {
             referenceId: poId,
             date: new Date(),
             createdBy: userId
-        });
+        }], { session });
 
         await this.updateDailyCashbox(new Date(), {
             purchaseExpenses: amount
-        });
+        }, session);
 
-        return transaction;
+        return transaction[0];
     },
 
     /**
      * Update daily cashbox summary
      */
-    async updateDailyCashbox(date, updates) {
+    async updateDailyCashbox(date, updates, session = null) {
         const startOfDay = new Date(date);
         startOfDay.setHours(0, 0, 0, 0);
 
         // Find or create daily cashbox record
-        let cashbox = await CashboxDaily.findOne({ date: startOfDay });
+        let cashbox = await CashboxDaily.findOne({ date: startOfDay }).session(session);
 
         if (!cashbox) {
             // Get previous day's closing balance
             const yesterday = new Date(startOfDay);
             yesterday.setDate(yesterday.getDate() - 1);
-            const previousDay = await CashboxDaily.findOne({ date: yesterday });
+            const previousDay = await CashboxDaily.findOne({ date: yesterday }).session(session);
 
-            cashbox = await CashboxDaily.create({
+            const created = await CashboxDaily.create([{
                 date: startOfDay,
                 openingBalance: previousDay?.closingBalance || 0,
                 salesIncome: 0,
                 purchaseExpenses: 0
-            });
+            }], { session });
+            cashbox = created[0];
         }
 
         // Update with increments
@@ -128,41 +129,42 @@ export const TreasuryService = {
             cashbox.purchaseExpenses += updates.purchaseExpenses;
         }
 
-        await cashbox.save();
+        await cashbox.save({ session });
         return cashbox;
     },
 
     /**
      * Add manual income entry
      */
-    async addManualIncome(date, amount, reason, userId) {
+    async addManualIncome(date, amount, reason, userId, session = null) {
         const startOfDay = new Date(date);
         startOfDay.setHours(0, 0, 0, 0);
 
-        let cashbox = await CashboxDaily.findOne({ date: startOfDay });
+        let cashbox = await CashboxDaily.findOne({ date: startOfDay }).session(session);
 
         if (!cashbox) {
             const yesterday = new Date(startOfDay);
             yesterday.setDate(yesterday.getDate() - 1);
-            const previousDay = await CashboxDaily.findOne({ date: yesterday });
+            const previousDay = await CashboxDaily.findOne({ date: yesterday }).session(session);
 
-            cashbox = await CashboxDaily.create({
+            const created = await CashboxDaily.create([{
                 date: startOfDay,
                 openingBalance: previousDay?.closingBalance || 0
-            });
+            }], { session });
+            cashbox = created[0];
         }
 
-        await cashbox.addIncome(amount, reason, userId);
+        await cashbox.addIncome(amount, reason, userId, session);
 
         // Also record in treasury transactions
-        await TreasuryTransaction.create({
+        await TreasuryTransaction.create([{
             type: 'INCOME',
             amount,
             description: reason,
             referenceType: 'Manual',
             date: new Date(),
             createdBy: userId
-        });
+        }], { session });
 
         return cashbox;
     },
@@ -170,34 +172,35 @@ export const TreasuryService = {
     /**
      * Add manual expense entry
      */
-    async addManualExpense(date, amount, reason, category, userId) {
+    async addManualExpense(date, amount, reason, category, userId, session = null) {
         const startOfDay = new Date(date);
         startOfDay.setHours(0, 0, 0, 0);
 
-        let cashbox = await CashboxDaily.findOne({ date: startOfDay });
+        let cashbox = await CashboxDaily.findOne({ date: startOfDay }).session(session);
 
         if (!cashbox) {
             const yesterday = new Date(startOfDay);
             yesterday.setDate(yesterday.getDate() - 1);
-            const previousDay = await CashboxDaily.findOne({ date: yesterday });
+            const previousDay = await CashboxDaily.findOne({ date: yesterday }).session(session);
 
-            cashbox = await CashboxDaily.create({
+            const created = await CashboxDaily.create([{
                 date: startOfDay,
                 openingBalance: previousDay?.closingBalance || 0
-            });
+            }], { session });
+            cashbox = created[0];
         }
 
-        await cashbox.addExpense(amount, reason, category, userId);
+        await cashbox.addExpense(amount, reason, category, userId, session);
 
         // Also record in treasury transactions
-        await TreasuryTransaction.create({
+        await TreasuryTransaction.create([{
             type: 'EXPENSE',
             amount,
             description: reason,
             referenceType: 'Manual',
             date: new Date(),
             createdBy: userId
-        });
+        }], { session });
 
         return cashbox;
     },
@@ -205,17 +208,17 @@ export const TreasuryService = {
     /**
      * Reconcile daily cashbox
      */
-    async reconcileCashbox(date, actualClosingBalance, userId, notes = '') {
+    async reconcileCashbox(date, actualClosingBalance, userId, notes = '', session = null) {
         const startOfDay = new Date(date);
         startOfDay.setHours(0, 0, 0, 0);
 
-        const cashbox = await CashboxDaily.findOne({ date: startOfDay });
+        const cashbox = await CashboxDaily.findOne({ date: startOfDay }).session(session);
 
         if (!cashbox) {
             throw new Error('لم يتم العثور على سجل الخزينة لهذا اليوم');
         }
 
-        await cashbox.reconcile(actualClosingBalance, userId, notes);
+        await cashbox.reconcile(actualClosingBalance, userId, notes, session);
 
         return cashbox;
     },

@@ -1,7 +1,7 @@
-import { apiHandler } from '@/lib/core/api-handler';
-import { InvoiceService } from '@/lib/services/invoiceService';
-import { invoiceSchema } from '@/lib/core/validators';
-import { getCurrentUser } from '@/lib/core/auth';
+import { apiHandler } from '@/lib/api-handler';
+import { InvoiceService } from '@/services/invoiceService';
+import { invoiceSchema } from '@/validations/validators';
+import { getCurrentUser } from '@/lib/auth';
 
 export const GET = apiHandler(async (req) => {
     const { searchParams } = new URL(req.url);

@@ -10,15 +10,15 @@ export const DailySalesService = {
     /**
      * Update daily sales summary when invoice is created
      */
-    async updateDailySales(invoice, userId) {
+    async updateDailySales(invoice, userId, session = null) {
         const startOfDay = new Date(invoice.date);
         startOfDay.setHours(0, 0, 0, 0);
 
         // Find or create daily sales record
-        let dailySales = await DailySales.findOne({ date: startOfDay });
+        let dailySales = await DailySales.findOne({ date: startOfDay }).session(session);
 
         if (!dailySales) {
-            dailySales = await DailySales.create({
+            const created = await DailySales.create([{
                 date: startOfDay,
                 totalRevenue: 0,
                 totalCost: 0,
@@ -27,7 +27,8 @@ export const DailySalesService = {
                 cashReceived: 0,
                 invoices: [],
                 topProducts: []
-            });
+            }], { session });
+            dailySales = created[0];
         }
 
         // Update totals using pre-calculated values from invoice
@@ -70,7 +71,7 @@ export const DailySalesService = {
         dailySales.topProducts = dailySales.topProducts.slice(0, 10);
 
         dailySales.updatedBy = userId;
-        await dailySales.save();
+        await dailySales.save({ session });
 
         return dailySales;
     },

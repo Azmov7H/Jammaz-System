@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { Save, Printer, AlertTriangle, Loader2, Receipt, Banknote, Wallet, CreditCard, Calendar as CalendarIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils';
 import { useCreateInvoice } from '@/hooks/useInvoices';
 
 import { InvoiceCustomerSelect } from '@/components/invoices/InvoiceCustomerSelect';

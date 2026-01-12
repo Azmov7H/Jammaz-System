@@ -1,6 +1,6 @@
-import { apiHandler } from '@/lib/core/api-handler';
-import { SupplierService } from '@/lib/services/supplierService';
-import { getCurrentUser } from '@/lib/core/auth';
+import { apiHandler } from '@/lib/api-handler';
+import { SupplierService } from '@/services/supplierService';
+import { getCurrentUser } from '@/lib/auth';
 
 /**
  * GET single supplier by ID

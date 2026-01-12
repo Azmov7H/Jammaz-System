@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { ArrowRightLeft, Search, Box, ClipboardEdit, AlertCircle, Loader2 } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils';
 
 export default function AuditPage() {
     const { role } = useUserRole();

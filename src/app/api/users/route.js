@@ -1,7 +1,7 @@
-import { apiHandler } from '@/lib/core/api-handler';
-import { UserService } from '@/lib/services/userService';
-import { userSchema } from '@/lib/core/validators';
-import { getCurrentUser } from '@/lib/core/auth';
+import { apiHandler } from '@/lib/api-handler';
+import { UserService } from '@/services/userService';
+import { userSchema } from '@/validations/validators';
+import { getCurrentUser } from '@/lib/auth';
 import { hasPermission } from '@/lib/permissions';
 import { NextResponse } from 'next/server';
 

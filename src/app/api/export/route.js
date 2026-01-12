@@ -1,7 +1,7 @@
 import { apiHandler } from '@/lib/api-handler';
-import { ExportService } from '@/lib/services/exportService';
-import { UserService } from '@/lib/services/userService';
-import { ProductService } from '@/lib/services/productService';
+import { ExportService } from '@/services/exportService';
+import { UserService } from '@/services/userService';
+import { ProductService } from '@/services/productService';
 import { NextResponse } from 'next/server';
 
 export const POST = apiHandler(async (req) => {
@@ -31,14 +31,14 @@ export const POST = apiHandler(async (req) => {
                 code: p.code,
                 name: p.name,
                 stockQty: p.stockQty,
-                sellPrice: p.sellPrice,
+                retailPrice: p.retailPrice || p.sellPrice,
                 buyPrice: p.buyPrice
             }));
             columns = [
                 { header: 'كود', key: 'code', width: 15 },
                 { header: 'الاسم', key: 'name', width: 40 },
                 { header: 'الكمية', key: 'stockQty', width: 15 },
-                { header: 'سعر البيع', key: 'sellPrice', width: 15 },
+                { header: 'سعر البيع', key: 'retailPrice', width: 15 },
                 { header: 'سعر الشراء', key: 'buyPrice', width: 15 }
             ];
             filename = 'products_report';

@@ -17,7 +17,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { formatDate } from '@/lib/utils';
+import { formatDate } from '@/utils';
 import { useRouter } from 'next/navigation';
 
 const STATUS_STYLES = {

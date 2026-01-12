@@ -1,7 +1,7 @@
 import { apiHandler } from '@/lib/api-handler';
-import { FinanceService } from '@/lib/services/financeService';
+import { FinanceService } from '@/services/financeService';
 import { getCurrentUser } from '@/lib/auth';
-import { expenseSchema } from '@/lib/validators';
+import { expenseSchema } from '@/validations/validators';
 import { NextResponse } from 'next/server';
 
 export const POST = apiHandler(async (req) => {

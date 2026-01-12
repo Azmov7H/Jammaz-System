@@ -1,7 +1,7 @@
-import { apiHandler } from '@/lib/core/api-handler';
-import { StockService } from '@/lib/services/stockService';
-import { getCurrentUser } from '@/lib/core/auth';
-import { stockMoveSchema } from '@/lib/core/validators';
+import { apiHandler } from '@/lib/api-handler';
+import { StockService } from '@/services/stockService';
+import { getCurrentUser } from '@/lib/auth';
+import { stockMoveSchema } from '@/validations/validators';
 import { NextResponse } from 'next/server';
 
 export const POST = apiHandler(async (req) => {

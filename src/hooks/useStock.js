@@ -21,6 +21,9 @@ export function useAddStockMovement() {
             queryClient.invalidateQueries({ queryKey: ['stock-movements'] });
             queryClient.invalidateQueries({ queryKey: ['products'] });
             toast.success('تم تسجيل الحركة بنجاح');
+        },
+        onError: (error) => {
+            toast.error(error.message || 'فشل تسجيل الحركة');
         }
     });
 }

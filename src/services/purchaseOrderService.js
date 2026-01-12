@@ -1,7 +1,7 @@
 import PurchaseOrder from '@/models/PurchaseOrder';
 import Supplier from '@/models/Supplier';
 import InvoiceSettings from '@/models/InvoiceSettings';
-import { FinanceService } from '@/lib/services/financeService';
+import { FinanceService } from '@/services/financeService';
 import dbConnect from '@/lib/db';
 
 export const PurchaseOrderService = {

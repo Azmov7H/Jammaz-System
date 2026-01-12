@@ -3,8 +3,8 @@ import AccountingEntry from '@/models/AccountingEntry';
 import Invoice from '@/models/Invoice';
 import ShortageReport from '@/models/ShortageReport';
 import PriceHistory from '@/models/PriceHistory';
-import { ACCOUNTS } from '@/lib/services/accountingService';
-import { NotificationService } from '@/lib/services/notificationService';
+import { ACCOUNTS } from '@/services/accountingService';
+import { NotificationService } from '@/services/notificationService';
 
 const expenseAccountsList = [
     ACCOUNTS.COGS,

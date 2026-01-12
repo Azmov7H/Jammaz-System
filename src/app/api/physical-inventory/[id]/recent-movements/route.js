@@ -1,4 +1,4 @@
-import { apiHandler } from '@/lib/core/api-handler';
+import { apiHandler } from '@/lib/api-handler';
 import PhysicalInventory from '@/models/PhysicalInventory';
 import StockMovement from '@/models/StockMovement';
 

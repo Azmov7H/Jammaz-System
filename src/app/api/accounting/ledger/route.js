@@ -1,5 +1,5 @@
 import { apiHandler } from '@/lib/api-handler';
-import { AccountingService } from '@/lib/services/accountingService';
+import { AccountingService } from '@/services/accountingService';
 import { NextResponse } from 'next/server';
 
 export const GET = apiHandler(async (req) => {

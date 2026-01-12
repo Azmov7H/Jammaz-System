@@ -1,5 +1,5 @@
 import { apiHandler } from '@/lib/api-handler';
-import { ReportingService } from '@/lib/services/reportingService';
+import { ReportingService } from '@/services/reportingService';
 
 export const GET = apiHandler(async (req) => {
     const { searchParams } = new URL(req.url);

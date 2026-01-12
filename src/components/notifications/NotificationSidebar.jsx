@@ -5,7 +5,7 @@ import { X, Bell, Trash2, Check, RefreshCw, HandCoins, CreditCard, Loader2, Spar
 import { useNotificationCenter } from '@/context/NotificationContext';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils';
 import { formatDistanceToNow, isToday, isYesterday } from 'date-fns';
 import { ar } from 'date-fns/locale';
 

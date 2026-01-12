@@ -1,7 +1,7 @@
 import { apiHandler } from '@/lib/api-handler';
 import dbConnect from '@/lib/db';
-import { AccountingService } from '@/lib/services/accountingService';
-import { TreasuryService } from '@/lib/services/treasuryService';
+import { AccountingService } from '@/services/accountingService';
+import { TreasuryService } from '@/services/treasuryService';
 import { getCurrentUser } from '@/lib/auth';
 
 export const POST = apiHandler(async (req) => {

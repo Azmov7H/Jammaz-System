@@ -1,6 +1,6 @@
 import { apiHandler } from '@/lib/api-handler';
 import dbConnect from '@/lib/db';
-import { StockService } from '@/lib/services/stockService';
+import { StockService } from '@/services/stockService';
 
 /**
  * Get stock movements

@@ -29,7 +29,7 @@ export const updateUserSchema = userSchema.partial().omit({ password: true }).ex
 export const productSchema = z.object({
     name: z.string().min(2, 'الاسم مطلوب'),
     code: z.string().min(1, 'الكود مطلوب'),
-    sellPrice: z.coerce.number().min(0, 'سعر البيع مطلوب'),
+    retailPrice: z.coerce.number().min(0, 'سعر البيع مطلوب'),
     buyPrice: z.coerce.number().min(0, 'سعر الشراء مطلوب'),
     minLevel: z.coerce.number().default(5),
     shopQty: z.coerce.number().default(0),

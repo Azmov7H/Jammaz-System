@@ -19,7 +19,7 @@ import {
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils';
 
 export default function ReceivablesPage() {
     const queryClient = useQueryClient();

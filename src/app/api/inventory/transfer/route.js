@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
-import { InventoryService } from '@/lib/services/inventoryService';
+import { InventoryService } from '@/services/inventoryService';
 import { getCurrentUser } from '@/lib/auth';
 
 // Force Update Comment - Fixed duplicates

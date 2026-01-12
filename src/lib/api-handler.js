@@ -21,7 +21,8 @@ function apiHandler(handler) {
             // Otherwise, wrap in standard success format
             return NextResponse.json({
                 success: true,
-                data: responseData
+                data: responseData,
+                message: null
             }, { status: 200 });
 
         } catch (err) {
@@ -36,23 +37,27 @@ function errorHandler(err) {
         // custom application error
         const is404 = err.toLowerCase().endsWith('not found');
         const statusCode = is404 ? 404 : 400;
-        return NextResponse.json({ success: false, error: err }, { status: statusCode });
+        return NextResponse.json({ success: false, data: null, message: err }, { status: statusCode });
     }
 
     if (err instanceof ZodError) {
         // Zod validation error
         return NextResponse.json({
             success: false,
-            error: 'Validation Error',
-            details: err.flatten().fieldErrors
+            message: 'Validation Error',
+            data: err.flatten().fieldErrors
         }, { status: 400 });
     }
 
     if (err.name === 'UnauthorizedError') {
         // jwt authentication error
-        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        return NextResponse.json({ success: false, data: null, message: 'Unauthorized' }, { status: 401 });
     }
 
-    // default to 500 server error
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    // default to 500 server error, but if it's a known logic error like "Insufficient", make it 400
+    if (err.message && (err.message.includes('Insufficient') || err.message.includes('غير كافية'))) {
+        return NextResponse.json({ success: false, data: null, message: err.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ success: false, data: null, message: err.message }, { status: 500 });
 }

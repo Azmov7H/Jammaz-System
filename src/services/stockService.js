@@ -13,11 +13,11 @@ export const StockService = {
      * Reduce stock when creating a sale (invoice)
      * Stock is ALWAYS reduced from SHOP
      */
-    async reduceStockForSale(items, invoiceId, userId) {
+    async reduceStockForSale(items, invoiceId, userId, session = null) {
         const results = [];
 
         for (const item of items) {
-            const product = await Product.findById(item.productId);
+            const product = await Product.findById(item.productId).session(session);
 
             if (!product) {
                 throw new Error(`المنتج غير موجود: ${item.productId}`);
@@ -34,10 +34,10 @@ export const StockService = {
             // Reduce shop quantity
             product.shopQty -= item.qty;
             product.stockQty = product.warehouseQty + product.shopQty;
-            await product.save();
+            await product.save({ session });
 
             // Log movement
-            const movement = await StockMovement.create({
+            const movementDocs = await StockMovement.create([{
                 productId: item.productId,
                 type: 'SALE',
                 qty: item.qty,
@@ -48,7 +48,8 @@ export const StockService = {
                     warehouseQty: product.warehouseQty,
                     shopQty: product.shopQty
                 }
-            });
+            }], { session });
+            const movement = movementDocs[0];
 
             results.push({ product, movement });
         }
@@ -61,11 +62,11 @@ export const StockService = {
      * Stock is ALWAYS added to WAREHOUSE
      * IMPLEMENTS: Weighted Average Cost (AVCO)
      */
-    async increaseStockForPurchase(items, poId, userId) {
+    async increaseStockForPurchase(items, poId, userId, session = null) {
         const results = [];
 
         for (const item of items) {
-            const product = await Product.findById(item.productId);
+            const product = await Product.findById(item.productId).session(session);
 
             if (!product) {
                 throw new Error(`المنتج غير موجود: ${item.productId}`);
@@ -98,10 +99,10 @@ export const StockService = {
             // but for high precision systems maybe keep more. 2 is standard for currency.
             product.buyPrice = parseFloat(newAvgCost.toFixed(2));
 
-            await product.save();
+            await product.save({ session });
 
             // Log movement
-            const movement = await StockMovement.create({
+            const movementDocs = await StockMovement.create([{
                 productId: item.productId,
                 type: 'IN',
                 qty: newQty,
@@ -112,7 +113,8 @@ export const StockService = {
                     warehouseQty: product.warehouseQty,
                     shopQty: product.shopQty
                 }
-            });
+            }], { session });
+            const movement = movementDocs[0];
 
             results.push({ product, movement, newAvgCost: product.buyPrice });
         }
@@ -123,8 +125,8 @@ export const StockService = {
     /**
      * Transfer stock from warehouse to shop
      */
-    async transferToShop(productId, quantity, userId, note = '') {
-        const product = await Product.findById(productId);
+    async transferToShop(productId, quantity, userId, note = '', session = null) {
+        const product = await Product.findById(productId).session(session);
 
         if (!product) {
             throw new Error('المنتج غير موجود');
@@ -140,10 +142,10 @@ export const StockService = {
         product.warehouseQty -= quantity;
         product.shopQty += quantity;
         // Total stock remains same
-        await product.save();
+        await product.save({ session });
 
         // Log movement
-        const movement = await StockMovement.create({
+        const movementDocs = await StockMovement.create([{
             productId,
             type: 'TRANSFER_TO_SHOP',
             qty: quantity,
@@ -153,7 +155,8 @@ export const StockService = {
                 warehouseQty: product.warehouseQty,
                 shopQty: product.shopQty
             }
-        });
+        }], { session });
+        const movement = movementDocs[0];
 
         return { product, movement };
     },
@@ -161,8 +164,8 @@ export const StockService = {
     /**
      * Transfer stock from shop to warehouse
      */
-    async transferToWarehouse(productId, quantity, userId, note = '') {
-        const product = await Product.findById(productId);
+    async transferToWarehouse(productId, quantity, userId, note = '', session = null) {
+        const product = await Product.findById(productId).session(session);
 
         if (!product) {
             throw new Error('المنتج غير موجود');
@@ -177,10 +180,10 @@ export const StockService = {
         // Transfer
         product.shopQty -= quantity;
         product.warehouseQty += quantity;
-        await product.save();
+        await product.save({ session });
 
         // Log movement
-        const movement = await StockMovement.create({
+        const movementDocs = await StockMovement.create([{
             productId,
             type: 'TRANSFER_TO_WAREHOUSE',
             qty: quantity,
@@ -190,7 +193,8 @@ export const StockService = {
                 warehouseQty: product.warehouseQty,
                 shopQty: product.shopQty
             }
-        });
+        }], { session });
+        const movement = movementDocs[0];
 
         return { product, movement };
     },
@@ -198,12 +202,13 @@ export const StockService = {
     /**
      * Register initial balance during system handover
      */
-    async registerInitialBalance(productId, warehouseQty, shopQty, buyPrice, userId) {
-        const product = await Product.findById(productId);
+    async registerInitialBalance(productId, warehouseQty, shopQty, buyPrice, userId, session = null) {
+        const product = await Product.findById(productId).session(session);
         if (!product) throw new Error('المنتج غير موجود');
 
         // Log initial balance movement
-        const movement = await StockMovement.create({
+        // Log initial balance movement
+        const movementData = {
             productId,
             type: 'INITIAL_BALANCE',
             qty: (warehouseQty || 0) + (shopQty || 0),
@@ -213,7 +218,14 @@ export const StockService = {
                 warehouseQty: warehouseQty || 0,
                 shopQty: shopQty || 0
             }
-        });
+        };
+
+        const movement = await StockMovement.create([movementData], { session });
+        // NOTE: Mongoose .create with array returns array, we need first item if we used array.
+        // But to be safe and fix the "ValidatorError" which might be due to `create(doc, options)` ambiguity in recent Mongoose versions or mocked versions:
+        // Let's use array syntax `create([doc], { session })` which is robust for transactions.
+
+        return { product, movement: movement[0] };
 
         return { product, movement };
     },
@@ -221,8 +233,8 @@ export const StockService = {
     /**
      * Adjust stock quantities (for inventory audits)
      */
-    async adjustStock(productId, newWarehouseQty, newShopQty, reason, userId) {
-        const product = await Product.findById(productId);
+    async adjustStock(productId, newWarehouseQty, newShopQty, reason, userId, session = null) {
+        const product = await Product.findById(productId).session(session);
 
         if (!product) {
             throw new Error('المنتج غير موجود');
@@ -235,13 +247,13 @@ export const StockService = {
         product.warehouseQty = newWarehouseQty;
         product.shopQty = newShopQty;
         product.stockQty = newWarehouseQty + newShopQty;
-        await product.save();
+        await product.save({ session });
 
         const warehouseDiff = newWarehouseQty - oldWarehouseQty;
         const shopDiff = newShopQty - oldShopQty;
 
         // Log adjustment
-        const movement = await StockMovement.create({
+        const movementDocs = await StockMovement.create([{
             productId,
             type: 'ADJUST',
             qty: Math.abs(warehouseDiff) + Math.abs(shopDiff),
@@ -251,7 +263,8 @@ export const StockService = {
                 warehouseQty: product.warehouseQty,
                 shopQty: product.shopQty
             }
-        });
+        }], { session });
+        const movement = movementDocs[0];
 
         return { product, movement, warehouseDiff, shopDiff };
     },
@@ -335,7 +348,7 @@ export const StockService = {
      * Increase stock when returning items (Sales Return)
      * Stock is added back to SHOP (assuming returns go to front desk/shop)
      */
-    async increaseStockForReturn(items, returnId, userId) {
+    async increaseStockForReturn(items, returnId, userId, session = null) {
         const results = [];
 
         for (const item of items) {
@@ -349,10 +362,10 @@ export const StockService = {
             // Increase shop quantity
             product.shopQty += item.qty;
             product.stockQty = product.warehouseQty + product.shopQty;
-            await product.save();
+            await product.save({ session });
 
             // Log movement
-            const movement = await StockMovement.create({
+            const movementDocs = await StockMovement.create([{
                 productId: item.productId,
                 type: 'IN', // Treated as IN but noted as Return
                 qty: item.qty,
@@ -363,7 +376,8 @@ export const StockService = {
                     warehouseQty: product.warehouseQty,
                     shopQty: product.shopQty
                 }
-            });
+            }], { session });
+            const movement = movementDocs[0];
 
             results.push({ product, movement });
         }
@@ -374,7 +388,7 @@ export const StockService = {
     /**
      * Generic Move Stock (Consolidates all simple movements)
      */
-    async moveStock({ productId, qty, type, userId, note, refId, isSystem = false }) {
+    async moveStock({ productId, qty, type, userId, note, refId, isSystem = false }, session = null) {
         // Validation handled by caller or Schema? Let's add basic checks
         const quantity = Math.abs(Number(qty));
         if (quantity === 0) throw new Error('Quantity must be greater than 0');
@@ -430,9 +444,9 @@ export const StockService = {
                 throw new Error('Invalid movement type');
         }
 
-        const updatedProduct = await Product.findByIdAndUpdate(productId, updateQuery, { new: true });
+        const updatedProduct = await Product.findByIdAndUpdate(productId, updateQuery, { new: true, session });
 
-        await StockMovement.create({
+        await StockMovement.create([{
             productId,
             type,
             qty: quantity,
@@ -444,12 +458,12 @@ export const StockService = {
                 warehouseQty: updatedProduct.warehouseQty,
                 shopQty: updatedProduct.shopQty
             }
-        });
+        }], { session });
 
         return updatedProduct;
     },
 
-    async bulkMoveStock({ items, type, userId }) {
+    async bulkMoveStock({ items, type, userId }, session = null) {
         await dbConnect();
         const results = [];
 
@@ -460,8 +474,8 @@ export const StockService = {
                 type: item.type || type,
                 userId,
                 note: item.note,
-                isSystem: true // Bulk usually implies system/admin override or trusted op
-            });
+                isSystem: false
+            }, session);
             results.push(result);
         }
 

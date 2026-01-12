@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import Payment from '@/models/Payment';
 import Debt from '@/models/Debt';
 import { DebtService } from './debtService';
-import { AccountingService, ACCOUNTS } from '@/lib/services/accountingService';
+import { AccountingService, ACCOUNTS } from '@/services/accountingService';
 import dbConnect from '@/lib/db';
 
 export class PaymentService {

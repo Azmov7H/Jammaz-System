@@ -147,8 +147,8 @@ export function ProductFormDialog({ open, onOpenChange, mode, formData, setFormD
                                                 type="number"
                                                 required
                                                 className="h-14 rounded-2xl bg-white/10 border-primary/20 text-center font-black text-xl text-primary"
-                                                value={formData.sellPrice}
-                                                onChange={e => setFormData({ ...formData, sellPrice: e.target.value })}
+                                                value={formData.retailPrice}
+                                                onChange={e => setFormData({ ...formData, retailPrice: e.target.value })}
                                             />
                                         </div>
                                         <div className="space-y-2">

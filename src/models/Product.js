@@ -68,9 +68,12 @@ ProductSchema.index({ stockQty: 1 });
 ProductSchema.index({ createdAt: -1 });
 
 // Middleware to sync stockQty
-ProductSchema.pre('save', function (next) {
+ProductSchema.pre('save', function () {
     this.stockQty = (this.warehouseQty || 0) + (this.shopQty || 0);
-    next();
 });
+
+if (mongoose.models.Product) {
+    delete mongoose.models.Product;
+}
 
 export default mongoose.models.Product || mongoose.model('Product', ProductSchema);

@@ -1,22 +1,27 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api-utils';
 
-export function useDashboardKPIs() {
-    return useQuery({
+export function useDashboard() {
+    const { data, isLoading, refetch } = useQuery({
         queryKey: ['dashboard-kpis'],
         queryFn: async () => {
-            const res = await api.get('/api/dashboard/kpis');
-            return res.data;
+            const res = await fetch('/api/dashboard/kpis');
+            const json = await res.json();
+            return json.data;
         }
     });
-}
 
-export function useDashboardStats() {
-    return useQuery({
-        queryKey: ['dashboard-stats'],
-        queryFn: async () => {
-            const res = await api.get('/api/dashboard/stats');
-            return res.data;
-        }
-    });
+    const kpis = data?.kpis || {};
+    const monthSummary = data?.monthSummary || {};
+    const recentActivity = data?.recentActivity || [];
+    const lowStockProducts = data?.lowStockProducts || [];
+
+    return {
+        data,
+        kpis,
+        monthSummary,
+        recentActivity,
+        lowStockProducts,
+        isLoading,
+        refetch
+    };
 }

@@ -1,6 +1,6 @@
 import { apiHandler } from '@/lib/api-handler';
 import dbConnect from '@/lib/db';
-import { PricingService } from '@/lib/services/pricingService';
+import { PricingService } from '@/services/pricingService';
 
 // GET all custom prices for a customer
 export const GET = apiHandler(async (request, { params }) => {

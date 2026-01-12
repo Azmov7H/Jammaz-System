@@ -1,7 +1,7 @@
 import Invoice from '@/models/Invoice';
 import Product from '@/models/Product';
 import Customer from '@/models/Customer';
-import { StockService } from '@/lib/services/stockService';
+import { StockService } from '@/services/stockService';
 import dbConnect from '@/lib/db';
 import { revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache';
@@ -90,11 +90,20 @@ export const InvoiceService = {
         });
 
         // Delegate to FinanceService for orchestration (Stock, Accounting, Debt, Treasury)
-        const { FinanceService } = await import('@/lib/services/financeService');
+        const { FinanceService } = await import('@/services/financeService');
         await FinanceService.recordSale(invoice, userId);
 
         revalidateTag(CACHE_TAGS.INVOICES);
         revalidateTag(CACHE_TAGS.PRODUCTS);
+        return invoice;
+    },
+    async getById(id) {
+        await dbConnect();
+        const invoice = await Invoice.findById(id)
+            .populate('customer', 'name phone address')
+            .populate('createdBy', 'name')
+            .populate('items.productId', 'name code') // Populate product details in items
+            .lean();
         return invoice;
     }
 };

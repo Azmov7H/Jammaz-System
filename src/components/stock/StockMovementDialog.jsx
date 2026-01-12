@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { ArrowLeftRight, Loader2, Plus, Trash2, Package } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils';
 import { useProducts } from '@/hooks/useProducts';
 
 export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting }) {

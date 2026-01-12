@@ -1,5 +1,5 @@
 import Product from '@/models/Product';
-import { StockService } from '@/lib/services/stockService';
+import { StockService } from '@/services/stockService';
 import { revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache';
 import dbConnect from '@/lib/db';

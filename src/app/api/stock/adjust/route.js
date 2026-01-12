@@ -1,6 +1,6 @@
-import { apiHandler } from '@/lib/core/api-handler';
-import { StockService } from '@/lib/services/stockService';
-import { getCurrentUser } from '@/lib/core/auth';
+import { apiHandler } from '@/lib/api-handler';
+import { StockService } from '@/services/stockService';
+import { getCurrentUser } from '@/lib/auth';
 import { hasPermission } from '@/lib/permissions';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';

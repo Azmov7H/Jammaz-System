@@ -1,6 +1,6 @@
 import { apiHandler } from '@/lib/api-handler';
-import { AuthService } from '@/lib/services/authService';
-import { loginSchema } from '@/lib/validators';
+import { AuthService } from '@/services/authService';
+import { loginSchema } from '@/validations/validators';
 
 export const POST = apiHandler(async (req) => {
     const body = await req.json();

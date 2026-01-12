@@ -1,5 +1,5 @@
 import { apiHandler } from '@/lib/api-handler';
-import { TreasuryService } from '@/lib/services/treasuryService';
+import { TreasuryService } from '@/services/treasuryService';
 import { getCurrentUser } from '@/lib/auth';
 
 export const GET = apiHandler(async (req) => {

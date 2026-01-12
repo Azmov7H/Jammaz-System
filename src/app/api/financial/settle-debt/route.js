@@ -1,6 +1,6 @@
-import { apiHandler } from '@/lib/core/api-handler';
-import { FinanceService } from '@/lib/services/financeService';
-import { getCurrentUser } from '@/lib/core/auth';
+import { apiHandler } from '@/lib/api-handler';
+import { FinanceService } from '@/services/financeService';
+import { getCurrentUser } from '@/lib/auth';
 import { z } from 'zod';
 
 const settleDebtSchema = z.object({
