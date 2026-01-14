@@ -47,6 +47,9 @@ export default function PurchaseOrdersPage() {
     };
 
     const handleCreate = () => {
+        if (createMutation.isPending) {
+            return; // Button is already disabled, but extra safety
+        }
         if (!supplierId || poItems.length === 0) return;
         createMutation.mutate({
             supplierId,
@@ -62,6 +65,9 @@ export default function PurchaseOrdersPage() {
     };
 
     const handleReceive = (id) => {
+        if (updateMutation.isPending) {
+            return;
+        }
         if (!confirm('هل وصلت البضاعة؟ سيتم زيادة المخزون تلقائياً.')) return;
         updateMutation.mutate({ id, status: 'RECEIVED' });
     };

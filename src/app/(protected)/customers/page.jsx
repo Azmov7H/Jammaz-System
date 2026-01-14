@@ -50,6 +50,12 @@ export default function CustomersPage() {
 
 
     const handleFormSubmit = (formData) => {
+        // Prevent duplicate submissions
+        if (addMutation.isPending || updateMutation.isPending) {
+            toast.warning('جاري معالجة الطلب، يرجى الانتظار...');
+            return;
+        }
+
         const payload = {
             ...formData,
             creditLimit: formData.creditLimit ? parseFloat(formData.creditLimit) : 0

@@ -19,6 +19,9 @@ export function useCustomers(params = {}) {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['customers'] });
             toast.success('تمت إضافة العميل بنجاح');
+        },
+        onError: (error) => {
+            toast.error(error.message || 'فشل في إضافة العميل');
         }
     });
 
@@ -27,6 +30,9 @@ export function useCustomers(params = {}) {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['customers'] });
             toast.success('تم تحديث بيانات العميل');
+        },
+        onError: (error) => {
+            toast.error(error.message || 'فشل في تحديث العميل');
         }
     });
 
@@ -35,6 +41,9 @@ export function useCustomers(params = {}) {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['customers'] });
             toast.success('تم تعطيل حساب العميل');
+        },
+        onError: (error) => {
+            toast.error(error.message || 'فشل في حذف العميل');
         }
     });
 
@@ -45,3 +54,4 @@ export function useCustomers(params = {}) {
         deleteMutation
     };
 }
+

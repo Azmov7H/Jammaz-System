@@ -70,6 +70,12 @@ export default function ManualEntryPage() {
     });
 
     const handleSubmit = () => {
+        // Prevent duplicate submissions
+        if (createMutation.isPending) {
+            toast.warning('جاري معالجة المعاملة، يرجى الانتظار...');
+            return;
+        }
+
         if (!amount || !category || !description) {
             toast.error('يرجى تعبئة جميع الحقول المطلوبة');
             return;

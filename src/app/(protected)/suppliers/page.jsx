@@ -19,6 +19,7 @@ import { useRouter } from 'next/navigation';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { SupplierFormDialog } from '@/components/suppliers/SupplierFormDialog';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
 export default function SuppliersPage() {
     const router = useRouter();
@@ -36,6 +37,12 @@ export default function SuppliersPage() {
     };
 
     const handleFormSubmit = (formData) => {
+        // Prevent duplicate submissions
+        if (addMutation.isPending || updateMutation.isPending) {
+            toast.warning('جاري معالجة الطلب، يرجى الانتظار...');
+            return;
+        }
+
         if (selectedSupplier) {
             updateMutation.mutate({ id: selectedSupplier._id, data: formData }, {
                 onSuccess: () => {
