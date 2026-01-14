@@ -35,6 +35,9 @@ export default function NewInvoicePage() {
     const [shortageDialog, setShortageDialog] = useState({ open: false, product: null });
     const [reportNote, setReportNote] = useState('');
 
+    // Navigation state to prevent duplicate submissions during navigation
+    const [isNavigating, setIsNavigating] = useState(false);
+
     const createInvoiceMutation = useCreateInvoice();
 
     // Effect to update prices when customer price type changes
@@ -103,6 +106,12 @@ export default function NewInvoicePage() {
     };
 
     const handleSubmit = () => {
+        // Prevent submission if already pending or navigating
+        if (createInvoiceMutation.isPending || isNavigating) {
+            toast.warning('جاري معالجة الفاتورة، يرجى الانتظار...');
+            return;
+        }
+
         if (items.length === 0) {
             toast.error('الفاتورة فارغة');
             return;
@@ -123,14 +132,28 @@ export default function NewInvoicePage() {
         };
 
         createInvoiceMutation.mutate(invoiceData, {
-            onSuccess: (data) => {
-                // data is now the response.data from the API
-                const invoiceId = data?.invoice?._id;
+            onSuccess: (invoice) => {
+                // API returns invoice directly (not wrapped in data.invoice)
+                const invoiceId = invoice?._id;
+
                 if (invoiceId) {
+                    // Set navigating state to keep button disabled during navigation
+                    setIsNavigating(true);
                     toast.success('تم حفظ الفاتورة بنجاح');
+
                     // Navigate to invoice detail page for printing
                     router.push(`/invoices/${invoiceId}`);
+                } else {
+                    // If no invoiceId, something went wrong
+                    setIsNavigating(false);
+                    toast.error('خطأ: لم يتم إرجاع معرف الفاتورة');
                 }
+            },
+            onError: (error) => {
+                // Reset navigating state on error
+                setIsNavigating(false);
+                // Error toast is already shown by useCreateInvoice's onError
+                // No need to show it again here
             }
         });
     };
@@ -308,11 +331,12 @@ export default function NewInvoicePage() {
                             size="lg"
                             className="w-full h-16 rounded-[1.5rem] bg-primary hover:bg-primary/90 font-black text-xl shadow-colored hover:scale-[1.02] active:scale-[0.98] transition-all gap-3"
                             onClick={handleSubmit}
-                            disabled={createInvoiceMutation.isPending || items.length === 0}
+                            disabled={createInvoiceMutation.isPending || isNavigating || items.length === 0}
                         >
-                            {createInvoiceMutation.isPending ? (
+                            {(createInvoiceMutation.isPending || isNavigating) ? (
                                 <>
-                                    <Loader2 className="animate-spin" /> جاري الحفظ...
+                                    <Loader2 className="animate-spin" />
+                                    {isNavigating ? 'جاري التحويل للفاتورة...' : 'جاري الحفظ...'}
                                 </>
                             ) : (
                                 <>

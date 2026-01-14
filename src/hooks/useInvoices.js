@@ -18,13 +18,21 @@ export function useCreateInvoice() {
     return useMutation({
         mutationFn: async (data) => {
             const response = await api.post('/api/invoices', data);
-            return response.data; // Return the data directly
+            // API response structure: { success: true, data: invoice, message: null }
+            // Return the invoice data
+            return response.data;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['invoices'] });
             queryClient.invalidateQueries({ queryKey: ['products'] });
         },
-        onError: (error) => toast.error(error.message)
+        onError: (error) => {
+            // Show error toast with longer duration for better visibility
+            toast.error(error.message || 'فشل في إنشاء الفاتورة', {
+                duration: 5000, // 5 seconds
+                important: true
+            });
+        }
     });
 }
 
@@ -34,8 +42,11 @@ export function useDeleteInvoice() {
         mutationFn: (id) => api.delete(`/api/invoices/${id}`),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['invoices'] });
+            queryClient.invalidateQueries({ queryKey: ['products'] });
             toast.success('تم حذف الفاتورة بنجاح');
         },
-        onError: (error) => toast.error(error.message)
+        onError: (error) => {
+            toast.error(error.message || 'فشل في حذف الفاتورة');
+        }
     });
 }
