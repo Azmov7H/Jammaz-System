@@ -1,6 +1,7 @@
 import dbConnect from '@/lib/db';
 import mongoose from 'mongoose';
 import Invoice from '@/models/Invoice';
+import Product from '@/models/Product';
 import SalesReturn from '@/models/SalesReturn';
 import Customer from '@/models/Customer';
 import Supplier from '@/models/Supplier';
@@ -100,6 +101,107 @@ export const FinanceService = {
 
             await session.commitTransaction();
             return invoice;
+        } catch (error) {
+            await session.abortTransaction();
+            throw error;
+        } finally {
+            session.endSession();
+        }
+    },
+
+    /**
+     * Reverse a Sale (Delete Invoice Logic)
+     */
+    async reverseSale(invoiceId, userId) {
+        await dbConnect();
+        const session = await mongoose.startSession();
+        session.startTransaction();
+
+        try {
+            const invoice = await Invoice.findById(invoiceId).populate('items.productId').session(session);
+            if (!invoice) throw new Error('الفاتورة غير موجودة');
+
+            // 1. Reverse Stock
+            for (const item of invoice.items) {
+                const product = await Product.findById(item.productId).session(session);
+                if (product) {
+                    product.shopQty += item.qty;
+                    product.stockQty = (product.warehouseQty || 0) + product.shopQty;
+                    await product.save({ session });
+
+                    // Log movement
+                    const StockMovement = (await import('@/models/StockMovement')).default;
+                    await StockMovement.create([{
+                        productId: product._id,
+                        type: 'IN',
+                        qty: item.qty,
+                        note: `إلغاء فاتورة #${invoice.number}`,
+                        refId: invoice._id,
+                        createdBy: userId,
+                        snapshot: {
+                            warehouseQty: product.warehouseQty,
+                            shopQty: product.shopQty
+                        }
+                    }], { session });
+                }
+            }
+
+            // 2. Reverse Accounting Entries
+            const AccountingEntry = (await import('@/models/AccountingEntry')).default;
+            const originalEntries = await AccountingEntry.find({ refType: 'Invoice', refId: invoice._id }).session(session);
+
+            for (const entry of originalEntries) {
+                await AccountingEntry.createEntry({
+                    type: 'ADJUSTMENT',
+                    debitAccount: entry.creditAccount,
+                    creditAccount: entry.debitAccount,
+                    amount: entry.amount,
+                    description: `إلغاء قيد: ${entry.description}`,
+                    refType: 'Invoice',
+                    refId: invoice._id,
+                    userId,
+                    date: new Date(),
+                    session
+                });
+            }
+
+            // 3. Update Customer Balance & Debt
+            if (invoice.customer) {
+                const customer = await Customer.findById(invoice.customer).session(session);
+                if (customer) {
+                    // Update Legacy Balance
+                    const remainingDebt = invoice.total - invoice.paidAmount;
+                    if (remainingDebt > 0) {
+                        customer.balance = Math.max(0, (customer.balance || 0) - remainingDebt);
+                        await customer.save({ session });
+                    }
+
+                    // Delete Debt Record
+                    const Debt = (await import('@/models/Debt')).default;
+                    const debt = await Debt.findOne({ referenceType: 'Invoice', referenceId: invoice._id }).session(session);
+                    if (debt) {
+                        // Delete Schedules
+                        const PaymentSchedule = (await import('@/models/PaymentSchedule')).default;
+                        await PaymentSchedule.deleteMany({ debtId: debt._id }).session(session);
+                        await debt.deleteOne({ session });
+                    }
+                }
+            }
+
+            // 4. Delete Invoice
+            await invoice.deleteOne({ session });
+
+            // 5. Logging
+            await LogService.logAction({
+                userId,
+                action: 'REVERSE_INVOICE',
+                entity: 'Invoice',
+                entityId: invoice._id,
+                note: `Invoice #${invoice.number} cancelled and reversed`
+            }, session);
+
+            await session.commitTransaction();
+            return { success: true };
         } catch (error) {
             await session.abortTransaction();
             throw error;
@@ -232,7 +334,11 @@ export const FinanceService = {
             }
 
             await AccountingService.createPaymentEntries(invoice, amount, userId, new Date(), session);
-            await TreasuryService.recordPaymentCollection(invoice, amount, userId, session);
+            await TreasuryService.recordPaymentCollection({
+                ...invoice.toObject(),
+                paidAmount: amount,
+                paymentMethod: method
+            }, userId, session);
 
             await session.commitTransaction();
             return invoice;

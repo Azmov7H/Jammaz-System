@@ -155,7 +155,7 @@ export default function InvoiceViewPage({ params }) {
                                             <TableBody>
                                                 {invoice.items.map((item, i) => (
                                                     <TableRow key={i}>
-                                                        <TableCell className="font-bold">{item.name || 'منتج'}</TableCell>
+                                                        <TableCell className="font-bold">{item.productName || item.name || 'منتج'}</TableCell>
                                                         <TableCell className="text-center font-bold text-slate-500">{item.qty}</TableCell>
                                                         <TableCell className="text-center font-mono">{item.unitPrice.toLocaleString()} ج.م</TableCell>
                                                         <TableCell>
@@ -207,7 +207,7 @@ export default function InvoiceViewPage({ params }) {
                                             <div key={i} className="bg-white border p-3 rounded-xl shadow-sm space-y-3">
                                                 <div className="flex justify-between items-start">
                                                     <div>
-                                                        <div className="font-bold text-sm">{item.name || 'منتج'}</div>
+                                                        <div className="font-bold text-sm">{item.productName || item.name || 'منتج'}</div>
                                                         <div className="text-xs text-slate-500">سعر الوحدة: {item.unitPrice.toLocaleString()} ج.م</div>
                                                     </div>
                                                     <div className="text-right">
@@ -411,7 +411,7 @@ export default function InvoiceViewPage({ params }) {
                         <tbody className="text-sm text-slate-700">
                             {invoice.items.map((item, i) => (
                                 <tr key={i} className="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
-                                    <td className="py-4 px-4 font-bold" style={{ color: primaryColor }}>{item.name || 'منتج'}</td>
+                                    <td className="py-4 px-4 font-bold" style={{ color: primaryColor }}>{item.productName || item.name || 'منتج'}</td>
                                     <td className="py-4 px-4 text-center font-semibold">{item.qty}</td>
                                     <td className="py-4 px-4 text-center font-mono">{item.unitPrice.toLocaleString()} ج.م</td>
                                     <td className="py-4 px-4 text-center font-black text-slate-900">{(item.qty * item.unitPrice).toLocaleString()} ج.م</td>

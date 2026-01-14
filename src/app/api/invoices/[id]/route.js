@@ -12,3 +12,16 @@ export const GET = apiHandler(async (req, { params }) => {
 
     return NextResponse.json({ success: true, data: { invoice } });
 });
+
+export const DELETE = apiHandler(async (req, { params }) => {
+    const { id } = await params;
+    const { getCurrentUser } = await import('@/lib/auth');
+    const user = await getCurrentUser();
+
+    if (!user) {
+        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    await InvoiceService.deleteInvoice(id, user.userId);
+    return NextResponse.json({ success: true, message: 'تم حذف الفاتورة بنجاح' });
+});
