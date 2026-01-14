@@ -57,9 +57,9 @@ export default function Header() {
 
     return (
         <header className={cn(
-            "sticky top-0 z-40 h-20 transition-all duration-500",
+            "sticky top-0 z-40 h-20 transition-all duration-300",
             "bg-background/40 backdrop-blur-xl border-b border-white/5",
-            scrolled && "shadow-custom-lg bg-background/60"
+            scrolled && "shadow-md bg-background/60"
         )}>
             <div className="container h-full mx-auto px-4 md:px-8 flex items-center justify-between gap-4">
                 {/* Mobile Menu & Search */}
@@ -99,15 +99,15 @@ export default function Header() {
                     >
                         <motion.div
                             initial={false}
-                            animate={{ rotate: theme === 'dark' ? 0 : 90, scale: theme === 'dark' ? 0 : 1 }}
-                            className="absolute inset-0 flex items-center justify-center"
+                            animate={{ opacity: theme === 'dark' ? 0 : 1, scale: theme === 'dark' ? 0.8 : 1 }}
+                            className="absolute inset-0 flex items-center justify-center transition-all duration-200"
                         >
                             <Sun className="h-5 w-5 text-amber-500" />
                         </motion.div>
                         <motion.div
                             initial={false}
-                            animate={{ rotate: theme === 'dark' ? 0 : -90, scale: theme === 'dark' ? 1 : 0 }}
-                            className="absolute inset-0 flex items-center justify-center"
+                            animate={{ opacity: theme === 'dark' ? 1 : 0, scale: theme === 'dark' ? 1 : 0.8 }}
+                            className="absolute inset-0 flex items-center justify-center transition-all duration-200"
                         >
                             <Moon className="h-5 w-5 text-primary" />
                         </motion.div>

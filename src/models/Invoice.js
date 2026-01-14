@@ -5,6 +5,7 @@ const InvoiceSchema = new mongoose.Schema({
     date: { type: Date, default: Date.now },
     items: [{
         productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+        productName: { type: String }, // Product name for display
         qty: { type: Number, required: true },
         unitPrice: { type: Number, required: true },
         total: { type: Number, required: true },

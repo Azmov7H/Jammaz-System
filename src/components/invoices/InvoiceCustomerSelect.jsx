@@ -16,7 +16,8 @@ export function InvoiceCustomerSelect({
     customerName,
     setCustomerName,
     customerPhone,
-    setCustomerPhone
+    setCustomerPhone,
+    disabled = false
 }) {
     const [query, setQuery] = useState('');
     const [suggestions, setSuggestions] = useState([]);

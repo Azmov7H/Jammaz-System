@@ -21,6 +21,7 @@ export function SidebarItem({
     const content = (
         <Link
             href={href}
+            prefetch={true}
             onClick={onClick}
             className={cn(
                 "group relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300",

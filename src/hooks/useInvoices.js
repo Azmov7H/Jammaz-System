@@ -16,11 +16,13 @@ export function useInvoices(params = {}) {
 export function useCreateInvoice() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (data) => api.post('/api/invoices', data),
+        mutationFn: async (data) => {
+            const response = await api.post('/api/invoices', data);
+            return response.data; // Return the data directly
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['invoices'] });
             queryClient.invalidateQueries({ queryKey: ['products'] });
-            toast.success('تم إنشاء الفاتورة بنجاح');
         },
         onError: (error) => toast.error(error.message)
     });

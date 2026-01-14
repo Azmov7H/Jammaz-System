@@ -44,7 +44,7 @@ export const InvoiceService = {
 
     async create(data, userId) {
         await dbConnect();
-        const { items, customerId, paymentType, tax = 0, dueDate } = data;
+        const { items, customerId, customerName, customerPhone, paymentType, tax = 0, dueDate } = data;
 
         // Validation logic... (simplified for restoration)
         let subtotal = 0;
@@ -64,6 +64,7 @@ export const InvoiceService = {
 
             processedItems.push({
                 ...item,
+                productName: product.name, // Add product name for display
                 costPrice: product.buyPrice,
                 profit: lineProfit,
                 total: itemTotal
@@ -72,6 +73,18 @@ export const InvoiceService = {
 
         const total = subtotal + Number(tax);
         const profit = total - totalCost;
+
+        // Get customer name if customerId is provided
+        let finalCustomerName = customerName;
+        let finalCustomerPhone = customerPhone;
+
+        if (customerId) {
+            const customer = await Customer.findById(customerId);
+            if (customer) {
+                finalCustomerName = customer.name;
+                finalCustomerPhone = customer.phone;
+            }
+        }
 
         const invoice = await Invoice.create({
             number: `INV-${Date.now()}`,
@@ -84,6 +97,8 @@ export const InvoiceService = {
             totalCost,
             profit,
             customer: customerId,
+            customerName: finalCustomerName, // Add customer name for display
+            customerPhone: finalCustomerPhone, // Add customer phone for display
             createdBy: userId,
             paymentStatus: paymentType === 'cash' ? 'paid' : 'pending',
             paidAmount: paymentType === 'cash' ? total : 0
@@ -105,5 +120,9 @@ export const InvoiceService = {
             .populate('items.productId', 'name code') // Populate product details in items
             .lean();
         return invoice;
+    },
+    async deleteInvoice(id, userId) {
+        const { FinanceService } = await import('@/services/financeService');
+        return await FinanceService.reverseSale(id, userId);
     }
 };

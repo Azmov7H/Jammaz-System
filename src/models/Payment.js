@@ -21,7 +21,7 @@ const paymentSchema = new mongoose.Schema({
 
     method: {
         type: String,
-        enum: ['cash', 'bank_transfer', 'check', 'credit_card', 'internal_transfer'],
+        enum: ['cash', 'bank_transfer', 'check', 'cash_wallet', 'internal_transfer'],
         required: true
     },
     referenceNumber: {

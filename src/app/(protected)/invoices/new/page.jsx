@@ -123,10 +123,14 @@ export default function NewInvoicePage() {
         };
 
         createInvoiceMutation.mutate(invoiceData, {
-            onSuccess: (status) => {
-                // data from useCreateInvoice is now data.data which is { invoice, message }
-                const invoiceId = status.invoice?._id;
-                if (invoiceId) router.push(`/invoices/${invoiceId}`);
+            onSuccess: (data) => {
+                // data is now the response.data from the API
+                const invoiceId = data?.invoice?._id;
+                if (invoiceId) {
+                    toast.success('تم حفظ الفاتورة بنجاح');
+                    // Navigate to invoice detail page for printing
+                    router.push(`/invoices/${invoiceId}`);
+                }
             }
         });
     };
@@ -169,6 +173,7 @@ export default function NewInvoicePage() {
                         setCustomerName={setCustomerName}
                         customerPhone={customerPhone}
                         setCustomerPhone={setCustomerPhone}
+                        disabled={createInvoiceMutation.isPending}
                     />
                 </motion.div>
 
@@ -225,6 +230,7 @@ export default function NewInvoicePage() {
                                 <Button
                                     variant={paymentType === 'cash' ? 'default' : 'outline'}
                                     onClick={() => setPaymentType('cash')}
+                                    disabled={createInvoiceMutation.isPending}
                                     className={cn(
                                         "h-14 rounded-2xl font-black transition-all border-2",
                                         paymentType === 'cash'
@@ -238,6 +244,7 @@ export default function NewInvoicePage() {
                                 <Button
                                     variant={paymentType === 'bank' ? 'default' : 'outline'}
                                     onClick={() => setPaymentType('bank')}
+                                    disabled={createInvoiceMutation.isPending}
                                     className={cn(
                                         "h-14 rounded-2xl font-black transition-all border-2",
                                         paymentType === 'bank'
@@ -251,6 +258,7 @@ export default function NewInvoicePage() {
                                 <Button
                                     variant={paymentType === 'credit' ? 'default' : 'outline'}
                                     onClick={() => setPaymentType('credit')}
+                                    disabled={createInvoiceMutation.isPending}
                                     className={cn(
                                         "h-14 rounded-2xl font-black transition-all border-2",
                                         paymentType === 'credit'

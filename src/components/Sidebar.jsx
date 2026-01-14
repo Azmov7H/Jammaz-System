@@ -42,7 +42,7 @@ export default function Sidebar() {
             <motion.aside
                 initial={isMobile ? { x: '100%' } : false}
                 animate={isMobile ? { x: isOpen ? 0 : '100%' } : { width: sidebarWidth }}
-                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                transition={{ type: 'tween', duration: 0.2 }}
                 className={cn(
                     "relative h-screen flex flex-col z-50 overflow-hidden shrink-0 transition-colors duration-500",
                     isMobile ? "fixed inset-y-0 right-0 max-w-[300px] w-full" : "sticky top-0",

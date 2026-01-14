@@ -142,7 +142,7 @@ export function PaymentDialog({ open, onOpenChange, debt, targetInstallmentId })
                                 <SelectItem value="cash">نقدي (Cash)</SelectItem>
                                 <SelectItem value="bank_transfer">تحويل بنكي</SelectItem>
                                 <SelectItem value="check">شيك</SelectItem>
-                                <SelectItem value="credit_card">بطاقة ائتمان</SelectItem>
+                                <SelectItem value="cash_wallet">محفظة كاش</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

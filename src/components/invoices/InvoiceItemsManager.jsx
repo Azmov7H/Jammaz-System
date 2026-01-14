@@ -21,7 +21,7 @@ export function InvoiceItemsManager({ items, setItems, onReportShortage }) {
             return;
         }
         try {
-            const res = await fetch(`/api/products?search=${term}`);
+            const res = await fetch(`/api/products?search=${term}&limit=50`);
             const json = await res.json();
             const data = json.data;
             const foundProducts = data?.products || [];
