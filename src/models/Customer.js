@@ -5,6 +5,7 @@ const CustomerSchema = new mongoose.Schema({
     phone: { type: String, required: true, unique: true },
     address: String,
     notes: String,
+    shippingCompany: String,
     priceType: {
         type: String,
         enum: ['retail', 'wholesale', 'special'],

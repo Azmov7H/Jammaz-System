@@ -14,7 +14,7 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Wallet, Loader2 } from 'lucide-react';
+import { Wallet, Loader2, Truck } from 'lucide-react';
 
 export function CustomerFormDialog({ open, onOpenChange, mode = 'add', initialData, onSubmit, isPending }) {
     const [formData, setFormData] = useState({
@@ -26,7 +26,10 @@ export function CustomerFormDialog({ open, onOpenChange, mode = 'add', initialDa
         notes: '',
         financialTrackingEnabled: true,
         collectionDay: 'None',
-        paymentTerms: 0
+        paymentTerms: 0,
+        openingBalance: '',
+        openingBalanceType: 'debit',
+        shippingCompany: ''
     });
 
     useEffect(() => {
@@ -40,7 +43,8 @@ export function CustomerFormDialog({ open, onOpenChange, mode = 'add', initialDa
                 notes: initialData.notes || '',
                 financialTrackingEnabled: initialData.financialTrackingEnabled !== undefined ? initialData.financialTrackingEnabled : true,
                 collectionDay: initialData.collectionDay || 'None',
-                paymentTerms: initialData.paymentTerms || 0
+                paymentTerms: initialData.paymentTerms || 0,
+                shippingCompany: initialData.shippingCompany || ''
             });
         } else if (mode === 'add' && open) {
             // Reset on fresh open
@@ -53,7 +57,10 @@ export function CustomerFormDialog({ open, onOpenChange, mode = 'add', initialDa
                 notes: '',
                 financialTrackingEnabled: true,
                 collectionDay: 'None',
-                paymentTerms: 0
+                paymentTerms: 0,
+                openingBalance: '',
+                openingBalanceType: 'debit',
+                shippingCompany: ''
             });
         }
     }, [mode, initialData, open]);
@@ -65,7 +72,7 @@ export function CustomerFormDialog({ open, onOpenChange, mode = 'add', initialDa
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>{mode === 'edit' ? 'تعديل بيانات العميل' : 'إضافة عميل جديد'}</DialogTitle>
                 </DialogHeader>
@@ -133,6 +140,18 @@ export function CustomerFormDialog({ open, onOpenChange, mode = 'add', initialDa
                         />
                     </div>
 
+                    <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                            <Truck className="w-4 h-4 text-primary" />
+                            شركة الشحن (اختياري)
+                        </Label>
+                        <Input
+                            value={formData.shippingCompany}
+                            onChange={e => setFormData({ ...formData, shippingCompany: e.target.value })}
+                            placeholder="اسم شركة الشحن المفضلة..."
+                        />
+                    </div>
+
                     <Separator />
                     <div className="bg-primary/5 p-4 rounded-xl space-y-4 border border-primary/10">
                         <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-2">
@@ -185,6 +204,40 @@ export function CustomerFormDialog({ open, onOpenChange, mode = 'add', initialDa
                         </div>
                     </div>
 
+                    {mode === 'add' && (
+                        <div className="bg-muted p-4 rounded-xl border border-border space-y-4">
+                            <Label className="text-xs font-bold text-primary">الرصيد الافتتاحي (ديون سابقة)</Label>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-bold">المبلغ</Label>
+                                    <Input
+                                        type="number"
+                                        className="h-10 text-sm"
+                                        placeholder="0.00"
+                                        value={formData.openingBalance}
+                                        onChange={e => setFormData({ ...formData, openingBalance: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-bold">نوع الرصيد</Label>
+                                    <Select
+                                        value={formData.openingBalanceType}
+                                        onValueChange={val => setFormData({ ...formData, openingBalanceType: val })}
+                                    >
+                                        <SelectTrigger className="h-10 text-sm">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="debit">عليه (مدين لنا)</SelectItem>
+                                            <SelectItem value="credit">له (دائن لنا)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                             إلغاء
@@ -196,6 +249,6 @@ export function CustomerFormDialog({ open, onOpenChange, mode = 'add', initialDa
                     </DialogFooter>
                 </form>
             </DialogContent>
-        </Dialog>
+        </Dialog >
     );
 }

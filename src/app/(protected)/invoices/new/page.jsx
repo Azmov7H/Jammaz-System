@@ -30,6 +30,7 @@ export default function NewInvoicePage() {
     // Payment State
     const [paymentType, setPaymentType] = useState('cash');
     const [dueDate, setDueDate] = useState('');
+    const [shippingCompany, setShippingCompany] = useState('');
 
     // Shortage Reporting
     const [shortageDialog, setShortageDialog] = useState({ open: false, product: null });
@@ -128,7 +129,8 @@ export default function NewInvoicePage() {
             customerPhone,
             customerId: selectedCustomer?._id,
             paymentType,
-            dueDate
+            dueDate,
+            shippingCompany
         };
 
         createInvoiceMutation.mutate(invoiceData, {
@@ -196,6 +198,8 @@ export default function NewInvoicePage() {
                         setCustomerName={setCustomerName}
                         customerPhone={customerPhone}
                         setCustomerPhone={setCustomerPhone}
+                        shippingCompany={shippingCompany}
+                        setShippingCompany={setShippingCompany}
                         disabled={createInvoiceMutation.isPending}
                     />
                 </motion.div>

@@ -1,4 +1,6 @@
 import Debt from '@/models/Debt';
+import '@/models/Customer';
+import '@/models/Supplier';
 import dbConnect from '@/lib/db';
 import { differenceInDays } from 'date-fns';
 

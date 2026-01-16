@@ -24,7 +24,9 @@ export function SupplierFormDialog({ open, onOpenChange, mode = 'add', initialDa
         isActive: true,
         financialTrackingEnabled: true,
         paymentDay: 'None',
-        supplyTerms: 0
+        supplyTerms: 0,
+        openingBalance: '',
+        openingBalanceType: 'credit' // credit = we owe supplier (normal), debit = supplier owes us
     });
 
     useEffect(() => {
@@ -46,7 +48,9 @@ export function SupplierFormDialog({ open, onOpenChange, mode = 'add', initialDa
                 isActive: true,
                 financialTrackingEnabled: true,
                 paymentDay: 'None',
-                supplyTerms: 0
+                supplyTerms: 0,
+                openingBalance: '',
+                openingBalanceType: 'credit'
             });
         }
     }, [mode, initialData, open]);
@@ -58,7 +62,7 @@ export function SupplierFormDialog({ open, onOpenChange, mode = 'add', initialDa
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[600px] border-white/5 bg-card/95 backdrop-blur-3xl shadow-2xl rounded-[1.5rem]" dir="rtl">
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto border-white/5 bg-card/95 backdrop-blur-3xl shadow-2xl rounded-[1.5rem]" dir="rtl">
                 <DialogHeader>
                     <DialogTitle className="text-2xl font-black flex items-center gap-3">
                         <Building2 className="text-primary w-6 h-6" />
@@ -150,6 +154,41 @@ export function SupplierFormDialog({ open, onOpenChange, mode = 'add', initialDa
                         </div>
                     </div>
 
+                    {mode === 'add' && (
+                        <div className="bg-primary/5 p-5 rounded-2xl space-y-6 border border-primary/10">
+                            <h4 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                                <Wallet size={14} /> الرصيد الافتتاحي (ديون سابقة)
+                            </h4>
+                            <div className="grid grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold mr-1">المبلغ</Label>
+                                    <Input
+                                        type="number"
+                                        className="h-11 rounded-xl bg-card border-white/10 text-xs"
+                                        placeholder="0.00"
+                                        value={formData.openingBalance}
+                                        onChange={e => setFormData({ ...formData, openingBalance: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold mr-1">نوع الرصيد</Label>
+                                    <Select
+                                        value={formData.openingBalanceType}
+                                        onValueChange={val => setFormData({ ...formData, openingBalanceType: val })}
+                                    >
+                                        <SelectTrigger className="h-11 rounded-xl bg-card border-white/10 text-xs">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="credit">لنا (علينا للمورد)</SelectItem>
+                                            <SelectItem value="debit">لنا (المورد مدين لنا)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <DialogFooter className="gap-3 pt-4">
                         <Button
                             type="button"
@@ -170,6 +209,6 @@ export function SupplierFormDialog({ open, onOpenChange, mode = 'add', initialDa
                     </DialogFooter>
                 </form>
             </DialogContent>
-        </Dialog>
+        </Dialog >
     );
 }

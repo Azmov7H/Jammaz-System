@@ -4,10 +4,12 @@ const InvoiceSchema = new mongoose.Schema({
     number: { type: String, required: true, unique: true },
     date: { type: Date, default: Date.now },
     items: [{
-        productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
-        productName: { type: String }, // Product name for display
+        productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' }, // Optional for service items
+        productName: { type: String, required: true },
         qty: { type: Number, required: true },
         unitPrice: { type: Number, required: true },
+        source: { type: String, enum: ['shop', 'warehouse'], default: 'shop' },
+        isService: { type: Boolean, default: false }, // Service/custom items (no stock tracking)
         total: { type: Number, required: true },
         costPrice: { type: Number },
         profit: { type: Number }

@@ -17,22 +17,46 @@ export const StockService = {
         const results = [];
 
         for (const item of items) {
+            // Skip service items (no stock tracking)
+            if (item.isService) {
+                results.push({
+                    isService: true,
+                    productName: item.productName || item.name
+                });
+                continue;
+            }
+
             const product = await Product.findById(item.productId).session(session);
 
             if (!product) {
                 throw new Error(`المنتج غير موجود: ${item.productId}`);
             }
 
-            // Validate shop stock availability
-            if (product.shopQty < item.qty) {
-                throw new Error(
-                    `كمية غير كافية في المحل: ${product.name}. ` +
-                    `المتوفر: ${product.shopQty}, المطلوب: ${item.qty}`
-                );
+            // Determine source (default to 'shop' for backward compatibility)
+            const source = item.source || 'shop';
+
+            // Validate and reduce based on source
+            if (source === 'warehouse') {
+                // Selling from warehouse
+                if (product.warehouseQty < item.qty) {
+                    throw new Error(
+                        `كمية غير كافية في المخزن: ${product.name}. ` +
+                        `المتوفر: ${product.warehouseQty}, المطلوب: ${item.qty}`
+                    );
+                }
+                product.warehouseQty -= item.qty;
+            } else {
+                // Selling from shop (default)
+                if (product.shopQty < item.qty) {
+                    throw new Error(
+                        `كمية غير كافية في المحل: ${product.name}. ` +
+                        `المتوفر: ${product.shopQty}, المطلوب: ${item.qty}`
+                    );
+                }
+                product.shopQty -= item.qty;
             }
 
-            // Reduce shop quantity
-            product.shopQty -= item.qty;
+            // Update total stock
             product.stockQty = product.warehouseQty + product.shopQty;
             await product.save({ session });
 
@@ -41,7 +65,7 @@ export const StockService = {
                 productId: item.productId,
                 type: 'SALE',
                 qty: item.qty,
-                note: `بيع - فاتورة #${invoiceId}`,
+                note: `بيع من ${source === 'warehouse' ? 'المخزن' : 'المحل'} - فاتورة #${invoiceId}`,
                 refId: invoiceId,
                 createdBy: userId,
                 snapshot: {

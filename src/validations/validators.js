@@ -71,7 +71,11 @@ export const customerSchema = z.object({
     isActive: z.boolean().optional(),
     financialTrackingEnabled: z.boolean().optional(),
     collectionDay: z.string().optional(),
-    paymentTerms: z.coerce.number().optional()
+    paymentTerms: z.coerce.number().optional(),
+    shippingCompany: z.string().optional(),
+    // Opening Balance (Only for creation)
+    openingBalance: z.coerce.number().optional(),
+    openingBalanceType: z.enum(['debit', 'credit']).optional()
 });
 
 export const supplierSchema = z.object({
@@ -82,7 +86,10 @@ export const supplierSchema = z.object({
     address: z.string().optional(),
     notes: z.string().optional(),
     taxNumber: z.string().optional(),
-    paymentTerms: z.coerce.number().default(0)
+    paymentTerms: z.coerce.number().default(0),
+    // Opening Balance (Only for creation)
+    openingBalance: z.coerce.number().optional(),
+    openingBalanceType: z.enum(['debit', 'credit']).optional()
 });
 
 export const invoiceSchema = z.object({
