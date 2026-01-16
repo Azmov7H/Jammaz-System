@@ -40,12 +40,56 @@ export const SupplierService = {
 
     async create(data) {
         await dbConnect();
-        const existing = await Supplier.findOne({ name: data.name });
+
+        const { openingBalance, openingBalanceType, ...supplierData } = data;
+
+        const existing = await Supplier.findOne({ name: supplierData.name });
         if (existing) {
             throw 'اسم المورد موجود بالفعل';
         }
 
-        const supplier = await Supplier.create(data);
+        let initialBalance = 0;
+        if (openingBalance && openingBalance > 0) {
+            if (openingBalanceType === 'credit') {
+                initialBalance = parseFloat(openingBalance); // Positive = We owe them
+            } else {
+                initialBalance = -parseFloat(openingBalance); // Negative = They owe us
+            }
+        }
+
+        const supplier = await Supplier.create({
+            ...supplierData,
+            balance: initialBalance
+        });
+
+        if (openingBalance && openingBalance > 0) {
+            const AccountingEntry = (await import('@/models/AccountingEntry')).default;
+
+            if (openingBalanceType === 'credit') {
+                // We owe supplier (Credit AP)
+                await AccountingEntry.createEntry({
+                    type: 'ADJUSTMENT',
+                    debitAccount: 'Opening Balance Equity',
+                    creditAccount: 'Accounts Payable',
+                    amount: parseFloat(openingBalance),
+                    description: `رصيد افتتاحي للمورد: ${supplier.name}`,
+                    refType: 'Manual',
+                    refId: supplier._id
+                });
+            } else {
+                // Supplier owes us (Debit AP)
+                await AccountingEntry.createEntry({
+                    type: 'ADJUSTMENT',
+                    debitAccount: 'Accounts Payable',
+                    creditAccount: 'Opening Balance Equity',
+                    amount: parseFloat(openingBalance),
+                    description: `رصيد افتتاحي مدين (لنا) عند المورد: ${supplier.name}`,
+                    refType: 'Manual',
+                    refId: supplier._id
+                });
+            }
+        }
+
         return supplier;
     },
 

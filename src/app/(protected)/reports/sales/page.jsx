@@ -3,8 +3,20 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { Bar } from 'react-chartjs-2';
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    Title,
+    Tooltip,
+    Legend
+} from 'chart.js';
 import { Loader2, DollarSign, ShoppingBag, TrendingUp, FileText, CreditCard, Banknote } from 'lucide-react';
+
+// Register Chart.js components
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function SalesReportPage() {
     const [loading, setLoading] = useState(true);
@@ -51,6 +63,58 @@ export default function SalesReportPage() {
     // Calculate aggregated cash/credit from breakdown
     const totalCash = stats.dailyBreakdown?.reduce((sum, day) => sum + (day.cashReceived || 0), 0) || 0;
     const totalCredit = stats.dailyBreakdown?.reduce((sum, day) => sum + (day.creditSales || 0), 0) || 0;
+
+    // Prepare chart data
+    const chartData = {
+        labels: stats.dailyBreakdown.map(d =>
+            new Date(d.date).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' })
+        ).reverse(),
+        datasets: [
+            {
+                label: 'المبيعات',
+                data: stats.dailyBreakdown.map(d => d.totalRevenue).reverse(),
+                backgroundColor: 'hsl(var(--primary))',
+                borderRadius: 4,
+            },
+            {
+                label: 'الأرباح',
+                data: stats.dailyBreakdown.map(d => d.grossProfit).reverse(),
+                backgroundColor: '#16a34a',
+                borderRadius: 4,
+            }
+        ]
+    };
+
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top',
+                rtl: true,
+            },
+            tooltip: {
+                rtl: true,
+                callbacks: {
+                    label: function (context) {
+                        return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
+                    }
+                }
+            }
+        },
+        scales: {
+            x: {
+                grid: {
+                    display: false
+                }
+            },
+            y: {
+                grid: {
+                    color: 'hsl(var(--border))',
+                }
+            }
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -129,20 +193,7 @@ export default function SalesReportPage() {
                 </CardHeader>
                 <CardContent className="p-4 md:p-6">
                     <div className="h-[300px] md:h-[400px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={stats.dailyBreakdown.map(d => ({ ...d, date: new Date(d.date).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' }) })).reverse()}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
-                                <XAxis dataKey="date" className="text-xs" tickLine={false} axisLine={false} />
-                                <YAxis className="text-xs" tickLine={false} axisLine={false} />
-                                <Tooltip
-                                    cursor={{ fill: 'transparent' }}
-                                    contentStyle={{ borderRadius: '0.5rem' }}
-                                />
-                                <Legend />
-                                <Bar name="المبيعات" dataKey="totalRevenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                                <Bar name="الأرباح" dataKey="grossProfit" fill="#16a34a" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        <Bar data={chartData} options={chartOptions} />
                     </div>
                 </CardContent>
             </Card>

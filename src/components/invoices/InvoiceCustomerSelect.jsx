@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, UserPlus, Search, X } from 'lucide-react';
+import { User, UserPlus, Search, X, Truck, Eye } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/utils';
 import { toast } from 'sonner';
@@ -17,11 +18,14 @@ export function InvoiceCustomerSelect({
     setCustomerName,
     customerPhone,
     setCustomerPhone,
+    shippingCompany,
+    setShippingCompany,
     disabled = false
 }) {
     const [query, setQuery] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [showDetailsDialog, setShowDetailsDialog] = useState(false);
 
     // Initial sync
     useEffect(() => {
@@ -191,6 +195,111 @@ export function InvoiceCustomerSelect({
                     </div>
                 </div>
             </div>
+
+            {/* Shipping Company Field */}
+            <div className="space-y-2">
+                <Label className="text-xs font-bold text-muted-foreground flex items-center gap-2">
+                    <Truck className="w-3 h-3 text-primary" />
+                    شركة الشحن (اختياري)
+                </Label>
+                <Input
+                    value={shippingCompany}
+                    onChange={e => setShippingCompany(e.target.value)}
+                    placeholder="اسم شركة الشحن..."
+                    className="h-10 bg-white/5 border-white/5 rounded-lg"
+                    disabled={disabled}
+                />
+            </div>
+
+            {/* View Customer Details Dialog */}
+            {selectedCustomer && (
+                <>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full h-10 bg-primary/10 border-primary/20 hover:bg-primary/20 rounded-lg gap-2"
+                        onClick={() => setShowDetailsDialog(true)}
+                    >
+                        <Eye className="w-4 h-4" />
+                        عرض بيانات العميل الكاملة
+                    </Button>
+
+                    <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+                        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto" dir="rtl">
+                            <DialogHeader>
+                                <DialogTitle className="flex items-center gap-2">
+                                    <User className="w-5 h-5 text-primary" />
+                                    بيانات العميل التفصيلية
+                                </DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">الاسم</Label>
+                                        <p className="font-bold">{selectedCustomer.name}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">رقم الهاتف</Label>
+                                        <p className="font-bold font-mono">{selectedCustomer.phone}</p>
+                                    </div>
+                                </div>
+
+                                {selectedCustomer.address && (
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">العنوان</Label>
+                                        <p className="font-bold">{selectedCustomer.address}</p>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">نوع التسعير</Label>
+                                        <p className="font-bold">
+                                            {selectedCustomer.priceType === 'wholesale' ? 'جملة' :
+                                                selectedCustomer.priceType === 'special' ? 'خاص' : 'قطاعي'}
+                                        </p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">حد الائتمان</Label>
+                                        <p className="font-bold">
+                                            {!selectedCustomer.creditLimit ? 'مفتوح ∞' : `${selectedCustomer.creditLimit.toLocaleString()} ج.م`}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">المديونية الحالية</Label>
+                                        <p className={`font-bold ${selectedCustomer.balance > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                            {(selectedCustomer.balance || 0).toLocaleString()} ج.م
+                                        </p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">الرصيد المتاح</Label>
+                                        <p className="font-bold text-emerald-500">
+                                            {(selectedCustomer.creditBalance || 0).toLocaleString()} ج.م
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {selectedCustomer.collectionDay && selectedCustomer.collectionDay !== 'None' && (
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">يوم التحصيل المفضل</Label>
+                                        <p className="font-bold">{selectedCustomer.collectionDay}</p>
+                                    </div>
+                                )}
+
+                                {selectedCustomer.notes && (
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">ملاحظات</Label>
+                                        <p className="text-sm p-3 bg-muted rounded-lg">{selectedCustomer.notes}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                </>
+            )}
         </div>
     );
 }

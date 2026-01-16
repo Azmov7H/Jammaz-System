@@ -42,12 +42,81 @@ export const CustomerService = {
 
     async create(data) {
         await dbConnect();
-        const existing = await Customer.findOne({ phone: data.phone });
+
+        // Extract opening balance data
+        const { openingBalance, openingBalanceType, ...customerData } = data;
+
+        const existing = await Customer.findOne({ phone: customerData.phone });
         if (existing) {
             throw 'رقم الهاتف مستخدم بالفعل لعميل آخر';
         }
 
-        const customer = await Customer.create(data);
+        // Initialize balance based on opening balance
+        let initialBalance = 0;
+        let initialCreditBalance = 0;
+
+        if (openingBalance && openingBalance > 0) {
+            if (openingBalanceType === 'debit') {
+                initialBalance = parseFloat(openingBalance);
+            } else {
+                initialCreditBalance = parseFloat(openingBalance);
+            }
+        }
+
+        const customer = await Customer.create({
+            ...customerData,
+            balance: initialBalance,
+            creditBalance: initialCreditBalance
+        });
+
+        // Handle Opening Balance Effects
+        if (openingBalance && openingBalance > 0) {
+            const AccountingEntry = (await import('@/models/AccountingEntry')).default;
+            const Debt = (await import('@/models/Debt')).default;
+
+            if (openingBalanceType === 'debit') {
+                // Customer owes us (Debit)
+                // 1. Create Debt Record
+                await Debt.create({
+                    debtorType: 'Customer',
+                    debtorId: customer._id,
+                    originalAmount: initialBalance,
+                    remainingAmount: initialBalance,
+                    status: 'active',
+                    dueDate: new Date(), // Immediate due for opening balance
+                    referenceType: 'Manual', // or specific type? Manual fits best here.
+                    referenceId: customer._id, // Linking to customer itself as text ref? actually refId needs ObjectId. Linking to self might be weird. Ideally we have an "OpeningBalance" refType.
+                    // Let's use Manual and refId as customerId for now, or maybe create a dummy ref? 
+                    // Validator says refType enum: 'Invoice', 'PurchaseOrder', 'Manual'
+                    // Manual is fine.
+                    description: 'رصيد افتتاحي (مديونية سابقة)'
+                });
+
+                // 2. Create Accounting Entry
+                await AccountingEntry.createEntry({
+                    type: 'ADJUSTMENT',
+                    debitAccount: 'Accounts Receivable', // Or specific Customer Account? Usually AR.
+                    creditAccount: 'Opening Balance Equity',
+                    amount: initialBalance,
+                    description: `رصيد افتتاحي للعميل: ${customer.name}`,
+                    refType: 'Manual',
+                    refId: customer._id
+                });
+
+            } else {
+                // We owe customer (Credit)
+                await AccountingEntry.createEntry({
+                    type: 'ADJUSTMENT',
+                    debitAccount: 'Opening Balance Equity',
+                    creditAccount: 'Accounts Payable', // technically Customer Deposits/Credit
+                    amount: initialCreditBalance,
+                    description: `رصيد افتتاحي دائن للعميل: ${customer.name}`,
+                    refType: 'Manual',
+                    refId: customer._id
+                });
+            }
+        }
+
         revalidateTag(CACHE_TAGS.CUSTOMERS);
         return customer;
     },
