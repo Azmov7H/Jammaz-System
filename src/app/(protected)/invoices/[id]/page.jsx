@@ -342,7 +342,17 @@ export default function InvoiceViewPage({ params }) {
                             <h1 className="text-3xl font-bold" style={{ color: primaryColor }}>{settings?.companyName || 'شركة الجماز'}</h1>
                             <p className="text-sm font-semibold opacity-80" style={{ color: primaryColor }}>للاستيراد والتصدير</p>
                             <p className="text-xs text-slate-500 mt-2">{settings?.address || 'القاهرة - العتبة - شارع العسيلي'}</p>
-                            <p className="text-xs text-slate-400">ت: {settings?.phone || '01000000000'}</p>
+                            <div className="text-xs text-slate-500 mt-2 space-y-1">
+                                {[settings?.phone, ...(settings?.additionalPhones || [])]
+                                    .filter(Boolean)
+                                    .map((phone, index) => (
+                                        <div key={index} className="flex items-center gap-1">
+                                            <span className="text-slate-400 w-4">ت:</span>
+                                            <span className="font-bold font-mono text-slate-600">{phone}</span>
+                                        </div>
+                                    ))
+                                }
+                            </div>
                         </div>
                     </div>
                     <div className="flex gap-4">

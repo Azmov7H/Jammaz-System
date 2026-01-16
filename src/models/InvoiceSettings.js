@@ -16,6 +16,10 @@ const InvoiceSettingsSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    additionalPhones: {
+        type: [String],
+        default: []
+    },
     address: {
         type: String,
         default: ''

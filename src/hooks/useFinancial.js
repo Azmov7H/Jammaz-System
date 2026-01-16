@@ -80,3 +80,14 @@ export function useCreateInstallments() {
         onError: (err) => toast.error(err.message || 'فشل جدولة المديونية')
     });
 }
+
+export function useReceivables(params = {}) {
+    return useQuery({
+        queryKey: ['receivables', params],
+        queryFn: async () => {
+            const searchParams = new URLSearchParams(params);
+            const res = await api.get(`/api/payments?${searchParams}`);
+            return res.data;
+        }
+    });
+}

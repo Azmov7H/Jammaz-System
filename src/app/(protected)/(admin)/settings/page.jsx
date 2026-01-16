@@ -31,7 +31,9 @@ import {
     Sparkles,
     TrendingUp,
     Zap,
-    AlertTriangle
+    AlertTriangle,
+    Plus,
+    Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/utils';
@@ -42,6 +44,7 @@ export default function SettingsPage() {
     const [invoiceSettings, setInvoiceSettings] = useState({
         companyName: '',
         phone: '',
+        additionalPhones: [],
         address: '',
         email: '',
         website: '',
@@ -177,16 +180,61 @@ export default function SettingsPage() {
                                         placeholder="اسم شركتك أو مخزنك"
                                     />
                                 </div>
-                                <div className="space-y-3">
+                                <div className="space-y-3 md:col-span-1">
                                     <Label className="text-sm font-bold flex items-center gap-2">
-                                        <Phone size={14} className="text-primary" /> الهاتف
+                                        <Phone size={14} className="text-primary" /> أرقام الهاتف
                                     </Label>
-                                    <Input
-                                        value={invoiceSettings.phone || ''}
-                                        onChange={e => setInvoiceSettings({ ...invoiceSettings, phone: e.target.value })}
-                                        className="h-11 bg-muted/30 border-muted-foreground/10 focus:border-primary/30 transition-all rounded-xl shadow-sm"
-                                        placeholder="+20 xxx xxx xxxx"
-                                    />
+                                    <div className="space-y-2">
+                                        {/* Primary Phone */}
+                                        <div className="relative">
+                                            <Input
+                                                value={invoiceSettings.phone || ''}
+                                                onChange={e => setInvoiceSettings({ ...invoiceSettings, phone: e.target.value })}
+                                                className="h-11 bg-muted/30 border-muted-foreground/10 focus:border-primary/30 transition-all rounded-xl shadow-sm pl-20"
+                                                placeholder="رقم الهاتف الأساسي"
+                                            />
+                                            <span className="absolute left-3 top-3 text-xs font-bold text-muted-foreground bg-muted/50 px-2 py-0.5 rounded">أساسي</span>
+                                        </div>
+
+                                        {/* Additional Phones */}
+                                        {invoiceSettings.additionalPhones?.map((phone, idx) => (
+                                            <div key={idx} className="flex gap-2 animate-in slide-in-from-top-2 duration-300">
+                                                <Input
+                                                    value={phone}
+                                                    onChange={e => {
+                                                        const newPhones = [...(invoiceSettings.additionalPhones || [])];
+                                                        newPhones[idx] = e.target.value;
+                                                        setInvoiceSettings({ ...invoiceSettings, additionalPhones: newPhones });
+                                                    }}
+                                                    className="h-11 bg-muted/30 border-muted-foreground/10 focus:border-primary/30 transition-all rounded-xl shadow-sm"
+                                                    placeholder="رقم إضافي..."
+                                                />
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => {
+                                                        const newPhones = invoiceSettings.additionalPhones.filter((_, i) => i !== idx);
+                                                        setInvoiceSettings({ ...invoiceSettings, additionalPhones: newPhones });
+                                                    }}
+                                                    className="h-11 w-11 rounded-xl text-red-500 hover:bg-red-50 hover:text-red-700"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </Button>
+                                            </div>
+                                        ))}
+
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setInvoiceSettings({
+                                                ...invoiceSettings,
+                                                additionalPhones: [...(invoiceSettings.additionalPhones || []), '']
+                                            })}
+                                            className="w-full h-10 border-dashed border-primary/30 text-primary hover:bg-primary/5 rounded-xl gap-2"
+                                        >
+                                            <Plus size={16} /> إضافة رقم آخر
+                                        </Button>
+                                    </div>
                                 </div>
                                 <div className="space-y-3">
                                     <Label className="text-sm font-bold flex items-center gap-2">
