@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Save, Printer, AlertTriangle, Loader2, Receipt, Banknote, Wallet, CreditCard, Calendar as CalendarIcon } from 'lucide-react';
+import { Save, Printer, AlertTriangle, Loader2, Receipt, Banknote, Wallet, CreditCard, Calendar as CalendarIcon, Store, Warehouse } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { cn } from '@/utils';
@@ -163,6 +163,9 @@ export default function NewInvoicePage() {
     const subtotal = items.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0);
     const customerCredit = selectedCustomer?.creditBalance || 0;
 
+    // Default Source State (for new items)
+    const [defaultSource, setDefaultSource] = useState('shop');
+
     return (
         <div className="space-y-8 animate-fade-in-up" dir="rtl">
             {/* Header */}
@@ -179,6 +182,34 @@ export default function NewInvoicePage() {
                         <h1 className="text-3xl font-black tracking-tight text-foreground">إنشاء فاتورة جديدة</h1>
                         <p className="text-muted-foreground font-medium mt-1">إصدار عملية بيع جديدة وتحديث المخزون تلقائياً</p>
                     </div>
+                </div>
+
+                {/* Global Source Toggle */}
+                <div className="flex bg-card border border-white/5 rounded-xl p-1 shadow-sm">
+                    <button
+                        onClick={() => setDefaultSource('shop')}
+                        className={cn(
+                            "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
+                            defaultSource === 'shop'
+                                ? "bg-emerald-500/10 text-emerald-500 shadow-sm"
+                                : "text-muted-foreground hover:bg-white/5"
+                        )}
+                    >
+                        <Store className="w-4 h-4" />
+                        بيع من المحل
+                    </button>
+                    <button
+                        onClick={() => setDefaultSource('warehouse')}
+                        className={cn(
+                            "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
+                            defaultSource === 'warehouse'
+                                ? "bg-blue-500/10 text-blue-500 shadow-sm"
+                                : "text-muted-foreground hover:bg-white/5"
+                        )}
+                    >
+                        <Warehouse className="w-4 h-4" />
+                        بيع من المخزن
+                    </button>
                 </div>
             </motion.div>
 
@@ -214,6 +245,7 @@ export default function NewInvoicePage() {
                     <InvoiceItemsManager
                         items={items}
                         setItems={setItems}
+                        defaultSource={defaultSource}
                         onReportShortage={(product) => setShortageDialog({ open: true, product })}
                     />
                 </motion.div>

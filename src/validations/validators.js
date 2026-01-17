@@ -97,7 +97,8 @@ export const invoiceSchema = z.object({
         productId: z.string(),
         qty: z.coerce.number().positive(),
         unitPrice: z.coerce.number().positive(),
-        name: z.string().optional()
+        name: z.string().optional(),
+        source: z.enum(['shop', 'warehouse']).default('shop')
     })).min(1, 'السلة فارغة'),
     customerId: z.string().optional().nullable(),
     customerName: z.string().optional(),
