@@ -11,11 +11,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/utils';
 import { toast } from 'sonner';
+import { ProductSelectorModal } from './ProductSelectorModal';
 
-export function InvoiceItemsManager({ items, setItems, onReportShortage }) {
+export function InvoiceItemsManager({ items, setItems, onReportShortage, defaultSource = 'shop' }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [showServiceDialog, setShowServiceDialog] = useState(false);
+    const [showProductModal, setShowProductModal] = useState(false);
     const [serviceForm, setServiceForm] = useState({
         name: '',
         costPrice: '',
@@ -50,11 +52,26 @@ export function InvoiceItemsManager({ items, setItems, onReportShortage }) {
     };
 
     const addItem = (product) => {
-        const stockToCheck = product.shopQty !== undefined ? product.shopQty : product.stockQty;
+        // Determine initial source based on global default
+        const source = defaultSource;
+        const stockToCheck = source === 'warehouse' ? (product.warehouseQty || 0) : (product.shopQty || 0);
 
         if (stockToCheck <= 0) {
-            onReportShortage(product);
-            return;
+            // Check if other source has stock to suggest it? 
+            // For now just report shortage if requested source is empty, or maybe let them add it but show warning.
+            // Existing logic enforced > 0. Let's keep strict for now but maybe we should allow adding with 0 if they want to force it?
+            // The prompt says "I requested inventory... charge only to store". 
+            // If I request warehouse and it has stock, it should work.
+            if (stockToCheck <= 0) {
+                const otherSource = source === 'shop' ? 'warehouse' : 'shop';
+                const otherStock = source === 'shop' ? product.warehouseQty : product.shopQty;
+
+                if (otherStock > 0) {
+                    toast.warning(`المنتج غير متوفر في ${source === 'shop' ? 'المحل' : 'المخزن'}، ولكن يوجد ${otherStock} في ${source === 'shop' ? 'المخزن' : 'المحل'}`);
+                }
+                onReportShortage(product);
+                return;
+            }
         }
 
         const existing = items.find(i => i.productId === product._id);
@@ -69,7 +86,7 @@ export function InvoiceItemsManager({ items, setItems, onReportShortage }) {
             code: product.code,
             unitPrice: product.retailPrice || product.sellPrice || 0,
             qty: 1,
-            source: 'shop', // Default to shop
+            source: source,
             shopQty: product.shopQty || 0,
             warehouseQty: product.warehouseQty || 0,
             maxQty: stockToCheck,
@@ -225,18 +242,41 @@ export function InvoiceItemsManager({ items, setItems, onReportShortage }) {
                 </div>
 
                 {/* Add Service Button */}
-                <div className="flex-shrink-0">
-                    <Label className="font-bold mb-2 block invisible">مساحة</Label>
-                    <Button
-                        onClick={() => setShowServiceDialog(true)}
-                        className="h-12 px-6 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 rounded-xl gap-2"
-                    >
-                        <Plus className="w-5 h-5" />
-                        <Wrench className="w-4 h-4" />
-                        <span className="font-bold">إضافة خدمة</span>
-                    </Button>
+                <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                        <Label className="font-bold mb-2 block invisible">مساحة</Label>
+                        <Button
+                            onClick={() => setShowProductModal(true)}
+                            className="h-12 w-full px-6 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl gap-2"
+                        >
+                            <Package className="w-5 h-5" />
+                            <span className="font-bold">تصفح المنتجات</span>
+                        </Button>
+                    </div>
+                    <div>
+                        <Label className="font-bold mb-2 block invisible">مساحة</Label>
+                        <Button
+                            onClick={() => setShowServiceDialog(true)}
+                            className="h-12 px-6 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 rounded-xl gap-2"
+                        >
+                            <Wrench className="w-4 h-4" />
+                            <span className="font-bold">خدمة</span>
+                        </Button>
+                    </div>
                 </div>
             </div>
+
+            <ProductSelectorModal
+                open={showProductModal}
+                onOpenChange={setShowProductModal}
+                onSelect={(product) => {
+                    addItem(product);
+                    toast.success(`تم إضافة ${product.name}`);
+                }}
+                defaultSource={defaultSource}
+            />
+
+            {/* Service Item Dialog */}
 
             {/* Service Item Dialog */}
             <Dialog open={showServiceDialog} onOpenChange={setShowServiceDialog}>
@@ -328,7 +368,12 @@ export function InvoiceItemsManager({ items, setItems, onReportShortage }) {
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.95 }}
-                                    className="glass-card p-4 rounded-xl border border-white/5 hover:bg-white/5 transition-all"
+                                    className={cn(
+                                        "glass-card p-4 rounded-xl border transition-all hover:bg-white/5",
+                                        item.isService ? "border-white/5" : item.source === 'warehouse'
+                                            ? "border-blue-500/30 text-blue-50 bg-blue-500/5"
+                                            : "border-emerald-500/30 text-emerald-50 bg-emerald-500/5"
+                                    )}
                                 >
                                     <div className="grid grid-cols-12 gap-4 items-center">
                                         {/* Product Info - 4 cols */}
@@ -343,12 +388,12 @@ export function InvoiceItemsManager({ items, setItems, onReportShortage }) {
                                                 )}
                                             </div>
                                             {!item.isService && (
-                                                <div className="flex gap-3 text-[10px] font-medium">
-                                                    <span className="text-emerald-500 flex items-center gap-1">
-                                                        <Store className="w-3 h-3" /> محل: {item.shopQty}
+                                                <div className="flex gap-3 text-[10px] font-medium opacity-80">
+                                                    <span className={item.source === 'shop' ? 'text-emerald-400 font-bold' : ''}>
+                                                        محل: {item.shopQty}
                                                     </span>
-                                                    <span className="text-blue-500 flex items-center gap-1">
-                                                        <Warehouse className="w-3 h-3" /> مخزن: {item.warehouseQty}
+                                                    <span className={item.source === 'warehouse' ? 'text-blue-400 font-bold' : ''}>
+                                                        مخزن: {item.warehouseQty}
                                                     </span>
                                                 </div>
                                             )}
@@ -361,19 +406,19 @@ export function InvoiceItemsManager({ items, setItems, onReportShortage }) {
                                                     value={item.source || 'shop'}
                                                     onValueChange={(val) => updateSource(idx, val)}
                                                 >
-                                                    <SelectTrigger className="h-10 bg-white/5 border-white/10 rounded-lg">
+                                                    <SelectTrigger className="h-10 bg-white/10 border-white/10 rounded-lg">
                                                         <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="shop">
-                                                            <div className="flex items-center gap-2">
-                                                                <Store className="w-4 h-4 text-emerald-500" />
+                                                            <div className="flex items-center gap-2 text-emerald-500">
+                                                                <Store className="w-4 h-4" />
                                                                 <span>محل</span>
                                                             </div>
                                                         </SelectItem>
                                                         <SelectItem value="warehouse">
-                                                            <div className="flex items-center gap-2">
-                                                                <Warehouse className="w-4 h-4 text-blue-500" />
+                                                            <div className="flex items-center gap-2 text-blue-500">
+                                                                <Warehouse className="w-4 h-4" />
                                                                 <span>مخزن</span>
                                                             </div>
                                                         </SelectItem>

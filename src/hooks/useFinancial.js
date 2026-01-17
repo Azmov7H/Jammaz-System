@@ -15,7 +15,7 @@ export function useTreasury() {
 export function useAddTransaction() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (data) => api.post('/api/financial/transactions', data),
+        mutationFn: (data) => api.post('/api/financial/transaction', data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['treasury'] });
             toast.success('تم تسجيل المعاملة بنجاح');
