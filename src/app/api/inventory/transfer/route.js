@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
-import { InventoryService } from '@/services/inventoryService';
+import { StockService } from '@/services/stockService';
 import { getCurrentUser } from '@/lib/auth';
 
 // Force Update Comment - Fixed duplicates
@@ -24,7 +24,7 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Invalid transfer direction' }, { status: 400 });
         }
 
-        const result = await InventoryService.moveStock({
+        const result = await StockService.moveStock({
             productId,
             qty: quantity,
             type,

@@ -5,8 +5,8 @@ import StockMovement from '@/models/StockMovement';
 import Customer from '@/models/Customer';
 import Supplier from '@/models/Supplier';
 import PurchaseOrder from '@/models/PurchaseOrder';
-import AccountingEntry from '@/models/AccountingEntry';
-import { AccountingService } from '@/services/accountingService';
+import TreasuryTransaction from '@/models/TreasuryTransaction';
+import { TreasuryService } from '@/services/treasuryService';
 import { startOfDay, startOfMonth, startOfWeek, endOfDay, subMonths } from 'date-fns';
 
 export const DashboardService = {
@@ -53,21 +53,21 @@ export const DashboardService = {
                     }
                 }
             ]),
-            // Today Expenses
-            AccountingEntry.aggregate([
-                { $match: { type: 'EXPENSE', date: { $gte: todayStart, $lte: todayEnd } } },
+            // Today Operating Expenses (Manual Only)
+            TreasuryTransaction.aggregate([
+                { $match: { type: 'EXPENSE', referenceType: 'Manual', date: { $gte: todayStart, $lte: todayEnd } } },
                 { $group: { _id: null, total: { $sum: "$amount" } } }
             ]),
-            // Month Expenses
-            AccountingEntry.aggregate([
-                { $match: { type: 'EXPENSE', date: { $gte: monthStart } } },
+            // Month Operating Expenses (Manual Only)
+            TreasuryTransaction.aggregate([
+                { $match: { type: 'EXPENSE', referenceType: 'Manual', date: { $gte: monthStart } } },
                 { $group: { _id: null, total: { $sum: "$amount" } } }
             ]),
             // Financials (Receivables & Payables & Cash)
             Promise.all([
                 Customer.aggregate([{ $match: { balance: { $ne: 0 } } }, { $group: { _id: null, total: { $sum: "$balance" } } }]),
                 Supplier.aggregate([{ $match: { balance: { $ne: 0 } } }, { $group: { _id: null, total: { $sum: "$balance" } } }]),
-                AccountingService.getLedger('الخزينة / النقدية')
+                TreasuryService.getCurrentBalance()
             ]),
             // Inventory Stats
             Product.aggregate([
@@ -94,7 +94,7 @@ export const DashboardService = {
         const mExp = monthExpenses[0]?.total || 0;
         const invStats = inventoryStats[0] || { totalStockValue: 0, lowStockCount: 0, outOfStockCount: 0 };
 
-        const [receivablesRes, payablesRes, cashLedger] = financials;
+        const [receivablesRes, payablesRes, cashBalance] = financials;
         const totalReceivables = receivablesRes[0]?.total || 0;
         const totalPayables = payablesRes[0]?.total || 0;
 
@@ -110,7 +110,7 @@ export const DashboardService = {
                 todayGrossProfit: tStats.grossProfit || 0,
                 todayExpenses: tExp,
                 todayInvoices: tStats.count,
-                cashBalance: cashLedger.finalBalance || 0,
+                cashBalance: cashBalance || 0,
                 totalStockValue: invStats.totalStockValue,
                 lowStockCount: invStats.lowStockCount,
                 outOfStockCount: invStats.outOfStockCount,
@@ -243,6 +243,20 @@ export const DashboardService = {
                 bundleCount: bundleSuggestions.length,
                 abcReady: true
             }
+        };
+    },
+
+    async getUnifiedData() {
+        const [kpiData, statsData, strategyData] = await Promise.all([
+            this.getKPIs(),
+            this.getStats(),
+            this.getStrategy()
+        ]);
+
+        return {
+            ...kpiData,
+            ...statsData,
+            strategy: strategyData
         };
     }
 };

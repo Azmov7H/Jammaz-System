@@ -1,6 +1,6 @@
 'use client';
 
-import { Calendar, User, Trash2, Receipt, Wallet, Banknote, CreditCard, ArrowRight } from 'lucide-react';
+import { Calendar, User, Trash2, Receipt, Wallet, Banknote, CreditCard, ArrowRight, ArrowRightLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/utils';
@@ -62,6 +62,12 @@ export function InvoiceListItem({ invoice, onDelete }) {
                                         </div>
                                     )}
                                 </Badge>
+                                {invoice.hasReturns && (
+                                    <Badge variant="outline" className="px-3 py-0.5 rounded-full font-black text-[10px] uppercase tracking-widest border-2 bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse">
+                                        <ArrowRightLeft className="w-3 h-3 ml-1" />
+                                        <span>بها مرتجع</span>
+                                    </Badge>
+                                )}
                             </div>
                         </div>
                     </div>

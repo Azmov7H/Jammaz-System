@@ -94,10 +94,11 @@ export const supplierSchema = z.object({
 
 export const invoiceSchema = z.object({
     items: z.array(z.object({
-        productId: z.string(),
+        productId: z.string().nullable().optional(),
         qty: z.coerce.number().positive(),
         unitPrice: z.coerce.number().positive(),
         name: z.string().optional(),
+        isService: z.boolean().optional(),
         source: z.enum(['shop', 'warehouse']).default('shop')
     })).min(1, 'السلة فارغة'),
     customerId: z.string().optional().nullable(),
@@ -114,17 +115,18 @@ export const purchaseOrderSchema = z.object({
     supplierId: z.string().optional().nullable(),
     items: z.array(z.object({
         productId: z.string(),
-        quantity: z.coerce.number().positive(), // quantity in code, qty in stock. standardize to quantity for PO
+        quantity: z.coerce.number().positive(),
         costPrice: z.coerce.number().positive()
     })).min(1, 'قائمة الأصناف فارغة'),
     notes: z.string().optional(),
-    expectedDate: z.string().optional().nullable()
+    expectedDate: z.string().optional().nullable(),
+    paymentType: z.enum(['cash', 'bank', 'bank_transfer', 'credit', 'wallet', 'cash_wallet']).default('cash')
 });
 
 export const poReceiveSchema = z.object({
     id: z.string(),
     status: z.literal('RECEIVED'),
-    paymentType: z.enum(['cash', 'bank', 'deferred']).default('cash')
+    paymentType: z.enum(['cash', 'bank', 'bank_transfer', 'credit', 'wallet', 'cash_wallet']).default('cash')
 });
 
 export const expenseSchema = z.object({

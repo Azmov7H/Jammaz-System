@@ -19,9 +19,9 @@ export default function ShortageReportsPage() {
     const fetchReports = async () => {
         try {
             const res = await fetch('/api/reports/shortage');
-            const data = await res.json();
-            if (res.ok) {
-                setReports(data.reports || []);
+            const json = await res.json();
+            if (res.ok && json.success) {
+                setReports(json.data.reports || []);
             }
         } catch (error) {
             console.error(error);

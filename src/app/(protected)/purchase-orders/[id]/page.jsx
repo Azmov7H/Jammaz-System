@@ -83,7 +83,11 @@ export default function PurchaseOrderInvoice() {
                                     <p>
                                         <strong>طريقة الدفع:</strong>
                                         <Badge variant="outline" className="mr-2">
-                                            {po.paymentType === 'cash' ? 'نقدي' : po.paymentType === 'bank' ? 'تحويل بنكي' : 'آجل'}
+                                            {
+                                                po.paymentType === 'cash' ? 'نقدي' :
+                                                    po.paymentType === 'bank' ? 'تحويل بنكي' :
+                                                        po.paymentType === 'wallet' ? 'محفظة كاش' : 'آجل'
+                                            }
                                         </Badge>
                                     </p>
                                 )}
@@ -199,20 +203,28 @@ export default function PurchaseOrderInvoice() {
                                     تحويل بنكي
                                 </Button>
                                 <Button
-                                    variant={paymentType === 'credit' ? 'default' : 'outline'}
                                     onClick={() => setPaymentType('credit')}
                                     className="flex-1"
                                 >
                                     آجل (ذمم موردين)
+                                </Button>
+                                <Button
+                                    variant={paymentType === 'wallet' ? 'default' : 'outline'}
+                                    onClick={() => setPaymentType('wallet')}
+                                    className="flex-1"
+                                >
+                                    محفظة كاش
                                 </Button>
                             </div>
                         </div>
                         <div className="bg-slate-50 p-3 rounded text-sm text-slate-600">
                             {paymentType === 'cash'
                                 ? 'سيتم خصم المبلغ من الخزينة وتسجيل قيد مصروفات.'
-                                : paymentType === 'bank'
-                                    ? 'سيتم تسجيل العملية بنكياً ولن تخصم من الخزينة.'
-                                    : 'سيتم إضافة المبلغ لرصيد المورد وتسجيل قيد مستحقات.'}
+                                : paymentType === 'wallet'
+                                    ? 'سيتم خصم المبلغ من المحفظة وتسجيل قيد مصروفات.'
+                                    : paymentType === 'bank'
+                                        ? 'سيتم تسجيل العملية بنكياً.'
+                                        : 'سيتم إضافة المبلغ لرصيد المورد وتسجيل قيد مستحقات.'}
                         </div>
                     </div>
                     <DialogFooter>

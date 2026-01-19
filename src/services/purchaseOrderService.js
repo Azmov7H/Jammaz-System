@@ -8,7 +8,7 @@ export const PurchaseOrderService = {
     async create(data, userId) {
         await dbConnect();
 
-        const { supplierId, items, notes } = data;
+        const { supplierId, items, notes, paymentType = 'cash' } = data;
         let { expectedDate } = data;
 
         if (!expectedDate) {
@@ -35,6 +35,7 @@ export const PurchaseOrderService = {
             totalCost,
             expectedDate,
             notes,
+            paymentType,
             createdBy: userId
         });
 
@@ -76,19 +77,22 @@ export const PurchaseOrderService = {
             .lean();
     },
 
-    async updateStatus(id, { status, paymentType = 'cash' }, userId) {
+    async updateStatus(id, { status, paymentType }, userId) {
         await dbConnect();
         const purchaseOrder = await PurchaseOrder.findById(id).populate('items.productId');
 
         if (!purchaseOrder) throw 'أمر الشراء غير موجود';
 
+        const finalPaymentType = paymentType || purchaseOrder.paymentType || 'cash';
+
         // If marking as RECEIVED, execute finance business logic
         if (status === 'RECEIVED' && purchaseOrder.status !== 'RECEIVED') {
             // Use the already imported FinanceService
-            await FinanceService.recordPurchaseReceive(purchaseOrder, userId, paymentType);
+            await FinanceService.recordPurchaseReceive(purchaseOrder, userId, finalPaymentType);
 
             // Update the PO status after successful finance operation
             purchaseOrder.status = 'RECEIVED';
+            purchaseOrder.paymentType = finalPaymentType;
             await purchaseOrder.save();
 
             return await this.getById(id);

@@ -20,12 +20,14 @@ import { KPICard } from '@/components/dashboard/KPICard';
 import { SupplierFormDialog } from '@/components/suppliers/SupplierFormDialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { SupplierDebtManager } from '@/components/suppliers/SupplierDebtManager';
 
 export default function SuppliersPage() {
     const router = useRouter();
     const [search, setSearch] = useState('');
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
+    const [isDebtOpen, setIsDebtOpen] = useState(false);
     const [selectedSupplier, setSelectedSupplier] = useState(null);
 
     const { data: queryData, isLoading, addMutation, updateMutation, deleteMutation } = useSuppliers({ search });
@@ -212,6 +214,15 @@ export default function SuppliersPage() {
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
+                                                className="h-10 w-10 rounded-xl hover:bg-emerald-500/10 text-emerald-500 transition-all"
+                                                onClick={() => { setSelectedSupplier(supplier); setIsDebtOpen(true); }}
+                                                title="إدارة الديون"
+                                            >
+                                                <Wallet size={16} />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
                                                 className="h-10 w-10 rounded-xl hover:bg-blue-500/10 text-blue-500 transition-all"
                                                 onClick={() => router.push(`/purchase-orders?supplierId=${supplier._id}`)}
                                                 title="سجل المشتريات"
@@ -249,6 +260,11 @@ export default function SuppliersPage() {
                 initialData={selectedSupplier}
                 onSubmit={handleFormSubmit}
                 isPending={addMutation.isPending || updateMutation.isPending}
+            />
+            <SupplierDebtManager
+                open={isDebtOpen}
+                supplier={selectedSupplier}
+                onOpenChange={setIsDebtOpen}
             />
         </div>
     );

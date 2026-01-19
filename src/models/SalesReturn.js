@@ -9,10 +9,11 @@ const SalesReturnSchema = new mongoose.Schema({
 
     // Returned Items
     items: [{
-        productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
-        qty: { type: Number, required: true }, // Quantity returned
-        unitPrice: { type: Number, required: true }, // Price from original invoice
-        refundAmount: { type: Number, required: true }, // qty * unitPrice
+        productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+        productName: { type: String, required: true },
+        qty: { type: Number, required: true },
+        unitPrice: { type: Number, required: true },
+        refundAmount: { type: Number, required: true },
         reason: String
     }],
 
@@ -47,4 +48,7 @@ const SalesReturnSchema = new mongoose.Schema({
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
-export default mongoose.models.SalesReturn || mongoose.model('SalesReturn', SalesReturnSchema);
+if (mongoose.models.SalesReturn) {
+    delete mongoose.models.SalesReturn;
+}
+export default mongoose.model('SalesReturn', SalesReturnSchema);

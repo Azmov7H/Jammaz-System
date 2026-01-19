@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useTreasury, useAddTransaction } from '@/hooks/useFinancial';
+import { useTreasury, useAddTransaction, useDeleteTransaction } from '@/hooks/useFinancial';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -9,14 +9,50 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowUpCircle, ArrowDownCircle, Wallet, Plus, Minus, Loader2 } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Wallet, Plus, Minus, Loader2, Trash2 } from 'lucide-react';
+import { format } from 'date-fns';
+import { ar } from 'date-fns/locale';
 
 export default function FinancialPage() {
-    const { data, isLoading } = useTreasury();
+    const [period, setPeriod] = useState('TODAY'); // TODAY, MONTH, YEAR, CUSTOM
+    const [typeFilter, setTypeFilter] = useState('ALL'); // ALL, INCOME, EXPENSE
+    const [customDates, setCustomDates] = useState({
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0]
+    });
+
+    const { data, isLoading } = useTreasury(getDateRange());
     const { mutate: addTransaction, isPending } = useAddTransaction();
+    const { mutate: deleteTransaction, isPending: isDeleting } = useDeleteTransaction();
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [formData, setFormData] = useState({ amount: '', description: '', type: 'INCOME' });
+
+    // Calculate actual dates based on period
+    function getDateRange() {
+        const end = new Date();
+        const start = new Date();
+
+        if (period === 'TODAY') {
+            start.setHours(0, 0, 0, 0);
+        } else if (period === 'MONTH') {
+            start.setDate(1);
+            start.setHours(0, 0, 0, 0);
+        } else if (period === 'YEAR') {
+            start.setMonth(0, 1);
+            start.setHours(0, 0, 0, 0);
+        } else if (period === 'CUSTOM') {
+            return {
+                startDate: customDates.startDate,
+                endDate: customDates.endDate
+            };
+        }
+
+        return {
+            startDate: start.toISOString().split('T')[0],
+            endDate: end.toISOString().split('T')[0]
+        };
+    }
 
     const handleSubmit = () => {
         if (!formData.amount || !formData.description) return;
@@ -28,6 +64,12 @@ export default function FinancialPage() {
         });
     };
 
+    const handleDelete = (id) => {
+        if (window.confirm('هل أنت متأكد من التراجع عن هذه المعاملة؟')) {
+            deleteTransaction(id);
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="flex justify-center py-20">
@@ -37,47 +79,151 @@ export default function FinancialPage() {
     }
 
     const balance = data?.balance || 0;
-    const transactions = data?.transactions || [];
+    const allTransactions = data?.transactions || [];
+
+    // Client-side filtering
+    const filteredTransactions = allTransactions.filter(tx =>
+        typeFilter === 'ALL' || tx.type === typeFilter
+    );
+
+    const periodStats = {
+        income: data?.totalIncome || 0,
+        expense: data?.totalExpense || 0,
+        net: data?.periodBalance || 0
+    };
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-2">
-                <Wallet className="w-6 h-6 md:w-8 md:h-8 text-primary" />
-                <h1 className="text-2xl md:text-3xl font-bold text-foreground">الخزينة (النظام المالي)</h1>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                    <Wallet className="w-6 h-6 md:w-8 md:h-8 text-primary" />
+                    <h1 className="text-2xl md:text-3xl font-bold text-foreground">الخزينة (النظام المالي)</h1>
+                </div>
+
+                {/* Period Filter */}
+                <div className="flex flex-wrap items-center gap-2 bg-muted p-1 rounded-lg">
+                    <Button
+                        variant={period === 'TODAY' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setPeriod('TODAY')}
+                        className="text-xs h-8"
+                    >اليوم</Button>
+                    <Button
+                        variant={period === 'MONTH' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setPeriod('MONTH')}
+                        className="text-xs h-8"
+                    >هذا الشهر</Button>
+                    <Button
+                        variant={period === 'YEAR' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setPeriod('YEAR')}
+                        className="text-xs h-8"
+                    >هذه السنة</Button>
+                    <Button
+                        variant={period === 'CUSTOM' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setPeriod('CUSTOM')}
+                        className="text-xs h-8"
+                    >مخصص</Button>
+                </div>
             </div>
 
-            {/* Balance and Action Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-                {/* Balance Card */}
-                <Card className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground border-none shadow-lg">
+            {/* Custom Date Range Picker (Visible only if filter is CUSTOM) */}
+            {period === 'CUSTOM' && (
+                <Card className="p-4 bg-muted/30 border-dashed">
+                    <div className="flex flex-wrap items-end gap-4">
+                        <div className="space-y-1">
+                            <Label className="text-xs">من تاريخ</Label>
+                            <Input
+                                type="date"
+                                className="h-9 w-40"
+                                value={customDates.startDate}
+                                onChange={e => setCustomDates({ ...customDates, startDate: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-xs">إلى تاريخ</Label>
+                            <Input
+                                type="date"
+                                className="h-9 w-40"
+                                value={customDates.endDate}
+                                onChange={e => setCustomDates({ ...customDates, endDate: e.target.value })}
+                            />
+                        </div>
+                    </div>
+                </Card>
+            )}
+
+            {/* Balance and Period Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {/* Total Balance Card */}
+                <Card className="bg-primary text-primary-foreground border-none shadow-md">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-base md:text-lg opacity-90">الرصيد الحالي</CardTitle>
+                        <CardTitle className="text-sm opacity-90">الرصيد الكلي</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl md:text-4xl font-bold">{balance.toLocaleString()} ج.م</div>
-                        <p className="text-xs md:text-sm opacity-70 mt-2">النقدية المتاحة في الخزينة</p>
+                        <div className="text-2xl font-bold">{balance.toLocaleString()} ج.م</div>
                     </CardContent>
                 </Card>
 
-                {/* Action Buttons */}
-                <div className="col-span-1 md:col-span-2 grid grid-cols-2 gap-4">
+                {/* Period Income */}
+                <Card className="border-none shadow-sm bg-green-50 dark:bg-green-950/20">
+                    <CardHeader className="pb-1 pt-4 px-4">
+                        <CardTitle className="text-xs text-green-600 dark:text-green-400">إيرادات الفترة</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-4">
+                        <div className="text-xl font-bold text-green-700 dark:text-green-400">
+                            +{periodStats.income.toLocaleString()}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Period Expense */}
+                <Card className="border-none shadow-sm bg-red-50 dark:bg-red-950/20">
+                    <CardHeader className="pb-1 pt-4 px-4">
+                        <CardTitle className="text-xs text-red-600 dark:text-red-400">مصروفات الفترة</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-4">
+                        <div className="text-xl font-bold text-red-700 dark:text-red-400">
+                            -{periodStats.expense.toLocaleString()}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Period Net */}
+                <Card className="border-none shadow-sm bg-blue-50 dark:bg-blue-950/20">
+                    <CardHeader className="pb-1 pt-4 px-4">
+                        <CardTitle className="text-xs text-blue-600 dark:text-blue-400">صافي الفترة</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-4">
+                        <div className={`text-xl font-bold ${periodStats.net >= 0 ? 'text-blue-700 dark:text-blue-400' : 'text-red-700 dark:text-red-400'}`}>
+                            {periodStats.net.toLocaleString()}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Action Buttons and Table */}
+            <div className="grid grid-cols-1 gap-6">
+                <div className="flex gap-4">
                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                         <DialogTrigger asChild>
                             <Button
-                                className="h-full min-h-[120px] flex-col gap-2 bg-green-600 hover:bg-green-700 text-white"
+                                className="flex-1 gap-2 bg-green-600 hover:bg-green-700 text-white"
                                 onClick={() => setFormData({ ...formData, type: 'INCOME' })}
                             >
-                                <Plus size={24} />
-                                <span className="text-sm md:text-base">إضافة رصيد / إيداع</span>
+                                <Plus size={18} />
+                                <span>إيداع / وارد</span>
                             </Button>
                         </DialogTrigger>
                         <DialogTrigger asChild>
                             <Button
-                                className="h-full min-h-[120px] flex-col gap-2 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                                className="flex-1 gap-2 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
                                 onClick={() => setFormData({ ...formData, type: 'EXPENSE' })}
                             >
-                                <Minus size={24} />
-                                <span className="text-sm md:text-base">تسجيل مصروفات</span>
+                                <Minus size={18} />
+                                <span>مصروف / صادر</span>
                             </Button>
                         </DialogTrigger>
                         <DialogContent dir="rtl">
@@ -117,75 +263,99 @@ export default function FinancialPage() {
                         </DialogContent>
                     </Dialog>
                 </div>
-            </div>
 
-            {/* Transactions History */}
-            <Card className="border shadow-sm">
-                <CardHeader className="border-b">
-                    <CardTitle className="text-lg md:text-xl">سجل المعاملات الأخيرة</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                    <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="text-right">نوع المعاملة</TableHead>
-                                    <TableHead className="text-right">المبلغ</TableHead>
-                                    <TableHead className="text-right hidden md:table-cell">الوصف</TableHead>
-                                    <TableHead className="text-right hidden lg:table-cell">التاريخ</TableHead>
-                                    <TableHead className="text-right hidden lg:table-cell">بواسطة</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {transactions.length === 0 ? (
+                {/* Transactions History */}
+                <Card className="border shadow-sm">
+                    <CardHeader className="border-b py-3 md:py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                        <CardTitle className="text-lg md:text-xl">سجل المعاملات ({filteredTransactions.length})</CardTitle>
+
+                        {/* Type Filter */}
+                        <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
+                            <Button
+                                variant={typeFilter === 'ALL' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setTypeFilter('ALL')}
+                                className="text-xs h-7 px-3"
+                            >الكل</Button>
+                            <Button
+                                variant={typeFilter === 'INCOME' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setTypeFilter('INCOME')}
+                                className="text-xs h-7 px-3 text-green-600"
+                            >وارد</Button>
+                            <Button
+                                variant={typeFilter === 'EXPENSE' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setTypeFilter('EXPENSE')}
+                                className="text-xs h-7 px-3 text-red-600"
+                            >صادر</Button>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                            لا توجد معاملات مسجلة
-                                        </TableCell>
+                                        <TableHead className="text-right">نوع المعاملة</TableHead>
+                                        <TableHead className="text-right">المبلغ</TableHead>
+                                        <TableHead className="text-right hidden md:table-cell">الوصف</TableHead>
+                                        <TableHead className="text-right hidden lg:table-cell">التاريخ</TableHead>
+                                        <TableHead className="text-right">الإجراءات</TableHead>
                                     </TableRow>
-                                ) : (
-                                    transactions.map((tx) => (
-                                        <TableRow key={tx._id}>
-                                            <TableCell>
-                                                <Badge variant={tx.type === 'INCOME' ? 'default' : 'destructive'} className="gap-1">
-                                                    {tx.type === 'INCOME' ? (
-                                                        <>
-                                                            <ArrowDownCircle size={14} />
-                                                            وارد
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <ArrowUpCircle size={14} />
-                                                            صادر
-                                                        </>
-                                                    )}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="font-bold text-base md:text-lg">
-                                                {tx.amount.toLocaleString()} ج.م
-                                            </TableCell>
-                                            <TableCell className="hidden md:table-cell">
-                                                <div className="flex flex-col">
-                                                    <span>{tx.description}</span>
-                                                    <Badge variant="outline" className="text-[10px] w-fit mt-1">
-                                                        {tx.referenceType}
-                                                    </Badge>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="text-muted-foreground font-mono text-sm hidden lg:table-cell">
-                                                {new Date(tx.createdAt).toLocaleString('ar-SA')}
-                                            </TableCell>
-                                            <TableCell className="text-sm text-muted-foreground hidden lg:table-cell">
-                                                {tx.createdBy?.name || 'النظام'}
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredTransactions.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                                لا توجد معاملات مسجلة في هذه الفترة للفلتر المختار
                                             </TableCell>
                                         </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
+                                    ) : (
+                                        filteredTransactions.map((tx) => (
+                                            <TableRow key={tx._id}>
+                                                <TableCell>
+                                                    <Badge variant={tx.type === 'INCOME' ? 'default' : 'destructive'} className="gap-1 min-w-[70px] justify-center">
+                                                        {tx.type === 'INCOME' ? 'وارد' : 'صادر'}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className={`font-bold text-base ${tx.type === 'INCOME' ? 'text-green-600' : 'text-red-600'}`}>
+                                                    {tx.amount.toLocaleString()} ج.م
+                                                </TableCell>
+                                                <TableCell className="hidden md:table-cell">
+                                                    <div className="flex flex-col">
+                                                        <span>{tx.description}</span>
+                                                        <Badge variant="outline" className="text-[10px] w-fit mt-1 opacity-70">
+                                                            {tx.referenceType === 'Manual' ? 'يدوي' :
+                                                                tx.referenceType === 'Invoice' ? 'فاتورة' :
+                                                                    tx.referenceType === 'PurchaseOrder' ? 'أمر شراء' : tx.referenceType}
+                                                        </Badge>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground font-mono text-xs hidden lg:table-cell">
+                                                    {format(new Date(tx.date || tx.createdAt), 'dd/MM/yyyy HH:mm', { locale: ar })}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {tx.referenceType === 'Manual' && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="text-muted-foreground hover:text-destructive h-8 w-8"
+                                                            onClick={() => handleDelete(tx._id)}
+                                                            disabled={isDeleting}
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </Button>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 }

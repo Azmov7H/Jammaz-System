@@ -38,9 +38,11 @@ export default function SalesReportPage() {
 
                 const query = `startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
                 const res = await fetch(`/api/reports/sales?${query}`);
-                const data = await res.json();
+                const json = await res.json();
 
-                setStats(data);
+                if (json.success) {
+                    setStats(json.data);
+                }
             } catch (e) {
                 console.error(e);
             } finally {
@@ -61,24 +63,24 @@ export default function SalesReportPage() {
     const formatCurrency = (val) => Number(val || 0).toLocaleString() + ' ج.م';
 
     // Calculate aggregated cash/credit from breakdown
-    const totalCash = stats.dailyBreakdown?.reduce((sum, day) => sum + (day.cashReceived || 0), 0) || 0;
-    const totalCredit = stats.dailyBreakdown?.reduce((sum, day) => sum + (day.creditSales || 0), 0) || 0;
+    const totalCash = stats?.dailyBreakdown?.reduce((sum, day) => sum + (day.cashReceived || 0), 0) || 0;
+    const totalCredit = stats?.dailyBreakdown?.reduce((sum, day) => sum + (day.creditSales || 0), 0) || 0;
 
     // Prepare chart data
     const chartData = {
-        labels: stats.dailyBreakdown.map(d =>
+        labels: (stats?.dailyBreakdown || []).map(d =>
             new Date(d.date).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' })
         ).reverse(),
         datasets: [
             {
                 label: 'المبيعات',
-                data: stats.dailyBreakdown.map(d => d.totalRevenue).reverse(),
+                data: (stats?.dailyBreakdown || []).map(d => d.totalRevenue || 0).reverse(),
                 backgroundColor: 'hsl(var(--primary))',
                 borderRadius: 4,
             },
             {
                 label: 'الأرباح',
-                data: stats.dailyBreakdown.map(d => d.grossProfit).reverse(),
+                data: (stats?.dailyBreakdown || []).map(d => d.grossProfit || 0).reverse(),
                 backgroundColor: '#16a34a',
                 borderRadius: 4,
             }

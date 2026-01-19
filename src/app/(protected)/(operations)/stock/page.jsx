@@ -30,6 +30,63 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { useStockMovements, useAddStockMovement } from '@/hooks/useStock';
 import { cn } from '@/utils';
 import { StockMovementDialog } from '@/components/stock/StockMovementDialog';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+} from 'chart.js';
+import { Line, Bar } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
+
+const StockActionCard = ({ title, description, icon: Icon, onClick, color, delay }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay }}
+    whileHover={{ y: -5, scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    onClick={onClick}
+    className={cn(
+      "glass-card p-6 rounded-[2rem] border border-white/10 cursor-pointer overflow-hidden relative group",
+      "hover:border-primary/50 transition-colors shadow-xl"
+    )}
+  >
+    <div className={cn("absolute inset-0 bg-gradient-to-br opacity-5 group-hover:opacity-10 transition-opacity", color)} />
+    <div className="flex items-start justify-between relative z-10">
+      <div className="space-y-2">
+        <h3 className="text-xl font-black">{title}</h3>
+        <p className="text-sm text-muted-foreground font-medium leading-tight max-w-[180px]">
+          {description}
+        </p>
+      </div>
+      <div className={cn("p-4 rounded-2xl bg-white/5 border border-white/10 text-primary shadow-inner", color.replace('from-', 'text-'))}>
+        <Icon size={24} />
+      </div>
+    </div>
+    <div className="mt-6 flex items-center text-xs font-black text-primary gap-1 group-hover:translate-x-1 transition-transform">
+      تنفيذ العملية <ArrowLeftRight size={12} className="rotate-90" />
+    </div>
+  </motion.div>
+);
+
 
 export default function StockPage() {
   const { role } = useUserRole();
@@ -55,6 +112,49 @@ export default function StockPage() {
       in: movements.filter(m => m.type === 'IN').reduce((acc, m) => acc + m.qty, 0),
       out: movements.filter(m => ['OUT', 'SALE'].includes(m.type)).reduce((acc, m) => acc + m.qty, 0),
       transfers: movements.filter(m => m.type.includes('TRANSFER')).length
+    };
+  }, [movements]);
+
+  // Chart Data Logic
+  const chartData = useMemo(() => {
+    const last7Days = [...Array(7)].map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      return d.toISOString().split('T')[0];
+    }).reverse();
+
+    const dataIn = last7Days.map(date => {
+      return movements
+        .filter(m => m.type === 'IN' && m.date.split('T')[0] === date)
+        .reduce((sum, m) => sum + m.qty, 0);
+    });
+
+    const dataOut = last7Days.map(date => {
+      return movements
+        .filter(m => ['OUT', 'SALE'].includes(m.type) && m.date.split('T')[0] === date)
+        .reduce((sum, m) => sum + m.qty, 0);
+    });
+
+    return {
+      labels: last7Days.map(d => new Date(d).toLocaleDateString('ar-EG', { weekday: 'short', day: 'numeric' })),
+      datasets: [
+        {
+          label: 'وارد',
+          data: dataIn,
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          fill: true,
+          tension: 0.4,
+        },
+        {
+          label: 'صادر',
+          data: dataOut,
+          borderColor: '#f43f5e',
+          backgroundColor: 'rgba(244, 63, 94, 0.1)',
+          fill: true,
+          tension: 0.4,
+        }
+      ]
     };
   }, [movements]);
 
@@ -103,86 +203,137 @@ export default function StockPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f172a]/20 space-y-8 p-1 md:p-6" dir="rtl">
-      {/* Header & Stats Overview */}
-      <div className="space-y-8">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-          >
-            <h1 className="text-5xl font-black tracking-tighter flex items-center gap-4">
-              <span className="bg-gradient-to-r from-primary via-blue-400 to-primary bg-clip-text text-transparent animate-gradient-x">حركة المخزون</span>
-              <div className="p-2 bg-primary/10 rounded-2xl border border-primary/20 shadow-lg shadow-primary/5">
-                <History className="w-8 h-8 text-primary animate-spin-slow" />
-              </div>
+    <div className="min-h-screen bg-[#0f172a]/20 space-y-8 p-4 md:p-8" dir="rtl">
+      {/* Dynamic Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="space-y-4"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20 shadow-lg shadow-primary/5">
+              <History className="w-8 h-8 text-primary animate-spin-slow" />
+            </div>
+            <h1 className="text-4xl md:text-5xl font-black tracking-tighter bg-gradient-to-r from-primary via-blue-400 to-primary bg-clip-text text-transparent animate-gradient-x">
+              لوحة تحكم المخزون
             </h1>
-            <p className="text-muted-foreground mt-3 font-bold text-lg max-w-lg leading-relaxed">
-              تتبع وإدارة تدفق المنتجات بين المستودعات والمحلات بدقة فائقة وتصميم عصري.
-            </p>
-          </motion.div>
+          </div>
+          <p className="text-muted-foreground font-bold text-lg max-w-2xl leading-relaxed">
+            مرحباً بك في مركز العمليات. هنا يمكنك مراقبة حركة الأصناف وتنفيذ التحويلات بين الفروع والمستودعات بدقة متناهية.
+          </p>
+        </motion.div>
 
-          {canManage && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Button
-                onClick={() => setIsDialogOpen(true)}
-                className="gradient-primary border-0 h-16 px-10 rounded-3xl font-black text-xl shadow-[0_20px_40px_rgba(var(--primary),0.3)] hover-lift flex items-center gap-3 relative overflow-hidden group"
-              >
-                <Plus className="w-6 h-6 animate-bounce" />
-                <span>تسجيل حركة يدوية</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg] translate-x-[-150%] group-hover:translate-x-[150%] transition-transform duration-700 ease-in-out"></div>
-              </Button>
-            </motion.div>
-          )}
+        {/* Real-time Clock / Metadata */}
+        <div className="hidden xl:flex items-center gap-6 glass-card px-8 py-4 rounded-[2rem] border border-white/10">
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">آخر تحديث للمخزون</span>
+            <span className="text-xl font-bold tabular-nums">{new Date().toLocaleTimeString('ar-EG')}</span>
+          </div>
+          <div className="w-px h-10 bg-white/10" />
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em]">حالة النظام</span>
+            <span className="text-xl font-bold">متصل ومؤمن</span>
+          </div>
         </div>
+      </div>
 
-        {/* Dynamic Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Action Center - Quick Commands */}
+      {canManage && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <StockActionCard
+            title="إضافة مخزون (وارد)"
+            description="تسجيل بضاعة واصلة أو مشتريات جديدة يدوياً لزيادة الأرصدة."
+            icon={TrendingUp}
+            onClick={() => setIsDialogOpen(true)}
+            color="from-emerald-500/20 to-emerald-600/5"
+            delay={0.1}
+          />
+          <StockActionCard
+            title="صرف مخزون (صادر)"
+            description="تسجيل بضاعة منصرفة أو مبيعات يدوية لخصمها من الأرصدة."
+            icon={TrendingDown}
+            onClick={() => setIsDialogOpen(true)}
+            color="from-rose-500/20 to-rose-600/5"
+            delay={0.2}
+          />
+          <StockActionCard
+            title="تحويل بين المواقع"
+            description="نقل المخزون بين المحل والمخزن بشكل رسمي لتتبع المواقع."
+            icon={ArrowLeftRight}
+            onClick={() => setIsDialogOpen(true)}
+            color="from-blue-500/20 to-blue-600/5"
+            delay={0.3}
+          />
+        </div>
+      )}
+
+      {/* Analytics Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* Trend Chart */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="lg:col-span-3 glass-card p-8 rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden relative"
+        >
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[80px] -mr-32 -mt-32" />
+          <div className="relative z-10 space-y-8">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-black flex items-center gap-3">
+                <TrendingUp className="text-primary" />
+                اتجاهات الحركة (آخر 7 أيام)
+              </h2>
+              <div className="flex items-center gap-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-500" /> وارد</div>
+                <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-rose-500" /> صادر</div>
+              </div>
+            </div>
+            <div className="h-[300px]">
+              <Line
+                data={chartData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  scales: {
+                    y: { grid: { display: false }, ticks: { font: { weight: 'bold' } } },
+                    x: { grid: { display: false }, ticks: { font: { weight: 'bold' } } }
+                  },
+                  plugins: { legend: { display: false } }
+                }}
+              />
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Summary Stats */}
+        <div className="grid grid-cols-1 gap-6">
           {[
-            { label: 'إجمالي العمليات', value: stats.total, icon: Layers, color: 'from-blue-500/20 to-blue-600/5', textColor: 'text-blue-400', glow: 'shadow-blue-500/10' },
-            { label: 'إجمالي الوارد', value: stats.in, icon: TrendingUp, color: 'from-emerald-500/20 to-emerald-600/5', textColor: 'text-emerald-400', glow: 'shadow-emerald-500/10' },
-            { label: 'إجمالي الصادر', value: stats.out, icon: TrendingDown, color: 'from-rose-500/20 to-rose-600/5', textColor: 'text-rose-400', glow: 'shadow-rose-500/10' },
-            { label: 'التحويلات الداخلية', value: stats.transfers, icon: ArrowLeftRight, color: 'from-amber-500/20 to-amber-600/5', textColor: 'text-amber-400', glow: 'shadow-amber-500/10' },
+            { label: 'إجمالي العمليات', value: stats.total, icon: Layers, color: 'text-blue-400' },
+            { label: 'إجمالي الوارد', value: stats.in, icon: TrendingUp, color: 'text-emerald-400' },
+            { label: 'إجمالي الصادر', value: stats.out, icon: TrendingDown, color: 'text-rose-400' },
+            { label: 'التحويلات', value: stats.transfers, icon: ArrowLeftRight, color: 'text-amber-400' },
           ].map((stat, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              whileHover={{ y: -8, transition: { duration: 0.2 } }}
-              className={cn(
-                "glass-card p-6 rounded-[2.5rem] border border-white/10 relative overflow-hidden group shadow-2xl",
-                stat.glow
-              )}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.5 + (i * 0.1) }}
+              className="glass-card p-6 rounded-[2rem] border border-white/10 flex items-center justify-between shadow-xl"
             >
-              <div className={cn("absolute inset-0 bg-gradient-to-br opacity-40 group-hover:opacity-60 transition-opacity duration-500", stat.color)} />
-              <div className="relative z-10 flex flex-col items-center text-center space-y-3">
-                <div className={cn("p-4 rounded-2xl bg-white/5 border border-white/10 group-hover:scale-110 transition-transform duration-500 shadow-inner", stat.textColor)}>
-                  <stat.icon size={28} />
-                </div>
-                <div>
-                  <p className="text-sm font-black text-muted-foreground uppercase tracking-widest leading-relaxed">
-                    {stat.label}
-                  </p>
-                  <h3 className="text-4xl font-black mt-1 tabular-nums tracking-tighter">
-                    {stat.value}
-                  </h3>
-                </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{stat.label}</p>
+                <h3 className="text-3xl font-black tabular-nums">{stat.value}</h3>
               </div>
-              <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity duration-500 rotate-12">
-                <stat.icon size={120} />
+              <div className={cn("p-4 rounded-2xl bg-white/5 border border-white/10", stat.color)}>
+                <stat.icon size={24} />
               </div>
             </motion.div>
           ))}
         </div>
       </div>
 
-      {/* Global Search Dashboard */}
+      {/* Modern Search Dashboard */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -191,14 +342,14 @@ export default function StockPage() {
         <div className="absolute inset-x-12 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent"></div>
         <Search className="absolute right-10 top-1/2 -translate-y-1/2 text-primary h-6 w-6 group-focus-within:animate-pulse transition-all" />
         <Input
-          placeholder="ابحث بعمق في قائمة الحركات (اسم المنتج، الكود، التفاصيل)..."
+          placeholder="ابحث بعمق في قائمة الحركات والأصناف..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-16 pr-16 pl-8 rounded-[2rem] bg-white/[0.03] border-white/5 focus:bg-white/[0.07] focus:border-primary/30 transition-all font-black text-xl placeholder:text-muted-foreground/30 shadow-inner"
+          className="h-16 pr-16 pl-8 rounded-[2rem] bg-white/[0.03] border-white/5 focus:bg-white/[0.07] focus:border-primary/30 transition-all font-black text-xl placeholder:text-muted-foreground/30 shadow-inner ring-0 focus-visible:ring-0"
         />
       </motion.div>
 
-      {/* Movements Table Dashboard */}
+      {/* Enhanced Movement Feed */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -237,10 +388,7 @@ export default function StockPage() {
                       <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 shadow-inner">
                         <Loader2 size={64} className="text-primary animate-spin" />
                       </div>
-                      <div className="space-y-2">
-                        <p className="text-2xl font-black text-white/30">جاري تحميل سجل الحركات...</p>
-                        <p className="text-sm text-muted-foreground/40 font-bold">يرجى الانتظار قليلاً</p>
-                      </div>
+                      <p className="text-2xl font-black text-white/30">جاري تحميل البيانات...</p>
                     </motion.div>
                   </TableCell>
                 </TableRow>
@@ -253,17 +401,14 @@ export default function StockPage() {
                       className="flex flex-col items-center gap-6"
                     >
                       <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 shadow-inner">
-                        <AlertCircle size={64} className="text-muted-foreground/20 animate-pulse" />
+                        <Package size={64} className="text-muted-foreground/20" />
                       </div>
-                      <div className="space-y-2">
-                        <p className="text-2xl font-black text-white/30">لا توجد حركات مخزون مسجلة</p>
-                        <p className="text-sm text-muted-foreground/40 font-bold">حاول تغيير معايير البحث أو تسجيل حركة جديدة</p>
-                      </div>
+                      <p className="text-2xl font-black text-white/30">لا توجد حركات مطابقة</p>
                     </motion.div>
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredMovements.map((m, i) => (
+                filteredMovements.slice(0, 15).map((m, i) => (
                   <motion.tr
                     key={m._id}
                     layout
@@ -281,42 +426,25 @@ export default function StockPage() {
                           <span className="font-black text-lg group-hover:text-primary transition-colors leading-tight">
                             {m.productId?.name || 'منتج غير معروف'}
                           </span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-muted-foreground/50 tracking-widest uppercase">{m.productId?.code}</span>
-                            {m.note && (
-                              <span className="text-[10px] text-primary/40 font-black bg-primary/5 px-2 py-0.5 rounded-md italic truncate max-w-[150px]">
-                                {m.note}
-                              </span>
-                            )}
-                          </div>
+                          <span className="text-[10px] font-bold text-muted-foreground/50 tracking-widest uppercase">{m.productId?.code}</span>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell className="px-8">{getTypeBadge(m.type)}</TableCell>
                     <TableCell className="px-8">
-                      <div className="flex items-center gap-3">
-                        <div className="text-2xl font-black tabular-nums tracking-tighter">
-                          {m.qty}
-                        </div>
-                        <span className="text-[10px] font-bold text-muted-foreground/40 mt-1 uppercase">Unit</span>
+                      <div className="text-2xl font-black tabular-nums tracking-tighter">
+                        {m.qty}
                       </div>
                     </TableCell>
-                    <TableCell className="px-8">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-black text-white/80 tabular-nums">
-                          {new Date(m.date).toLocaleDateString('ar-EG', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                        </span>
-                        <span className="text-[10px] font-bold text-muted-foreground tracking-widest tabular-nums">
-                          {new Date(m.date).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                        </span>
-                      </div>
+                    <TableCell className="px-8 font-bold text-muted-foreground/80">
+                      {new Date(m.date).toLocaleDateString('ar-EG', { day: '2-digit', month: '2-digit' })} • {new Date(m.date).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
                     </TableCell>
                     <TableCell className="px-8">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/40 to-primary/10 border border-white/10 flex items-center justify-center text-[10px] font-black shadow-inner">
+                        <div className="w-8 h-8 rounded-full bg-primary/20 border border-white/10 flex items-center justify-center text-[10px] font-black">
                           {(m.createdBy?.name || 'A')[0].toUpperCase()}
                         </div>
-                        <span className="text-sm font-black text-muted-foreground group-hover:text-foreground transition-colors">
+                        <span className="text-sm font-black text-muted-foreground">
                           {m.createdBy?.name || 'غير معروف'}
                         </span>
                       </div>
@@ -338,3 +466,4 @@ export default function StockPage() {
     </div>
   );
 }
+

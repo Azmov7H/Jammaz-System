@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Printer, ArrowRight, Trash2, ArrowRightLeft, Loader2, Wallet } from 'lucide-react';
+import { Printer, ArrowRight, Trash2, ArrowRightLeft, Loader2, Wallet, Package, Banknote } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { use } from 'react';
@@ -13,6 +13,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { motion, AnimatePresence } from 'framer-motion';
+import { format } from 'date-fns';
+import { ar } from 'date-fns/locale';
+import { cn } from '@/utils';
 
 export default function InvoiceViewPage({ params }) {
     const { id } = use(params);
@@ -26,20 +32,24 @@ export default function InvoiceViewPage({ params }) {
     const [returnItems, setReturnItems] = useState({});
     const [refundMethod, setRefundMethod] = useState('cash');
     const [isReturning, setIsReturning] = useState(false);
+    const [returns, setReturns] = useState([]);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [invRes, setRes] = await Promise.all([
+                const [invRes, setRes, retRes] = await Promise.all([
                     fetch(`/api/invoices/${id}`),
-                    fetch(`/api/settings/invoice-design`)
+                    fetch(`/api/settings/invoice-design`),
+                    fetch(`/api/invoices/${id}/returns`)
                 ]);
 
                 const invData = await invRes.json();
                 const setData = await setRes.json();
+                const retData = await retRes.json();
 
                 setInvoice(invData.data?.invoice || invData.invoice);
                 setSettings(setData.data || setData);
+                setReturns(retData.data?.returns || retData.returns || []);
                 setLoading(false);
             } catch (err) {
                 console.error(err);
@@ -58,7 +68,7 @@ export default function InvoiceViewPage({ params }) {
         try {
             const itemsToReturn = Object.entries(returnItems)
                 .filter(([_, qty]) => qty > 0)
-                .map(([productId, qty]) => ({ productId, qty }));
+                .map(([invoiceItemId, qty]) => ({ invoiceItemId, qty }));
 
             if (itemsToReturn.length === 0) {
                 toast.error('يجب تحديد كمية واحدة على الأقل');
@@ -130,171 +140,216 @@ export default function InvoiceViewPage({ params }) {
                                 <ArrowRightLeft size={16} /> استرجاع منتجات
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-3xl glass-card border-none shadow-2xl" dir="rtl">
-                            <DialogHeader>
-                                <DialogTitle className="text-xl font-bold flex items-center gap-2">
-                                    <div className="p-2 bg-amber-100 rounded-lg">
-                                        <ArrowRightLeft className="text-amber-600" size={20} />
+                        <DialogContent className="max-w-5xl bg-slate-950/90 backdrop-blur-2xl border-white/5 shadow-[0_32px_64px_rgba(0,0,0,0.5)] p-0 gap-0 overflow-hidden rounded-[2.5rem]" dir="rtl">
+                            <div className="absolute top-0 right-0 w-full h-1.5 bg-gradient-to-l from-amber-500 via-amber-400 to-amber-500 opacity-80" />
+
+                            <div className="p-8 pb-4">
+                                <DialogHeader>
+                                    <div className="flex items-center justify-between">
+                                        <DialogTitle className="text-2xl font-black flex items-center gap-4 text-white">
+                                            <div className="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/20 shadow-inner">
+                                                <ArrowRightLeft className="text-amber-500" size={24} />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span>استرجاع منتجات معتمدة</span>
+                                                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-0.5">الفاتورة #{invoice.number}</span>
+                                            </div>
+                                        </DialogTitle>
+                                        <div className="text-left hidden md:block">
+                                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">تاريخ الفاتورة</span>
+                                            <span className="text-xs font-bold text-slate-300 bg-white/5 px-3 py-1 rounded-full border border-white/5">
+                                                {format(new Date(invoice.date), 'd MMMM yyyy', { locale: ar })}
+                                            </span>
+                                        </div>
                                     </div>
-                                    استرجاع منتجات من الفاتورة #{invoice.number}
-                                </DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-6 py-4">
-                                <div className="max-h-[400px] overflow-y-auto px-1">
-                                    {/* Desktop Table - Hidden on Mobile */}
-                                    <div className="hidden md:block border rounded-xl overflow-hidden shadow-sm bg-white">
-                                        <Table className={"p-4"}>
-                                            <TableHeader className="bg-slate-200">
-                                                <TableRow>
-                                                    <TableHead className="text-right">المنتج</TableHead>
-                                                    <TableHead className="text-center">المباع</TableHead>
-                                                    <TableHead className="text-center">السعر</TableHead>
-                                                    <TableHead className="text-center w-32">كمية الارتجاع</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {invoice.items.map((item, i) => (
-                                                    <TableRow key={i}>
-                                                        <TableCell className="font-bold">{item.productName || item.name || 'منتج'}</TableCell>
-                                                        <TableCell className="text-center font-bold text-slate-500">{item.qty}</TableCell>
-                                                        <TableCell className="text-center font-mono">{item.unitPrice.toLocaleString()} ج.م</TableCell>
-                                                        <TableCell>
-                                                            <div className="flex items-center gap-1">
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="icon"
-                                                                    className="h-7 w-7 rounded-full"
-                                                                    onClick={() => {
-                                                                        const current = returnItems[item.productId?._id || item.productId] || 0;
-                                                                        if (current > 0) {
-                                                                            setReturnItems(prev => ({ ...prev, [item.productId?._id || item.productId]: current - 1 }));
-                                                                        }
-                                                                    }}
-                                                                >-</Button>
-                                                                <Input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    max={item.qty}
-                                                                    className="h-8 text-center font-bold p-0"
-                                                                    value={returnItems[item.productId?._id || item.productId] || 0}
-                                                                    onChange={(e) => {
-                                                                        const val = Math.min(item.qty, Math.max(0, parseInt(e.target.value) || 0));
-                                                                        setReturnItems(prev => ({ ...prev, [item.productId?._id || item.productId]: val }));
-                                                                    }}
-                                                                />
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="icon"
-                                                                    className="h-7 w-7 rounded-full"
-                                                                    onClick={() => {
-                                                                        const current = returnItems[item.productId?._id || item.productId] || 0;
-                                                                        if (current < item.qty) {
-                                                                            setReturnItems(prev => ({ ...prev, [item.productId?._id || item.productId]: current + 1 }));
-                                                                        }
-                                                                    }}
-                                                                >+</Button>
+                                </DialogHeader>
+                            </div>
+
+                            <div className="flex-1 overflow-hidden flex flex-col">
+                                <ScrollArea className="flex-1 max-h-[320px] px-8 py-2">
+                                    <div className="space-y-4 pb-8">
+                                        {invoice.items.map((item, i) => {
+                                            const itemId = item._id; // Use unique invoice item ID
+                                            const currentReturnQty = returnItems[itemId] || 0;
+                                            const isSelected = currentReturnQty > 0;
+
+                                            return (
+                                                <motion.div
+                                                    key={i}
+                                                    initial={false}
+                                                    animate={{
+                                                        scale: isSelected ? 1.01 : 1,
+                                                        borderColor: isSelected ? 'rgba(245, 158, 11, 0.4)' : 'rgba(255, 255, 255, 0.05)',
+                                                        backgroundColor: isSelected ? 'rgba(245, 158, 11, 0.03)' : 'rgba(255, 255, 255, 0.02)'
+                                                    }}
+                                                    className={cn(
+                                                        "group border rounded-3xl p-5 transition-all duration-300 relative overflow-hidden",
+                                                    )}
+                                                >
+                                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+                                                        <div className="flex items-center gap-4 flex-1">
+                                                            <div className={cn(
+                                                                "h-12 w-12 rounded-2xl flex items-center justify-center transition-all duration-500",
+                                                                isSelected ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" : "bg-white/5 text-slate-500"
+                                                            )}>
+                                                                <Package size={20} />
                                                             </div>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
+                                                            <div className="flex flex-col">
+                                                                <h4 className="font-black text-white text-lg group-hover:text-amber-400 transition-colors uppercase tracking-tight">
+                                                                    {item.productName || item.name || 'منتج'}
+                                                                </h4>
+                                                                <div className="flex items-center gap-3 text-xs font-bold mt-1">
+                                                                    <span className="text-slate-500">سعر الوحدة:</span>
+                                                                    <span className="text-slate-300">{item.unitPrice.toLocaleString()} ج.م</span>
+                                                                    <div className="w-1 h-1 rounded-full bg-slate-700" />
+                                                                    <span className="text-slate-500">المباع:</span>
+                                                                    <Badge variant="outline" className="h-5 px-2 bg-white/5 border-white/10 text-slate-300">{item.qty}</Badge>
+                                                                </div>
+                                                            </div>
+                                                        </div>
 
-                                    {/* Mobile Cards - Shown on Mobile Only */}
-                                    <div className="md:hidden space-y-3">
-                                        {invoice.items.map((item, i) => (
-                                            <div key={i} className="bg-white border p-3 rounded-xl shadow-sm space-y-3">
-                                                <div className="flex justify-between items-start">
-                                                    <div>
-                                                        <div className="font-bold text-sm">{item.productName || item.name || 'منتج'}</div>
-                                                        <div className="text-xs text-slate-500">سعر الوحدة: {item.unitPrice.toLocaleString()} ج.م</div>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <div className="text-xs text-slate-400">الكمية بالمباع: {item.qty}</div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center justify-between bg-slate-50 p-2 rounded-lg">
-                                                    <span className="text-xs font-bold">كمية الارتجاع:</span>
-                                                    <div className="flex items-center gap-3">
-                                                        <Button
-                                                            variant="secondary"
-                                                            size="icon"
-                                                            className="h-8 w-8 rounded-lg shadow-sm"
-                                                            onClick={() => {
-                                                                const current = returnItems[item.productId?._id || item.productId] || 0;
-                                                                if (current > 0) {
-                                                                    setReturnItems(prev => ({ ...prev, [item.productId?._id || item.productId]: current - 1 }));
-                                                                }
-                                                            }}
-                                                        >-</Button>
-                                                        <span className="w-8 text-center font-black text-lg">
-                                                            {returnItems[item.productId?._id || item.productId] || 0}
-                                                        </span>
-                                                        <Button
-                                                            variant="secondary"
-                                                            size="icon"
-                                                            className="h-8 w-8 rounded-lg shadow-sm"
-                                                            onClick={() => {
-                                                                const current = returnItems[item.productId?._id || item.productId] || 0;
-                                                                if (current < item.qty) {
-                                                                    setReturnItems(prev => ({ ...prev, [item.productId?._id || item.productId]: current + 1 }));
-                                                                }
-                                                            }}
-                                                        >+</Button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
+                                                        <div className="flex flex-col items-center md:items-end gap-3">
+                                                            <div className="flex items-center bg-black/40 p-1.5 rounded-2xl border border-white/5 shadow-inner backdrop-blur-md">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-10 w-10 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white transition-all active:scale-95"
+                                                                    onClick={() => {
+                                                                        if (currentReturnQty > 0) {
+                                                                            setReturnItems(prev => ({ ...prev, [itemId]: currentReturnQty - 1 }));
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <span className="text-2xl font-black leading-none">-</span>
+                                                                </Button>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="md:order-2">
-                                        <Card className="p-5 border-slate-200 bg-slate-900 text-white shadow-xl flex flex-col justify-center items-center text-center h-full">
-                                            <span className="text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">إجمالي المبلغ المسترد</span>
-                                            <div className="text-4xl font-black text-amber-400">
-                                                {
-                                                    invoice.items.reduce((sum, item) => {
-                                                        const qty = returnItems[item.productId?._id || item.productId] || 0;
-                                                        return sum + (qty * item.unitPrice);
-                                                    }, 0).toLocaleString()
-                                                } <span className="text-lg font-bold">ج.م</span>
-                                            </div>
-                                        </Card>
-                                    </div>
+                                                                <div className="w-14 text-center">
+                                                                    <span className={cn(
+                                                                        "text-2xl font-black tracking-tighter transition-all duration-300",
+                                                                        isSelected ? "text-amber-500 scale-110" : "text-slate-600"
+                                                                    )}>
+                                                                        {currentReturnQty}
+                                                                    </span>
+                                                                </div>
 
-                                    <div className="md:order-1">
-                                        <Card className="p-5 border-amber-100 bg-amber-50/20 shadow-sm relative overflow-hidden group h-full">
-                                            <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-400"></div>
-                                            <Label className="font-bold text-amber-900 block mb-3 flex items-center gap-2">
-                                                <Wallet size={16} /> طريقة رد المبلغ
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-10 w-10 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white transition-all active:scale-95"
+                                                                    onClick={() => {
+                                                                        if (currentReturnQty < item.qty) {
+                                                                            setReturnItems(prev => ({ ...prev, [itemId]: currentReturnQty + 1 }));
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <span className="text-xl font-black leading-none">+</span>
+                                                                </Button>
+                                                            </div>
+                                                            {isSelected && (
+                                                                <motion.div
+                                                                    initial={{ opacity: 0, scale: 0.9 }}
+                                                                    animate={{ opacity: 1, scale: 1 }}
+                                                                    className="text-[10px] font-black text-amber-500/60 uppercase tracking-widest"
+                                                                >
+                                                                    سيتم استرداد {(currentReturnQty * item.unitPrice).toLocaleString()} ج.م
+                                                                </motion.div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Background Accent for Selected */}
+                                                    {isSelected && (
+                                                        <motion.div
+                                                            layoutId={`accent-${i}`}
+                                                            className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent pointer-events-none"
+                                                        />
+                                                    )}
+                                                </motion.div>
+                                            )
+                                        })}
+                                    </div>
+                                </ScrollArea>
+                            </div>
+
+                            <div className="p-8 pt-6 bg-slate-900/50 border-t border-white/5">
+                                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                                    <div className="md:col-span-5 space-y-4">
+                                        <div className="space-y-3">
+                                            <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2 mr-1">
+                                                <Wallet size={12} className="text-amber-500" /> طريقة رد المبلغ
                                             </Label>
-                                            <Select value={refundMethod} onValueChange={setRefundMethod}>
-                                                <SelectTrigger className="bg-white border-amber-200 h-11 shadow-sm"><SelectValue /></SelectTrigger>
-                                                <SelectContent dir="rtl">
-                                                    <SelectItem value="cash">💵 استرداد نقدي (خزينة)</SelectItem>
-                                                    <SelectItem value="customerBalance">💳 رصيد عميل (محفظة)</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            <div className="mt-3 p-2 bg-white/50 rounded-lg border border-amber-100/50">
-                                                <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
-                                                    {refundMethod === 'cash'
-                                                        ? 'سيتم خصم المبلغ من الخزينة وتسليمه للعميل نقداً. سيتم تسجيل العملية كمصروفات مرتجع.'
-                                                        : 'سيتم تسوية ديون العميل أولاً بالمبلغ، ثم إضافة المتبقي كمبلغ متاح في محفظته للمشتريات القادمة.'}
-                                                </p>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <button
+                                                    onClick={() => setRefundMethod('cash')}
+                                                    className={cn(
+                                                        "flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all group/btn",
+                                                        refundMethod === 'cash'
+                                                            ? "bg-amber-500/10 border-amber-500/50 text-amber-500"
+                                                            : "bg-white/20 border-transparent text-slate-400 hover:bg-white/5 hover:border-white/10"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "p-2 rounded-xl transition-all",
+                                                        refundMethod === 'cash' ? "bg-amber-500 text-white" : "bg-white/5 group-hover/btn:bg-white/10"
+                                                    )}>
+                                                        <Banknote size={16} />
+                                                    </div>
+                                                    <span className="text-[10px] font-black uppercase tracking-tighter">خزينة نقداً</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => setRefundMethod('customerBalance')}
+                                                    className={cn(
+                                                        "flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all group/btn",
+                                                        refundMethod === 'customerBalance'
+                                                            ? "bg-blue-500/10 border-blue-500/50 text-blue-500"
+                                                            : "bg-white/20 border-transparent text-slate-400 hover:bg-white/5 hover:border-white/10"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "p-2 rounded-xl transition-all",
+                                                        refundMethod === 'customerBalance' ? "bg-blue-500 text-white" : "bg-white/5 group-hover/btn:bg-white/10"
+                                                    )}>
+                                                        <Wallet size={16} />
+                                                    </div>
+                                                    <span className="text-[10px] font-black uppercase tracking-tighter">محفظة العميل</span>
+                                                </button>
                                             </div>
-                                        </Card>
+                                        </div>
+                                    </div>
+
+                                    <div className="md:col-span-7 flex flex-col justify-end">
+                                        <div className="bg-slate-950/80 rounded-3xl p-6 border border-white/5 shadow-inner relative overflow-hidden group">
+                                            <div className="flex justify-between items-center relative z-10">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">صافي القيمة المستردة</span>
+                                                    <div className="flex items-baseline gap-2">
+                                                        <span className="text-4xl font-black text-amber-400 tracking-tighter">
+                                                            {
+                                                                invoice.items.reduce((sum, item) => {
+                                                                    const qty = returnItems[item.productId?._id || item.productId] || 0;
+                                                                    return sum + (qty * item.unitPrice);
+                                                                }, 0).toLocaleString()
+                                                            }
+                                                        </span>
+                                                        <span className="text-sm font-black text-slate-500">ج.م</span>
+                                                    </div>
+                                                </div>
+                                                <Button
+                                                    onClick={handleReturnSubmit}
+                                                    disabled={isReturning || Object.values(returnItems).every(q => q === 0)}
+                                                    className="h-14 px-8 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all gap-2 disabled:opacity-50 disabled:scale-100"
+                                                >
+                                                    {isReturning ? <Loader2 className="animate-spin" /> : (
+                                                        <>
+                                                            <span>اعتماد المرتجع</span>
+                                                            <ArrowRight className="w-5 h-5 rotate-180" />
+                                                        </>
+                                                    )}
+                                                </Button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-
-                                <Button
-                                    onClick={handleReturnSubmit}
-                                    className="w-full h-14 text-xl font-black gradient-primary shadow-colored border-0 hover-lift"
-                                    disabled={isReturning}
-                                >
-                                    {isReturning ? <Loader2 className="animate-spin" /> : 'إصدار فاتورة مرتجع معتمدة'}
-                                </Button>
                             </div>
                         </DialogContent>
                     </Dialog>
@@ -379,7 +434,7 @@ export default function InvoiceViewPage({ params }) {
                             </div>
                         )}
                     </div>
-                </div>
+                </div >
 
                 {/* Info Grid */}
                 <div className="grid grid-cols-2 gap-8 mb-8 text-sm bg-slate-50 p-6 rounded-xl border border-slate-100 shadow-inner">
@@ -405,10 +460,10 @@ export default function InvoiceViewPage({ params }) {
                             <p className="flex justify-between items-center"><span className="text-slate-400">بواسطة:</span> <span className="font-semibold">{invoice.createdBy?.name || 'المدير'}</span></p>
                         </div>
                     </div>
-                </div>
+                </div >
 
                 {/* Items Table */}
-                <div className="rounded-xl overflow-hidden border border-slate-100 shadow-sm mb-8">
+                < div className="rounded-xl overflow-hidden border border-slate-100 shadow-sm mb-8" >
                     <table className="w-full border-collapse">
                         <thead className="text-white text-sm" style={{ backgroundColor: headerBgColor }}>
                             <tr>
@@ -429,10 +484,60 @@ export default function InvoiceViewPage({ params }) {
                             ))}
                         </tbody>
                     </table>
-                </div>
+                </div >
+
+                {/* Returns History */}
+                {
+                    returns && returns.length > 0 && (
+                        <div className="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className="flex items-center gap-2 mb-4 p-3 bg-amber-50 rounded-xl border border-amber-100">
+                                <ArrowRightLeft className="text-amber-600" size={18} />
+                                <h3 className="font-bold text-amber-900 uppercase tracking-tight">سجل المرتجعات لهذه الفاتورة</h3>
+                            </div>
+                            <div className="space-y-3">
+                                {returns.map((ret, idx) => (
+                                    <div key={idx} className="bg-white border-2 border-dashed border-amber-200 p-5 rounded-2xl relative overflow-hidden group hover:border-amber-400 transition-colors">
+                                        <div className="flex flex-col md:flex-row justify-between gap-4">
+                                            <div className="space-y-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="px-2 py-0.5 bg-amber-600 text-white rounded-md font-mono text-xs font-bold">{ret.returnNumber}</span>
+                                                    <span className="text-slate-400 text-xs">{new Date(ret.date).toLocaleString('ar-EG')}</span>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    {ret.items.map((it, i) => (
+                                                        <div key={i} className="flex items-center gap-2 text-sm">
+                                                            <span className="w-2 h-2 rounded-full bg-amber-400" />
+                                                            <span className="font-bold text-slate-700">{it.productId?.name || it.productName || 'منتج'}</span>
+                                                            <span className="text-slate-400 italic">× {it.qty} وحدة</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div className="text-left flex flex-col justify-center">
+                                                <span className="text-xs font-bold text-slate-400 uppercase">المبلغ المرتجع</span>
+                                                <span className="text-2xl font-black text-amber-600">-{ret.totalRefund?.toLocaleString()} <span className="text-sm">ج.م</span></span>
+                                            </div>
+                                        </div>
+                                        <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded uppercase">بواسطة: {ret.createdBy?.name || 'النظام'}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )
+                }
 
                 {/* Totals */}
-                <div className="flex justify-end">
+                <div className="flex justify-between items-end gap-8">
+                    <div className="flex-1 opacity-60">
+                        {invoice.notes && (
+                            <div className="text-xs p-4 bg-slate-50 rounded-xl border border-dotted border-slate-200">
+                                <p className="font-bold text-slate-400 mb-1">ملاحظات:</p>
+                                <p className="text-slate-600 italic">"{invoice.notes}"</p>
+                            </div>
+                        )}
+                    </div>
                     <div className="w-80 bg-slate-50 p-6 rounded-2xl border-2 border-slate-100 shadow-lg">
                         <div className="space-y-4 text-sm">
                             <div className="flex justify-between text-slate-600 items-baseline">
@@ -462,7 +567,7 @@ export default function InvoiceViewPage({ params }) {
                     <p className="text-xs text-slate-400 mb-1">{settings?.address || 'القاهرة، مصر - العطبة'}</p>
                     <p className="text-[10px] text-slate-300">تم إصدار هذه الفاتورة إلكترونياً وهي معتمدة وصالحة دون توقيع</p>
                 </div>
-            </div>
+            </div >
 
             <style jsx global>{`
                 @media print {

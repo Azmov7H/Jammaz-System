@@ -64,6 +64,7 @@ export const SupplierService = {
 
         if (openingBalance && openingBalance > 0) {
             const AccountingEntry = (await import('@/models/AccountingEntry')).default;
+            const { DebtService } = await import('@/services/financial/debtService');
 
             if (openingBalanceType === 'credit') {
                 // We owe supplier (Credit AP)
@@ -75,6 +76,18 @@ export const SupplierService = {
                     description: `رصيد افتتاحي للمورد: ${supplier.name}`,
                     refType: 'Manual',
                     refId: supplier._id
+                });
+
+                // Create Debt Record for granular tracking
+                await DebtService.createDebt({
+                    debtorType: 'Supplier',
+                    debtorId: supplier._id,
+                    amount: parseFloat(openingBalance),
+                    dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Default 30 days
+                    referenceType: 'Manual',
+                    referenceId: supplier._id,
+                    description: `رصيد افتتاحي (مديونية سابقة)`,
+                    createdBy: null // Service will handle or we can pass if added to params
                 });
             } else {
                 // Supplier owes us (Debit AP)

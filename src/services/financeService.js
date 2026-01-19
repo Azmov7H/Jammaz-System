@@ -5,11 +5,10 @@ import Product from '@/models/Product';
 import SalesReturn from '@/models/SalesReturn';
 import Customer from '@/models/Customer';
 import Supplier from '@/models/Supplier';
-import { StockService } from './stockService';
-import { AccountingService } from './accountingService';
-import { TreasuryService } from './treasuryService';
 import { DailySalesService } from './dailySalesService';
 import { LogService } from './logService';
+import { TreasuryService } from './treasuryService';
+import { StockService } from './stockService';
 import { DebtService } from './financial/debtService';
 import InvoiceSettings from '@/models/InvoiceSettings';
 
@@ -23,19 +22,16 @@ export const FinanceService = {
      */
     async recordSale(invoice, userId) {
         await dbConnect();
-        const session = await mongoose.startSession();
-        session.startTransaction();
+        // Standalone Compatibility: Transactions Removed
+        // const session = await mongoose.startSession();
+        // session.startTransaction();
 
         try {
             // 1. Stock reduction
-            await StockService.reduceStockForSale(invoice.items, invoice._id, userId, session);
+            await StockService.reduceStockForSale(invoice.items, invoice._id, userId);
 
-            // 2. Accounting Entries
-            if (invoice.paymentType === 'credit') {
-                await AccountingService.createCreditSaleEntries(invoice, userId, session);
-            } else {
-                await AccountingService.createSaleEntries(invoice, userId, session);
-            }
+            // 2. Treasury & Customer Balance (Moved up)
+            // Note: We only record cash received in Treasury. Credit sales don't hit Treasury until paid.
 
             // 3. Treasury & Customer Balance
             const netCashReceived = invoice.paidAmount - (invoice.usedCreditBalance || 0);
@@ -45,18 +41,18 @@ export const FinanceService = {
                     ...invoice.toObject(),
                     total: netCashReceived,
                     number: invoice.usedCreditBalance > 0 ? `${invoice.number} (بعد الخصم)` : invoice.number
-                }, userId, session);
+                }, userId);
             }
 
             // 4. Update Customer Balance (Legacy Simple Debt) AND Create Granular Debt Record
             if (invoice.customer && (invoice.paymentType === 'credit' || invoice.paymentType === 'partial')) {
-                const customer = await Customer.findById(invoice.customer).session(session);
+                const customer = await Customer.findById(invoice.customer);
                 if (customer) {
                     const remainingDebt = invoice.total - invoice.paidAmount;
                     if (remainingDebt > 0) {
                         // Update Legacy Balance
                         customer.balance = (customer.balance || 0) + remainingDebt;
-                        await customer.save({ session });
+                        await customer.save();
 
                         // Get Default Terms from Settings
                         const settings = await InvoiceSettings.getSettings();
@@ -72,13 +68,13 @@ export const FinanceService = {
                             referenceId: invoice._id,
                             description: `فاتورة مبيعات #${invoice.number}`,
                             createdBy: userId
-                        }, session);
+                        });
                     }
                 }
             }
 
             // 5. Daily Sales & Stats
-            await DailySalesService.updateDailySales(invoice, userId, session);
+            await DailySalesService.updateDailySales(invoice, userId);
 
             if (invoice.customer) {
                 await Customer.findByIdAndUpdate(invoice.customer, {
@@ -86,7 +82,7 @@ export const FinanceService = {
                         totalPurchases: invoice.total
                     },
                     lastPurchaseDate: new Date()
-                }, { session });
+                });
             }
 
             // 6. Logging
@@ -97,15 +93,15 @@ export const FinanceService = {
                 entityId: invoice._id,
                 diff: { total: invoice.total, paymentType: invoice.paymentType },
                 note: `Invoice #${invoice.number} processed by FinanceService`
-            }, session);
+            });
 
-            await session.commitTransaction();
+            // await session.commitTransaction();
             return invoice;
         } catch (error) {
-            await session.abortTransaction();
+            // await session.abortTransaction();
             throw error;
         } finally {
-            session.endSession();
+            // session.endSession();
         }
     },
 
@@ -114,20 +110,23 @@ export const FinanceService = {
      */
     async reverseSale(invoiceId, userId) {
         await dbConnect();
-        const session = await mongoose.startSession();
-        session.startTransaction();
+        // Standalone Compatibility: Transactions Removed
+        // const session = await mongoose.startSession();
+        // session.startTransaction();
 
         try {
-            const invoice = await Invoice.findById(invoiceId).populate('items.productId').session(session);
+            const invoice = await Invoice.findById(invoiceId).populate('items.productId');
             if (!invoice) throw new Error('الفاتورة غير موجودة');
 
             // 1. Reverse Stock
             for (const item of invoice.items) {
-                const product = await Product.findById(item.productId).session(session);
+                if (item.isService || !item.productId) continue;
+
+                const product = await Product.findById(item.productId);
                 if (product) {
                     product.shopQty += item.qty;
                     product.stockQty = (product.warehouseQty || 0) + product.shopQty;
-                    await product.save({ session });
+                    await product.save();
 
                     // Log movement
                     const StockMovement = (await import('@/models/StockMovement')).default;
@@ -142,54 +141,39 @@ export const FinanceService = {
                             warehouseQty: product.warehouseQty,
                             shopQty: product.shopQty
                         }
-                    }], { session });
+                    }]);
                 }
             }
 
-            // 2. Reverse Accounting Entries
-            const AccountingEntry = (await import('@/models/AccountingEntry')).default;
-            const originalEntries = await AccountingEntry.find({ refType: 'Invoice', refId: invoice._id }).session(session);
-
-            for (const entry of originalEntries) {
-                await AccountingEntry.createEntry({
-                    type: 'ADJUSTMENT',
-                    debitAccount: entry.creditAccount,
-                    creditAccount: entry.debitAccount,
-                    amount: entry.amount,
-                    description: `إلغاء قيد: ${entry.description}`,
-                    refType: 'Invoice',
-                    refId: invoice._id,
-                    userId,
-                    date: new Date(),
-                    session
-                });
-            }
+            // 2. Reverse Treasury Transactions
+            // Find and delete any treasury transactions linked to this invoice
+            await TreasuryService.deleteTransactionByRef('Invoice', invoice._id);
 
             // 3. Update Customer Balance & Debt
             if (invoice.customer) {
-                const customer = await Customer.findById(invoice.customer).session(session);
+                const customer = await Customer.findById(invoice.customer);
                 if (customer) {
                     // Update Legacy Balance
                     const remainingDebt = invoice.total - invoice.paidAmount;
                     if (remainingDebt > 0) {
                         customer.balance = Math.max(0, (customer.balance || 0) - remainingDebt);
-                        await customer.save({ session });
+                        await customer.save();
                     }
 
                     // Delete Debt Record
                     const Debt = (await import('@/models/Debt')).default;
-                    const debt = await Debt.findOne({ referenceType: 'Invoice', referenceId: invoice._id }).session(session);
+                    const debt = await Debt.findOne({ referenceType: 'Invoice', referenceId: invoice._id });
                     if (debt) {
                         // Delete Schedules
                         const PaymentSchedule = (await import('@/models/PaymentSchedule')).default;
-                        await PaymentSchedule.deleteMany({ debtId: debt._id }).session(session);
-                        await debt.deleteOne({ session });
+                        await PaymentSchedule.deleteMany({ debtId: debt._id });
+                        await debt.deleteOne();
                     }
                 }
             }
 
             // 4. Delete Invoice
-            await invoice.deleteOne({ session });
+            await invoice.deleteOne();
 
             // 5. Logging
             await LogService.logAction({
@@ -198,15 +182,15 @@ export const FinanceService = {
                 entity: 'Invoice',
                 entityId: invoice._id,
                 note: `Invoice #${invoice.number} cancelled and reversed`
-            }, session);
+            });
 
-            await session.commitTransaction();
+            // await session.commitTransaction();
             return { success: true };
         } catch (error) {
-            await session.abortTransaction();
+            // await session.abortTransaction();
             throw error;
         } finally {
-            session.endSession();
+            // session.endSession();
         }
     },
 
@@ -215,64 +199,89 @@ export const FinanceService = {
      */
     async recordPurchaseReceive(po, userId, paymentType = 'cash') {
         await dbConnect();
-        const session = await mongoose.startSession();
-        session.startTransaction();
+        // Standalone Compatibility: Transactions Removed
+        // const session = await mongoose.startSession();
+        // session.startTransaction();
 
         try {
             // 1. Stock increase
-            await StockService.increaseStockForPurchase(po.items, po._id, userId, session);
+            await StockService.increaseStockForPurchase(po.items, po._id, userId);
 
             // 2. Update PO status
             po.status = 'RECEIVED';
             po.receivedDate = new Date();
             po.paymentType = paymentType;
-            await po.save({ session });
+            await po.save();
 
-            // 3. Accounting Entries
-            await AccountingService.createPurchaseEntries(po, userId, paymentType, session);
-
-            // 4. Treasury & Supplier Balance
-            if (paymentType === 'cash') {
+            // 3. Treasury & Supplier Balance
+            // Note: Only Cash/Wallet Payments are recorded in Treasury immediately.
+            if (paymentType === 'cash' || paymentType === 'wallet') {
                 po.paidAmount = po.totalCost;
                 po.paymentStatus = 'paid';
-                await po.save({ session });
-                await TreasuryService.recordPurchaseExpense(po, userId, session);
-            } else if (paymentType === 'credit' && po.supplier) {
-                po.paidAmount = 0;
-                po.paymentStatus = 'pending';
-                await po.save({ session });
-                const supplier = await Supplier.findById(po.supplier).session(session);
-                if (supplier) {
-                    // Legacy Update
-                    supplier.balance = (supplier.balance || 0) + po.totalCost;
-                    supplier.lastSupplyDate = new Date();
-                    await supplier.save({ session });
+                await po.save();
 
-                    // Get Default Terms from Settings
-                    const settings = await InvoiceSettings.getSettings();
-                    const defaultDays = settings.defaultSupplierTerms || 30;
+                // For wallet, we might want to note it in description (handled in TreasuryService or passed here)
+                // For now, treating both as immediate expense
+                await TreasuryService.recordPurchaseExpense(po, userId);
+            } else if ((paymentType === 'credit' || paymentType === 'bank') && po.supplier) {
+                // Note: Bank transfer usually means money left account, but maybe not 'Cashbox'. 
+                // However, user grouped Bank/Credit vs Cash/Wallet often implies:
+                // Cash/Wallet = Immediate Cashbox/Wallet deduction
+                // Credit = Debt
+                // Bank = Immediate Bank deduction (not Cashbox)
 
-                    // New Debt Record
-                    await DebtService.createDebt({
-                        debtorType: 'Supplier',
-                        debtorId: supplier._id,
-                        amount: po.totalCost,
-                        dueDate: po.expectedDate || new Date(Date.now() + defaultDays * 24 * 60 * 60 * 1000),
-                        referenceType: 'PurchaseOrder',
-                        referenceId: po._id,
-                        description: `أمر شراء #${po.poNumber}`,
-                        createdBy: userId
-                    }, session);
+                // ADJUSTMENT: Use 'bank' check carefully. 
+                // If 'bank', it is PAID but maybe not from Cashbox? 
+                // User asked for "Bank Transfer, Deferred, Cash, Cash Wallet".
+                // Usually Bank Transfer is Paid.
+
+                if (paymentType === 'bank') {
+                    po.paidAmount = po.totalCost;
+                    po.paymentStatus = 'paid';
+                    await po.save();
+                    // TODO: access BankTransactionService if exists, else just mark paid avoiding Cashbox
+                    // If no BankService, we might record as expense but type 'BANK'
+                } else {
+                    // Credit
+                    po.paidAmount = 0;
+                    po.paymentStatus = 'pending';
+                    await po.save();
+                }
+
+                if (paymentType === 'credit') {
+                    const supplier = await Supplier.findById(po.supplier);
+                    if (supplier) {
+                        // Legacy Update
+                        supplier.balance = (supplier.balance || 0) + po.totalCost;
+                        supplier.lastSupplyDate = new Date();
+                        await supplier.save();
+
+                        // Get Default Terms from Settings
+                        const settings = await InvoiceSettings.getSettings();
+                        const defaultDays = settings.defaultSupplierTerms || 30;
+
+                        // New Debt Record
+                        await DebtService.createDebt({
+                            debtorType: 'Supplier',
+                            debtorId: supplier._id,
+                            amount: po.totalCost,
+                            dueDate: po.expectedDate || new Date(Date.now() + defaultDays * 24 * 60 * 60 * 1000),
+                            referenceType: 'PurchaseOrder',
+                            referenceId: po._id,
+                            description: `أمر شراء #${po.poNumber}`,
+                            createdBy: userId
+                        });
+                    }
                 }
             }
 
-            await session.commitTransaction();
+            // await session.commitTransaction();
             return po;
         } catch (error) {
-            await session.abortTransaction();
+            // await session.abortTransaction();
             throw error;
         } finally {
-            session.endSession();
+            // session.endSession();
         }
     },
 
@@ -316,37 +325,40 @@ export const FinanceService = {
      */
     async recordCustomerPayment(invoice, amount, method, note, userId) {
         await dbConnect();
-        const session = await mongoose.startSession();
-        session.startTransaction();
+        // [MOD] Transaction Removed for Standalone Compatibility
+        // const session = await mongoose.startSession();
+        // session.startTransaction();
 
         try {
-            await invoice.recordPayment(amount, method, note, userId, session);
+            await invoice.recordPayment(amount, method, note, userId); // session);
 
             if (invoice.customer) {
-                const customer = await Customer.findById(invoice.customer).session(session);
+                const customer = await Customer.findById(invoice.customer); // .session(session);
                 if (customer) {
                     customer.balance = Math.max(0, (customer.balance || 0) - amount);
-                    await customer.save({ session });
+                    await customer.save(); // { session });
 
                     // Update Schedules
-                    await this.updateSchedulesAfterPayment(invoice.customer, 'Customer', amount, session);
+                    await this.updateSchedulesAfterPayment(invoice.customer, 'Customer', amount); // session);
+
+                    // Update Granular Debt Record
+                    const Debt = (await import('@/models/Debt')).default;
+                    const debt = await Debt.findOne({ referenceType: 'Invoice', referenceId: invoice._id });
+                    if (debt) {
+                        await DebtService.updateBalance(debt._id, amount);
+                    }
                 }
             }
 
-            await AccountingService.createPaymentEntries(invoice, amount, userId, new Date(), session);
-            await TreasuryService.recordPaymentCollection({
-                ...invoice.toObject(),
-                paidAmount: amount,
-                paymentMethod: method
-            }, userId, session);
+            await TreasuryService.recordPaymentCollection(invoice, amount, userId, method, note);
 
-            await session.commitTransaction();
+            // await session.commitTransaction();
             return invoice;
         } catch (error) {
-            await session.abortTransaction();
+            // await session.abortTransaction();
             throw error;
         } finally {
-            session.endSession();
+            // session.endSession();
         }
     },
 
@@ -355,8 +367,9 @@ export const FinanceService = {
      */
     async recordSupplierPayment(po, amount, method, note, userId) {
         await dbConnect();
-        const session = await mongoose.startSession();
-        session.startTransaction();
+        // [MOD] Transaction Removed for Standalone Compatibility
+        // const session = await mongoose.startSession();
+        // session.startTransaction();
 
         try {
             // Update PO payment status
@@ -367,36 +380,45 @@ export const FinanceService = {
             } else {
                 po.paymentStatus = 'partial';
             }
-            await po.save({ session });
+            await po.save(); // { session });
 
             // Update Supplier Balance
             if (po.supplier) {
-                const supplier = await Supplier.findById(po.supplier).session(session);
+                const supplier = await Supplier.findById(po.supplier); // .session(session);
                 if (supplier) {
                     supplier.balance = Math.max(0, (supplier.balance || 0) - amount);
-                    await supplier.save({ session });
+                    await supplier.save(); // { session });
 
                     // Update Schedules
-                    await this.updateSchedulesAfterPayment(po.supplier, 'Supplier', amount, session);
+                    await this.updateSchedulesAfterPayment(po.supplier, 'Supplier', amount); // session);
+
+                    // Update Granular Debt Record
+                    const Debt = (await import('@/models/Debt')).default;
+                    const debt = await Debt.findOne({ referenceType: 'PurchaseOrder', referenceId: po._id });
+                    if (debt) {
+                        await DebtService.updateBalance(debt._id, amount);
+                    }
                 }
             }
 
             // Record in Treasury & Accounting
-            await TreasuryService.recordPurchaseExpense({
-                ...po.toObject(),
-                totalCost: amount, // Record only this payment amount
-                notes: `سداد جزء من أمر شراء #${po.poNumber}. ${note}`
-            }, userId, session);
+            await TreasuryService.recordSupplierPayment(
+                po.supplier,
+                amount,
+                po.poNumber,
+                po._id,
+                userId,
+                method,
+                note
+            );
 
-            await AccountingService.createSupplierPaymentEntries(po, amount, userId, new Date(), session);
-
-            await session.commitTransaction();
+            // await session.commitTransaction();
             return po;
         } catch (error) {
-            await session.abortTransaction();
+            // await session.abortTransaction();
             throw error;
         } finally {
-            session.endSession();
+            // session.endSession();
         }
     },
 
@@ -406,17 +428,21 @@ export const FinanceService = {
      */
     async processSaleReturn(invoice, returnData, refundMethod, userId) {
         await dbConnect();
-        const session = await mongoose.startSession();
-        session.startTransaction();
+        // [MOD] Transaction Removed for Standalone Compatibility
+        // const session = await mongoose.startSession();
+        // session.startTransaction();
 
         try {
             const { returnItems, totalRefund, totalCostImpact } = returnData;
 
             // 1. Update Original Invoice
-            // We modify the items and totals. If an item qty becomes 0, we keep it with 0 or remove. 
-            // Consistent with legacy logic: map and filter.
             invoice.items = invoice.items.map(invItem => {
-                const retItem = returnItems.find(r => r.productId.toString() === invItem.productId.toString());
+                // Better matching using invoiceItemId if provided, else fallback to productId
+                const retItem = returnItems.find(r =>
+                    (r.invoiceItemId && r.invoiceItemId.toString() === invItem._id.toString()) ||
+                    (r.productId && invItem.productId && r.productId.toString() === invItem.productId.toString())
+                );
+
                 if (retItem) {
                     const newQty = invItem.qty - retItem.qty;
                     if (newQty > 0) {
@@ -441,7 +467,8 @@ export const FinanceService = {
             if (invoice.paidAmount > 0) {
                 invoice.paidAmount = Math.max(0, invoice.paidAmount - totalRefund);
             }
-            await invoice.save({ session });
+            invoice.hasReturns = true;
+            await invoice.save(); // { session });
 
             // 2. Create SalesReturn document
             const salesReturn = await SalesReturn.create([{
@@ -453,28 +480,24 @@ export const FinanceService = {
                 customerBalanceAdded: refundMethod === 'customerBalance' ? totalRefund : 0,
                 treasuryDeducted: refundMethod === 'cash' ? totalRefund : 0,
                 createdBy: userId
-            }], { session }); // create returns array
+            }]); // , { session });
 
             const salesReturnDoc = salesReturn[0];
 
             // 3. Stock re-entry
-            await StockService.increaseStockForReturn(returnItems, salesReturnDoc.returnNumber, userId, session);
+            await StockService.increaseStockForReturn(returnItems, salesReturnDoc.returnNumber, userId); // session);
 
-            // 4. Accounting reversal
-            await AccountingService.createReturnEntries(salesReturnDoc, totalCostImpact, userId, session);
+            // 4. Financial Settlement (Moved up logic implies we just handle money)
 
             // 5. Financial Settlement
             if (refundMethod === 'cash') {
-                await TreasuryService.addManualExpense(
-                    new Date(),
+                await TreasuryService.recordReturnRefund(
+                    salesReturnDoc,
                     totalRefund,
-                    `استرداد نقدي - فاتورة ${invoice.number}`,
-                    'other',
-                    userId,
-                    session
-                );
+                    userId
+                ); // session);
             } else if (refundMethod === 'customerBalance' && invoice.customer) {
-                const customer = await Customer.findById(invoice.customer).session(session);
+                const customer = await Customer.findById(invoice.customer); // .session(session);
                 if (customer) {
                     let remaining = totalRefund;
                     if (customer.balance > 0) {
@@ -485,17 +508,17 @@ export const FinanceService = {
                     if (remaining > 0) {
                         customer.creditBalance = (customer.creditBalance || 0) + remaining;
                     }
-                    await customer.save({ session });
+                    await customer.save(); // { session });
                 }
             }
 
-            await session.commitTransaction();
+            // await session.commitTransaction();
             return { salesReturn: salesReturnDoc, invoice };
         } catch (error) {
-            await session.abortTransaction();
+            // await session.abortTransaction();
             throw error;
         } finally {
-            session.endSession();
+            // session.endSession();
         }
     },
 
@@ -504,8 +527,9 @@ export const FinanceService = {
      */
     async recordExpense(data, userId) {
         await dbConnect();
-        const session = await mongoose.startSession();
-        session.startTransaction();
+        // [MOD] Transaction Removed for Standalone Compatibility
+        // const session = await mongoose.startSession();
+        // session.startTransaction();
 
         try {
             const { amount, reason, category, date = new Date() } = data;
@@ -520,19 +544,10 @@ export const FinanceService = {
                 parseFloat(amount),
                 reason,
                 category,
-                userId,
-                session
-            );
+                userId
+            ); // session
 
-            // 2. Record in Accounting
-            const accountingEntry = await AccountingService.createExpenseEntry(
-                parseFloat(amount),
-                category,
-                reason,
-                userId,
-                date,
-                session
-            );
+            // 2. Log is below
 
             // 3. Optional: Log the expense
             await LogService.logAction({
@@ -542,16 +557,65 @@ export const FinanceService = {
                 entityId: treasuryRecord._id,
                 diff: { amount, category, reason },
                 note: `General expense recorded: ${reason}`
-            }, session);
+            }); // session
 
-            await session.commitTransaction();
-            return { treasuryRecord, accountingEntry };
+            // await session.commitTransaction();
+            return { treasuryRecord };
         } catch (error) {
-            await session.abortTransaction();
+            // await session.abortTransaction();
             throw error;
         } finally {
-            session.endSession();
+            // session.endSession();
         }
+    },
+
+    /**
+     * Record payment for Manual Debt (Opening Balance / Migrated)
+     */
+    async recordManualDebtPayment(debt, amount, method, note, userId) {
+        await dbConnect();
+
+        // 1. Update Legacy Balance (Debtor)
+        if (debt.debtorType === 'Customer') {
+            const customer = await Customer.findById(debt.debtorId);
+            if (customer) {
+                customer.balance = Math.max(0, (customer.balance || 0) - amount);
+                await customer.save();
+                await this.updateSchedulesAfterPayment(customer._id, 'Customer', amount);
+            }
+
+            // Treasury Income
+            await TreasuryService.recordPaymentCollection({
+                number: 'رصيد افتتاحي/سابق',
+                _id: debt.referenceId // or debt._id
+            }, amount, userId, method, `سداد مديونية سابقة: ${note}`);
+
+            // Credit/Debt updated above
+
+        } else if (debt.debtorType === 'Supplier') {
+            const supplier = await Supplier.findById(debt.debtorId);
+            if (supplier) {
+                supplier.balance = Math.max(0, (supplier.balance || 0) - amount);
+                await supplier.save();
+                await this.updateSchedulesAfterPayment(supplier._id, 'Supplier', amount);
+            }
+
+            // Treasury Expense
+            await TreasuryService.recordSupplierPayment(
+                supplier || { name: 'Unknown' },
+                amount,
+                'رصيد افتتاحي/سابق',
+                debt._id,
+                userId,
+                method,
+                note
+            );
+
+            // Supplier Balance updated above
+        }
+
+        // 2. Update Debt Record
+        await DebtService.updateBalance(debt._id, amount);
     },
 
     /**
@@ -567,17 +631,42 @@ export const FinanceService = {
 
         if (type === 'receivable') {
             const invoice = await Invoice.findById(id).populate('customer');
-            if (!invoice) throw 'الفاتورة غير موجودة';
 
-            await this.recordCustomerPayment(invoice, amount, method, note, userId);
+            if (invoice) {
+                await this.recordCustomerPayment(invoice, amount, method, note, userId);
+            } else {
+                // Handle Manual Customer Debt (Opening Balance or Migrated)
+                const { default: Debt } = await import('@/models/Debt');
+                // Check if ID is a Debt ID or referenceId
+                let debt = await Debt.findById(id);
+                if (!debt) debt = await Debt.findOne({ referenceId: id, debtorType: 'Customer' });
+
+                if (debt) {
+                    await this.recordManualDebtPayment(debt, amount, method, note, userId);
+                } else {
+                    throw 'الفاتورة أو المديونية غير موجودة';
+                }
+            }
             return { message: 'تم تحصيل الدفعة بنجاح' };
 
         } else if (type === 'payable') {
             const PurchaseOrder = (await import('@/models/PurchaseOrder')).default;
             const po = await PurchaseOrder.findById(id).populate('supplier');
-            if (!po) throw 'أمر الشراء غير موجود';
 
-            await this.recordSupplierPayment(po, amount, method, note, userId);
+            if (po) {
+                await this.recordSupplierPayment(po, amount, method, note, userId);
+            } else {
+                // Handle Manual Supplier Debt (Opening Balance)
+                const { default: Debt } = await import('@/models/Debt');
+                let debt = await Debt.findById(id);
+                if (!debt) debt = await Debt.findOne({ referenceId: id, debtorType: 'Supplier' });
+
+                if (debt) {
+                    await this.recordManualDebtPayment(debt, amount, method, note, userId);
+                } else {
+                    throw 'أمر الشراء أو المديونية غير موجودة';
+                }
+            }
             return { message: 'تم سداد الدفعة للمورد بنجاح' };
         }
 

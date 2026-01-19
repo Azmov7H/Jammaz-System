@@ -1,7 +1,7 @@
 import PhysicalInventory from '@/models/PhysicalInventory';
 import Product from '@/models/Product';
 import { StockService } from './stockService';
-import { AccountingService } from './accountingService';
+// import { AccountingService } from './accountingService';
 import { LogService } from './logService';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
@@ -149,11 +149,12 @@ export const PhysicalInventoryService = {
      */
     async completeCount(countId, userId) {
         await dbConnect();
-        const session = await mongoose.startSession();
-        session.startTransaction();
+        // [MOD] Transaction Removed for Standalone Compatibility
+        // const session = await mongoose.startSession();
+        // session.startTransaction();
 
         try {
-            const count = await PhysicalInventory.findById(countId).populate('items.productId').session(session);
+            const count = await PhysicalInventory.findById(countId).populate('items.productId'); // .session(session);
 
             if (!count) {
                 throw new Error('سجل الجرد غير موجود');
@@ -164,7 +165,7 @@ export const PhysicalInventoryService = {
             }
 
             // Complete the count
-            await count.complete(userId, session);
+            await count.complete(userId); // session);
 
             // [NEW] Log Action
             await LogService.logAction({
@@ -174,14 +175,14 @@ export const PhysicalInventoryService = {
                 entityId: count._id,
                 diff: { valueImpact: count.valueImpact, netDifference: count.netDifference },
                 note: `Inventory count completed for ${count.location}`
-            }, session);
+            }); // session);
 
             // Generate stock adjustments for discrepancies
             const adjustments = [];
 
             for (const item of count.items) {
                 if (item.difference !== 0) {
-                    const product = await Product.findById(item.productId).session(session);
+                    const product = await Product.findById(item.productId); // .session(session);
 
                     if (!product) continue;
 
@@ -214,18 +215,17 @@ export const PhysicalInventoryService = {
                         newWarehouseQty,
                         newShopQty,
                         `جرد فعلي - ${item.reason || 'تصحيح الكمية'}`,
-                        userId,
-                        session
-                    );
+                        userId
+                    ); // session);
 
                     adjustments.push(adjustment);
                 }
             }
 
-            // Create accounting entries
-            await AccountingService.createInventoryAdjustmentEntries(count, userId, session);
+            // Create accounting entries - REMOVED (Accounting System Deprecated)
+            // await AccountingService.createInventoryAdjustmentEntries(count, userId); // session);
 
-            await session.commitTransaction();
+            // await session.commitTransaction();
 
             return {
                 count,
@@ -233,10 +233,10 @@ export const PhysicalInventoryService = {
                 totalAdjustments: adjustments.length
             };
         } catch (error) {
-            await session.abortTransaction();
+            // await session.abortTransaction();
             throw error;
         } finally {
-            session.endSession();
+            // session.endSession();
         }
     },
 
@@ -343,16 +343,17 @@ export const PhysicalInventoryService = {
      */
     async unlockCount(countId, password, userId) {
         await dbConnect();
-        const session = await mongoose.startSession();
-        session.startTransaction();
+        // [MOD] Transaction Removed for Standalone Compatibility
+        // const session = await mongoose.startSession();
+        // session.startTransaction();
 
         try {
-            const count = await PhysicalInventory.findById(countId).session(session);
+            const count = await PhysicalInventory.findById(countId); // .session(session);
             if (!count) throw new Error('سجل الجرد غير موجود');
             if (count.status !== 'completed') throw new Error('الجرد غير مكتمل بالفعل');
 
             // Find the owner user to verify password
-            const owner = await User.findOne({ role: 'owner' }).session(session);
+            const owner = await User.findOne({ role: 'owner' }); // .session(session);
             if (!owner) throw new Error('لا يوجد مالك مسجل في النظام');
 
             // Verify password
@@ -363,7 +364,7 @@ export const PhysicalInventoryService = {
             count.status = 'draft';
             count.approvedBy = null;
             count.approvedAt = null;
-            await count.save({ session });
+            await count.save(); // { session });
 
             // Log action
             await LogService.logAction({
@@ -372,15 +373,15 @@ export const PhysicalInventoryService = {
                 entity: 'PhysicalInventory',
                 entityId: count._id,
                 note: `Inventory count unlocked by owner for modification`
-            }, session);
+            }); // session);
 
-            await session.commitTransaction();
+            // await session.commitTransaction();
             return count;
         } catch (error) {
-            await session.abortTransaction();
+            // await session.abortTransaction();
             throw error;
         } finally {
-            session.endSession();
+            // session.endSession();
         }
     },
 };

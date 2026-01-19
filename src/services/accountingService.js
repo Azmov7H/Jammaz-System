@@ -31,7 +31,8 @@ export const ACCOUNTS = {
     OTHER_EXPENSE: 'مصروفات أخرى',
     SHORTAGE_EXPENSE: 'خسائر النواقص',
     SURPLUS_INCOME: 'إيرادات الفوائض',
-    SALES_RETURNS: 'مردودات المبيعات'
+    SALES_RETURNS: 'مردودات المبيعات',
+    WALLET: 'محفظة كاش'
 };
 
 export const AccountingService = {
@@ -126,13 +127,20 @@ export const AccountingService = {
     /**
      * Create accounting entries for payment collection
      */
-    async createPaymentEntries(invoice, paymentAmount, userId, date = new Date(), session = null) {
+    async createPaymentEntries(invoice, paymentAmount, userId, date = new Date(), session = null, paymentType = 'cash') {
         await dbConnect();
 
-        // Debit Cash, Credit Receivables
+        let debitAccount = ACCOUNTS.CASH;
+        if (paymentType === 'bank' || paymentType === 'bank_transfer') {
+            debitAccount = ACCOUNTS.BANK;
+        } else if (paymentType === 'wallet' || paymentType === 'cash_wallet') {
+            debitAccount = ACCOUNTS.WALLET;
+        }
+
+        // Debit Cash/Bank/Wallet, Credit Receivables
         return await AccountingEntry.createEntry({
             type: 'PAYMENT',
-            debitAccount: ACCOUNTS.CASH,
+            debitAccount: debitAccount,
             creditAccount: ACCOUNTS.RECEIVABLES,
             amount: paymentAmount,
             description: `تحصيل دفعة - فاتورة ${invoice.number}`,
@@ -159,9 +167,12 @@ export const AccountingService = {
         if (paymentType === 'credit') {
             creditAccount = ACCOUNTS.PAYABLES;
             description = `شراء آجل - أمر ${purchaseOrder.poNumber}`;
-        } else if (paymentType === 'bank') {
+        } else if (paymentType === 'bank' || paymentType === 'bank_transfer') {
             creditAccount = ACCOUNTS.BANK;
             description = `شراء تحويل بنكي - أمر ${purchaseOrder.poNumber}`;
+        } else if (paymentType === 'wallet' || paymentType === 'cash_wallet') {
+            creditAccount = ACCOUNTS.WALLET;
+            description = `شراء محفظة - أمر ${purchaseOrder.poNumber}`;
         } else {
             creditAccount = ACCOUNTS.CASH;
             description = `شراء نقدي - أمر ${purchaseOrder.poNumber}`;
@@ -185,11 +196,17 @@ export const AccountingService = {
     /**
      * Create accounting entries for paying supplier debt
      */
-    async createSupplierPaymentEntries(purchaseOrder, amount, userId, date = new Date(), session = null) {
+    async createSupplierPaymentEntries(purchaseOrder, amount, userId, date = new Date(), session = null, paymentMethod = null) {
         await dbConnect();
 
-        // Debit Payables, Credit Cash/Bank
-        const creditAccount = purchaseOrder.paymentType === 'bank' ? ACCOUNTS.BANK : ACCOUNTS.CASH;
+        // Determine credit account (use passed method or fallback to PO type)
+        const method = paymentMethod || purchaseOrder.paymentType;
+        let creditAccount = ACCOUNTS.CASH;
+        if (method === 'bank' || method === 'bank_transfer') {
+            creditAccount = ACCOUNTS.BANK;
+        } else if (method === 'wallet' || method === 'cash_wallet') {
+            creditAccount = ACCOUNTS.WALLET;
+        }
 
         return await AccountingEntry.createEntry({
             type: 'PAYMENT',
