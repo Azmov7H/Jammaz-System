@@ -28,7 +28,7 @@ export default function PriceHistoryPage() {
         }
     });
 
-    const history = data?.history || [];
+    const history = data?.data?.history || [];
 
     // Client-side filtering
     const filteredHistory = history.filter(item =>

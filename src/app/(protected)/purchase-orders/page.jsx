@@ -12,6 +12,7 @@ import { usePurchaseOrders, useCreatePO, useUpdatePOStatus } from '@/hooks/usePu
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useProducts } from '@/hooks/useProducts';
 import Link from 'next/link';
+import { SmartCombobox } from '@/components/ui/smart-combobox';
 
 export default function PurchaseOrdersPage() {
     const { data: posData, isLoading: posLoading } = usePurchaseOrders();
@@ -25,6 +26,7 @@ export default function PurchaseOrdersPage() {
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [supplierId, setSupplierId] = useState('');
+    const [paymentType, setPaymentType] = useState('cash');
     const [poItems, setPoItems] = useState([]);
 
     const [selectedProduct, setSelectedProduct] = useState('');
@@ -54,11 +56,13 @@ export default function PurchaseOrdersPage() {
         createMutation.mutate({
             supplierId,
             items: poItems,
+            paymentType,
             notes: 'Generated via Dashboard'
         }, {
             onSuccess: () => {
                 setIsDialogOpen(false);
                 setSupplierId('');
+                setPaymentType('cash');
                 setPoItems([]);
             }
         });
@@ -163,26 +167,36 @@ export default function PurchaseOrdersPage() {
                     <div className="space-y-4 py-4">
                         <div>
                             <Label>المورد</Label>
+                            <SmartCombobox
+                                options={suppliers.map(s => ({ label: s.name, value: s._id }))}
+                                value={supplierId}
+                                onChange={setSupplierId}
+                                placeholder="اختر المورد..."
+                            />
+                        </div>
+                        <div>
+                            <Label>طريقة الدفع</Label>
                             <select
                                 className="w-full p-2 border rounded-md bg-background"
-                                value={supplierId}
-                                onChange={e => setSupplierId(e.target.value)}
+                                value={paymentType}
+                                onChange={e => setPaymentType(e.target.value)}
                             >
-                                <option value="">اختر المورد...</option>
-                                {suppliers.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
+                                <option value="cash">نقداً (كاش)</option>
+                                <option value="wallet">محفظة كاش</option>
+                                <option value="bank">تحويل بنكي</option>
+                                <option value="credit">آجل (دين)</option>
                             </select>
                         </div>
                         <div className="bg-muted/30 p-4 rounded-lg space-y-3 border">
                             <h4 className="font-semibold text-sm">إضافة منتجات</h4>
                             <div className="flex flex-wrap gap-2">
-                                <select
-                                    className="flex-1 min-w-[150px] p-2 border rounded-md bg-background text-sm"
+                                <SmartCombobox
+                                    className="flex-1 min-w-[200px]"
+                                    options={products.map(p => ({ label: p.name, value: p._id }))}
                                     value={selectedProduct}
-                                    onChange={e => setSelectedProduct(e.target.value)}
-                                >
-                                    <option value="">اختر المنتج...</option>
-                                    {products.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
-                                </select>
+                                    onChange={setSelectedProduct}
+                                    placeholder="اختر المنتج..."
+                                />
                                 <Input type="number" placeholder="الكمية" className="w-20" value={qty} onChange={e => setQty(e.target.value)} />
                                 <Input type="number" placeholder="التكلفة" className="w-24" value={cost} onChange={e => setCost(e.target.value)} />
                                 <Button size="icon" onClick={addItem}><Plus size={18} /></Button>

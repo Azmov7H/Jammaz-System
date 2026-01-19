@@ -24,7 +24,7 @@ export const POST = apiHandler(async (req) => {
     if (type === 'INCOME') {
         return await TreasuryService.addManualIncome(new Date(), Number(amount), description, user.userId);
     } else if (type === 'EXPENSE') {
-        return await TreasuryService.addManualExpense(new Date(), Number(amount), description, category || 'others', user.userId);
+        return await TreasuryService.addManualExpense(new Date(), Number(amount), description, category || 'other', user.userId);
     } else {
         throw new Error('نوع معاملة غير معروف');
     }

@@ -52,11 +52,19 @@ export const InvoiceService = {
         const processedItems = [];
 
         for (const item of items) {
-            const product = await Product.findById(item.productId);
-            if (!product) throw `المنتج غير موجود: ${item.productId}`;
+            let productName = item.name;
+            let costPrice = item.buyPrice || 0;
+            const isService = !!item.isService || !item.productId;
+
+            if (item.productId && !item.isService) {
+                const product = await Product.findById(item.productId);
+                if (!product) throw `المنتج غير موجود: ${item.productId}`;
+                productName = product.name;
+                costPrice = product.buyPrice || 0;
+            }
 
             const itemTotal = item.qty * item.unitPrice;
-            const lineCost = item.qty * (product.buyPrice || 0);
+            const lineCost = item.qty * costPrice;
             const lineProfit = itemTotal - lineCost;
 
             subtotal += itemTotal;
@@ -64,8 +72,9 @@ export const InvoiceService = {
 
             processedItems.push({
                 ...item,
-                productName: product.name, // Add product name for display
-                costPrice: product.buyPrice,
+                productName,
+                costPrice,
+                isService,
                 profit: lineProfit,
                 total: itemTotal
             });

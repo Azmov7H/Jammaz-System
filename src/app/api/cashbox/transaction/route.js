@@ -1,6 +1,5 @@
 import { apiHandler } from '@/lib/api-handler';
 import dbConnect from '@/lib/db';
-import { AccountingService } from '@/services/accountingService';
 import { TreasuryService } from '@/services/treasuryService';
 import { getCurrentUser } from '@/lib/auth';
 

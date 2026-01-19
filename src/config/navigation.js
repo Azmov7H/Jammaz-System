@@ -11,7 +11,8 @@ import {
     ShieldAlert,
     TrendingUp,
     Plus,
-    DollarSign
+    DollarSign,
+    RotateCcw
 } from 'lucide-react';
 
 export const navigationConfig = [
@@ -36,11 +37,11 @@ export const navigationConfig = [
         items: [
             { name: 'فاتورة جديدة', href: '/invoices/new', icon: Plus, permission: 'invoices:create' },
             { name: 'سجل الفواتير', href: '/invoices', icon: FileText, permission: 'invoices:view' },
+            { name: 'مرتجع المبيعات', href: '/sales-returns', icon: RotateCcw, permission: 'invoices:view' },
             { name: 'العملاء', href: '/customers', icon: Users, permission: 'invoices:view' },
             { name: 'الخزينة والمالية', href: '/financial', icon: Wallet, permission: 'financial:view' },
             { name: 'مركز الديون والمستحقات', href: '/financial/debt-center', icon: ShieldAlert, permission: 'financial:view' },
-            { name: 'المصروفات والإيرادات', href: '/accounting/manual', icon: TrendingUp, permission: 'financial:view' },
-            { name: 'المحاسبة العامة', href: '/accounting', icon: DollarSign, permission: 'financial:view' },
+
         ]
     },
     {

@@ -17,7 +17,7 @@ const TreasuryTransactionSchema = new mongoose.Schema({
     },
     referenceType: {
         type: String,
-        enum: ['Invoice', 'PurchaseOrder', 'Manual'],
+        enum: ['Invoice', 'PurchaseOrder', 'Manual', 'SalesReturn'],
         default: 'Manual'
     },
     referenceId: {

@@ -33,7 +33,7 @@ export default function CustomerProfitReportPage() {
         }
     });
 
-    const report = data?.report || [];
+    const report = data?.data?.report || [];
 
     const totalRevenue = report.reduce((acc, curr) => acc + curr.totalRevenue, 0);
     const totalProfit = report.reduce((acc, curr) => acc + curr.totalProfit, 0);

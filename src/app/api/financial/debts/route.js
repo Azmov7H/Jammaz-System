@@ -9,7 +9,12 @@ export const GET = apiHandler(async (req) => {
 
     const params = ['debtorId', 'debtorType', 'status', 'startDate', 'endDate'];
     params.forEach(p => {
-        if (searchParams.has(p)) filter[p] = searchParams.get(p);
+        if (searchParams.has(p)) {
+            const val = searchParams.get(p);
+            if (val && val !== 'undefined' && val !== 'null') {
+                filter[p] = val;
+            }
+        }
     });
 
     const page = parseInt(searchParams.get('page') || '1');

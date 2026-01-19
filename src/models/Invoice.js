@@ -53,6 +53,7 @@ const InvoiceSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    hasReturns: { type: Boolean, default: false },
     notes: String
 }, {
     timestamps: true,

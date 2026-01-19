@@ -1,12 +1,14 @@
+// Financial hooks for treasury and debts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-utils';
 import { toast } from 'sonner';
 
-export function useTreasury() {
+export function useTreasury(params = {}) {
     return useQuery({
-        queryKey: ['treasury'],
+        queryKey: ['treasury', params],
         queryFn: async () => {
-            const res = await api.get('/api/financial/treasury');
+            const searchParams = new URLSearchParams(params);
+            const res = await api.get(`/api/financial/treasury?${searchParams}`);
             return res.data;
         }
     });
@@ -20,6 +22,18 @@ export function useAddTransaction() {
             queryClient.invalidateQueries({ queryKey: ['treasury'] });
             toast.success('تم تسجيل المعاملة بنجاح');
         }
+    });
+}
+
+export function useDeleteTransaction() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id) => api.delete(`/api/financial/transaction/${id}`),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['treasury'] });
+            toast.success('تم التراجع عن المعاملة بنجاح');
+        },
+        onError: (err) => toast.error(err.message || 'فشل التراجع عن المعاملة')
     });
 }
 
@@ -89,5 +103,21 @@ export function useReceivables(params = {}) {
             const res = await api.get(`/api/payments?${searchParams}`);
             return res.data;
         }
+    });
+}
+
+export function useSyncDebts() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (data) => {
+            const res = await api.post('/api/financial/debts/sync', data);
+            return res.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['debts'] });
+            queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+            toast.success('تمت مزامنة المديونيات بنجاح');
+        },
+        onError: (err) => toast.error(err.message || 'فشل مزامنة المديونيات')
     });
 }

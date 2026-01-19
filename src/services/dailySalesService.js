@@ -38,21 +38,23 @@ export const DailySalesService = {
         for (const item of invoice.items) {
             dailySales.itemsSold += item.qty;
 
-            // Update top products using item snapshot
-            const existingProduct = dailySales.topProducts.find(
-                p => p.productId.toString() === item.productId.toString()
-            );
+            // Update top products using item snapshot (skip service items/no productId)
+            if (item.productId) {
+                const existingProduct = dailySales.topProducts.find(
+                    p => p.productId && p.productId.toString() === item.productId.toString()
+                );
 
-            if (existingProduct) {
-                existingProduct.quantitySold += item.qty;
-                existingProduct.revenue += item.total;
-            } else {
-                dailySales.topProducts.push({
-                    productId: item.productId,
-                    name: item.name || 'Product', // Should be populated if possible, or we might need one lookup if name is missing
-                    quantitySold: item.qty,
-                    revenue: item.total
-                });
+                if (existingProduct) {
+                    existingProduct.quantitySold += item.qty;
+                    existingProduct.revenue += item.total;
+                } else {
+                    dailySales.topProducts.push({
+                        productId: item.productId,
+                        name: item.productName || item.name || 'Product',
+                        quantitySold: item.qty,
+                        revenue: item.total
+                    });
+                }
             }
         }
 
@@ -113,11 +115,11 @@ export const DailySalesService = {
         };
 
         sales.forEach(day => {
-            summary.totalRevenue += day.totalRevenue;
-            summary.totalCost += day.totalCost;
-            summary.totalProfit += day.grossProfit;
-            summary.totalInvoices += day.invoiceCount;
-            summary.totalItems += day.itemsSold;
+            summary.totalRevenue += (day.totalRevenue || 0);
+            summary.totalCost += (day.totalCost || 0);
+            summary.totalProfit += (day.grossProfit || 0);
+            summary.totalInvoices += (day.invoiceCount || 0);
+            summary.totalItems += (day.itemsSold || 0);
         });
 
         return summary;
@@ -138,6 +140,7 @@ export const DailySalesService = {
 
         sales.forEach(day => {
             day.topProducts.forEach(product => {
+                if (!product.productId) return;
                 const key = product.productId.toString();
                 if (productMap.has(key)) {
                     const existing = productMap.get(key);

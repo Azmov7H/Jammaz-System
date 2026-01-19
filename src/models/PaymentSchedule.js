@@ -49,8 +49,5 @@ PaymentScheduleSchema.index({ entityType: 1, entityId: 1, status: 1 });
 PaymentScheduleSchema.index({ dueDate: 1, status: 1 });
 
 // Force model refresh if schema changed
-if (mongoose.models.PaymentSchedule) {
-    delete mongoose.models.PaymentSchedule;
-}
 
 export default mongoose.models.PaymentSchedule || mongoose.model('PaymentSchedule', PaymentScheduleSchema);

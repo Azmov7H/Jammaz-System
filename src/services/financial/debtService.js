@@ -60,7 +60,13 @@ export class DebtService {
         const query = {};
         if (filter.debtorId) query.debtorId = filter.debtorId;
         if (filter.debtorType) query.debtorType = filter.debtorType;
-        if (filter.status) query.status = filter.status;
+        if (filter.status) {
+            if (typeof filter.status === 'string' && filter.status.includes(',')) {
+                query.status = { $in: filter.status.split(',') };
+            } else {
+                query.status = filter.status;
+            }
+        }
         if (filter.startDate && filter.endDate) {
             query.dueDate = { $gte: new Date(filter.startDate), $lte: new Date(filter.endDate) };
         }
@@ -221,18 +227,24 @@ export class DebtService {
             throw new Error('الديون المطلوبة غير موجودة في النظام (Debt not found)');
         }
 
-        const amountPerInstallment = Math.round((debt.remainingAmount / installmentsCount) * 100) / 100;
-        const schedules = [];
+        const count = parseInt(installmentsCount);
+        if (isNaN(count) || count <= 0) {
+            throw new Error('عدد الأقساط يجب أن يكون رقماً صحيحاً موجباً');
+        }
 
-        for (let i = 0; i < installmentsCount; i++) {
-            const dueDate = new Date(startDate);
+        const amountPerInstallment = Math.round((debt.remainingAmount / count) * 100) / 100;
+        const schedules = [];
+        const baseDate = new Date(startDate);
+
+        for (let i = 0; i < count; i++) {
+            const dueDate = new Date(baseDate);
             if (interval === 'monthly') dueDate.setMonth(dueDate.getMonth() + i);
             else if (interval === 'weekly') dueDate.setDate(dueDate.getDate() + (i * 7));
             else if (interval === 'daily') dueDate.setDate(dueDate.getDate() + i);
 
             // Last installment adjustment for rounding
-            const actualAmount = (i === installmentsCount - 1)
-                ? (debt.remainingAmount - (amountPerInstallment * (installmentsCount - 1)))
+            const actualAmount = (i === count - 1)
+                ? (debt.remainingAmount - (amountPerInstallment * (count - 1)))
                 : amountPerInstallment;
 
             schedules.push({
@@ -243,7 +255,7 @@ export class DebtService {
                 dueDate,
                 status: 'PENDING',
                 createdBy: userId,
-                notes: `قسط رقم ${i + 1} من أصل ${installmentsCount} - مديونية #${debt.referenceId?.toString().slice(-6).toUpperCase()}`
+                notes: `قسط رقم ${i + 1} من أصل ${count} - مديونية #${debt.referenceId?.toString().slice(-6).toUpperCase()}`
             });
         }
 
@@ -255,7 +267,9 @@ export class DebtService {
         console.log(`[DebtService] Created ${createdSchedules.length} new schedules for debt ${debtId}`);
 
         // Update Debt Meta
-        debt.meta = debt.meta || {};
+        if (!debt.meta) {
+            debt.meta = new Map();
+        }
         debt.meta.set('isScheduled', true);
         debt.meta.set('installmentsCount', installmentsCount);
         debt.meta.set('lastScheduledUpdate', new Date());
@@ -267,11 +281,75 @@ export class DebtService {
     }
 
     /**
+     * Get Payments for a specific debt (from Treasury Transactions)
+     */
+    static async getDebtPayments(debtId) {
+        await dbConnect();
+        const TreasuryTransaction = (await import('@/models/TreasuryTransaction')).default;
+
+        // Find the debt to get the reference link
+        const debt = await Debt.findById(debtId);
+        if (!debt) return [];
+
+        // Find transactions linked to the original invoice/PO or the debt itself
+        return await TreasuryTransaction.find({
+            $or: [
+                { referenceId: debt.referenceId },
+                { referenceId: debt._id }
+            ],
+            type: { $in: ['INCOME', 'EXPENSE'] }
+        })
+            .sort({ date: -1 })
+            .populate('createdBy', 'name')
+            .lean();
+    }
+
+    /**
      * Get Installments for a Debt
      */
     static async getInstallments(debtId) {
         await dbConnect();
         const { default: PaymentSchedule } = await import('@/models/PaymentSchedule');
         return await PaymentSchedule.find({ debtId }).sort({ dueDate: 1 }).lean();
+    }
+
+    /**
+     * Sync/Initialize Debt from existing balance if missing
+     */
+    static async syncDebts(debtorId, debtorType) {
+        await dbConnect();
+        const Model = debtorType === 'Supplier'
+            ? (await import('@/models/Supplier')).default
+            : (await import('@/models/Customer')).default;
+
+        const debtor = await Model.findById(debtorId);
+        if (!debtor) throw new Error('Debtor not found');
+
+        const balance = debtor.balance || 0;
+        if (balance <= 0) return { message: 'Balance is zero or negative', count: 0 };
+
+        // Check active debts
+        const activeDebtsCount = await Debt.countDocuments({
+            debtorId,
+            debtorType,
+            status: { $in: ['active', 'overdue'] }
+        });
+
+        if (activeDebtsCount === 0) {
+            // Create a manual debt for the entire balance
+            const debt = await this.createDebt({
+                debtorType,
+                debtorId,
+                amount: balance,
+                dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Default 30 days
+                referenceType: 'Manual',
+                referenceId: debtorId,
+                description: 'رصيد سابق (رصيد افتتاحي)',
+                createdBy: null
+            });
+            return { message: 'تمت مزامنة الرصيد بنجاح', count: 1, debt };
+        }
+
+        return { message: 'المورد لديه مديونيات نشطة بالفعل', count: 0 };
     }
 }
