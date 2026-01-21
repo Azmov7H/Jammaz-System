@@ -5,6 +5,8 @@ import { useUserRole } from '@/hooks/useUserRole';
 export function useProductPage() {
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState('all');
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(50);
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -19,8 +21,9 @@ export function useProductPage() {
     const [editFormData, setEditFormData] = useState({});
 
     // Fetch Data
-    const { data: productsData, isLoading } = useProducts({ search });
+    const { data: productsData, isLoading } = useProducts({ search, page, limit });
     const products = productsData?.products || [];
+    const pagination = productsData?.pagination || { page: 1, limit: 10, total: 0, pages: 1 };
     const { data: metadata = { brands: [], categories: [] } } = useProductMetadata();
 
     // Mutations
@@ -41,13 +44,16 @@ export function useProductPage() {
     }, [products, filter]);
 
     const stats = useMemo(() => {
+        // specific stats might be limited to current page if not handled by separate stats API
+        // For now, we'll keep it as is, but noting that "total" refers to products on current page
+        //Ideally stats should come from a separate endpoint for correct totals across all pages
         return {
-            total: products.length,
+            total: pagination.total, // Use total from pagination
             low: products.filter(p => p.stockQty <= (p.minLevel || 5) && p.stockQty > 0).length,
             out: products.filter(p => p.stockQty === 0).length,
             value: products.reduce((acc, p) => acc + (p.stockQty * (p.buyPrice || 0)), 0)
         };
-    }, [products]);
+    }, [products, pagination.total]);
 
     // Handlers
     const handleEditClick = (product) => {
@@ -102,6 +108,8 @@ export function useProductPage() {
         // State
         search, setSearch,
         filter, setFilter,
+        page, setPage,
+        limit, setLimit,
         isAddDialogOpen, setIsAddDialogOpen,
         isEditDialogOpen, setIsEditDialogOpen,
         isViewDialogOpen, setIsViewDialogOpen,
@@ -111,6 +119,7 @@ export function useProductPage() {
 
         // Data
         products,
+        pagination,
         filteredProducts,
         stats,
         isLoading,

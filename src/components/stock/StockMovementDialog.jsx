@@ -5,15 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
-import { ArrowLeftRight, Loader2, Plus, Trash2, Package, Layers, AlertCircle } from 'lucide-react';
+import { ArrowLeftRight, Loader2, Plus, Trash2, Package, Layers, AlertCircle, Search } from 'lucide-react';
 import { cn } from '@/utils';
 import { useProducts } from '@/hooks/useProducts';
-import { motion, AnimatePresence } from 'framer-motion';
-import { SmartCombobox } from '@/components/ui/smart-combobox';
+import { ProductSelectorDialog } from '@/components/products/ProductSelectorDialog';
+import { AnimatePresence, motion } from 'framer-motion';
 
 export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting }) {
-    const { data: productsData } = useProducts({ limit: 100 });
-    const products = productsData?.products || [];
+
+    const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
+    const [selectedProductDetails, setSelectedProductDetails] = useState(null);
 
     const [formData, setFormData] = useState({
         productId: '', type: 'IN', qty: '', note: ''
@@ -22,18 +23,20 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
 
     const handleAddItem = () => {
         if (!formData.productId || !formData.qty) return;
-        const product = (productsData?.products || []).find(p => p._id === formData.productId);
-        if (!product) return;
+
+        // Use details from selection if available
+        const productName = selectedProductDetails ? selectedProductDetails.name : 'Unknown Product';
 
         setItems([...items, {
-            productId: product._id,
-            name: product.name,
+            productId: formData.productId,
+            name: productName,
             qty: Number(formData.qty),
             note: formData.note
         }]);
 
         // Reset product selection but keep type and global note
         setFormData({ ...formData, productId: '', qty: '' });
+        setSelectedProductDetails(null);
     };
 
     const handleRemoveItem = (index) => {
@@ -56,8 +59,8 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent dir="rtl" className="sm:max-w-[850px] w-[95vw] max-h-[95vh] overflow-y-auto">
-                <DialogHeader className="border-b border-white/10 pb-6">
+            <DialogContent dir="rtl" className="sm:max-w-[850px] w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+                <DialogHeader className="px-6 py-4 border-b border-white/10 shrink-0">
                     <DialogTitle className="flex items-center gap-4 text-3xl font-black tracking-tight">
                         <div className="p-3 bg-primary/20 rounded-2xl shadow-lg shadow-primary/20 animate-pulse">
                             <ArrowLeftRight className="w-7 h-7 text-primary" />
@@ -69,7 +72,7 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
                     </DialogTitle>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="space-y-8 py-6">
+                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
                     {/* Operation Type Selector */}
                     <div className="relative group">
                         <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-transparent rounded-[2rem] blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
@@ -88,8 +91,8 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
                             >
                                 <option value="IN" className="bg-[#1e293b]">وارد: شراء / توريد (للمخزن)</option>
                                 <option value="OUT" className="bg-[#1e293b]">صادر: صرف / تالف (من المخزن)</option>
-                                <option value="TRANSFER_TO_SHOP" className="bg-[#1e293b]">نقل: تحويل من المخزن للمحل</option>
-                                <option value="TRANSFER_TO_WAREHOUSE" className="bg-[#1e293b]">إرجاع: من المحل للمخزن الرئيسي</option>
+                                <option value="TRANSFER_TO_SHOP" className="bg-[#1e293b]">تحويل: من المخزن للمحل</option>
+                                <option value="TRANSFER_TO_WAREHOUSE" className="bg-[#1e293b]">إرجاع: من المحل للمخزن</option>
                             </select>
                         </div>
                     </div>
@@ -106,15 +109,40 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
 
                         <div className="flex flex-col lg:flex-row gap-4">
                             <div className="flex-1">
-                                <SmartCombobox
-                                    options={products.map(p => ({
-                                        value: p._id,
-                                        label: `${p.name} | ${p.code} (م: ${p.warehouseQty || 0} / م: ${p.shopQty || 0})`
-                                    }))}
-                                    value={formData.productId}
-                                    onChange={val => setFormData({ ...formData, productId: val })}
-                                    placeholder="ابحث عن اسم المنتج أو الكود..."
-                                />
+                                {selectedProductDetails ? (
+                                    <div className="flex items-center justify-between p-3 bg-primary/10 border border-primary/20 rounded-2xl group relative overflow-hidden">
+                                        <div className="flex items-center gap-3 relative z-10">
+                                            <div className="p-2 bg-primary/20 rounded-xl text-primary">
+                                                <Package size={20} />
+                                            </div>
+                                            <div>
+                                                <p className="font-black text-foreground">{selectedProductDetails.name}</p>
+                                                <p className="text-xs font-bold text-muted-foreground">{selectedProductDetails.code}</p>
+                                            </div>
+                                        </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setIsProductSelectorOpen(true)}
+                                            className="font-bold relative z-10 hover:bg-white/10"
+                                        >
+                                            تغيير
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setIsProductSelectorOpen(true)}
+                                        className="w-full h-12 justify-between border-dashed border-2 border-white/10 hover:border-primary/50 hover:bg-primary/5 text-muted-foreground hover:text-primary rounded-2xl transition-all"
+                                    >
+                                        <span className="flex items-center gap-2 font-bold">
+                                            <Search size={16} />
+                                            اختر منتج من القائمة...
+                                        </span>
+                                        <Plus size={16} />
+                                    </Button>
+                                )}
                             </div>
                             <div className="w-full lg:w-40 relative">
                                 <Input
@@ -249,6 +277,15 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
                     </DialogFooter>
                 </form>
             </DialogContent>
+
+            <ProductSelectorDialog
+                open={isProductSelectorOpen}
+                onOpenChange={setIsProductSelectorOpen}
+                onSelect={(product) => {
+                    setFormData({ ...formData, productId: product._id });
+                    setSelectedProductDetails(product);
+                }}
+            />
         </Dialog>
     );
 }
