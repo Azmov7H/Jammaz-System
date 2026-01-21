@@ -19,7 +19,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 
-export function SmartCombobox({ options = [], value, onChange, placeholder = "Select...", onCreate, className }) {
+export function SmartCombobox({ options = [], value, onChange, placeholder = "Select...", onCreate, className, onSearchChange }) {
     const [open, setOpen] = React.useState(false)
     const [searchValue, setSearchValue] = React.useState("")
 
@@ -59,7 +59,10 @@ export function SmartCombobox({ options = [], value, onChange, placeholder = "Se
                         <CommandInput
                             placeholder={`ابحث عن ${placeholder.toLowerCase()}...`}
                             value={searchValue}
-                            onValueChange={setSearchValue}
+                            onValueChange={(val) => {
+                                setSearchValue(val);
+                                if (onSearchChange) onSearchChange(val);
+                            }}
                             className="h-14 pr-11 bg-transparent font-bold text-base focus:ring-0 placeholder:text-muted-foreground/50 border-0"
                         />
                     </div>

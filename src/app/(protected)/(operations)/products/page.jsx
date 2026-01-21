@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -15,6 +17,10 @@ import {
     XCircle, FileEdit, Trash2, Eye, Loader2, Package, Layers,
     MoreVertical, Box, Barcode, Tag
 } from 'lucide-react';
+import {
+    Pagination, PaginationContent, PaginationItem,
+    PaginationLink, PaginationNext, PaginationPrevious
+} from '@/components/ui/pagination';
 import { useProductPage } from '@/hooks/useProductPage';
 import { cn } from '@/utils';
 
@@ -33,6 +39,8 @@ export default function ProductsPage() {
     const {
         search, setSearch,
         filter, setFilter,
+        page, setPage,
+        pagination,
         isAddDialogOpen, setIsAddDialogOpen,
         isEditDialogOpen, setIsEditDialogOpen,
         isViewDialogOpen, setIsViewDialogOpen,
@@ -308,6 +316,54 @@ export default function ProductsPage() {
                     </Table>
                 </div>
             </div>
+
+            {/* Pagination */}
+            {pagination.pages > 1 && (
+                <div className="flex justify-center dir-ltr">
+                    <Pagination>
+                        <PaginationContent>
+                            <PaginationItem>
+                                <PaginationPrevious
+                                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                                    className={page === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                                />
+                            </PaginationItem>
+
+                            {Array.from({ length: pagination.pages }, (_, i) => i + 1)
+                                .filter(p => p === 1 || p === pagination.pages || Math.abs(page - p) <= 1)
+                                .map((p, i, arr) => {
+                                    const prev = arr[i - 1];
+                                    return (
+                                        <React.Fragment key={p}>
+                                            {prev && p - prev > 1 && (
+                                                <PaginationItem>
+                                                    <span className="px-2">...</span>
+                                                </PaginationItem>
+                                            )}
+                                            <PaginationItem>
+                                                <PaginationLink
+                                                    isActive={page === p}
+                                                    onClick={() => setPage(p)}
+                                                    className="cursor-pointer"
+                                                >
+                                                    {p}
+                                                </PaginationLink>
+                                            </PaginationItem>
+                                        </React.Fragment>
+                                    );
+                                })}
+
+                            <PaginationItem>
+                                <PaginationNext
+                                    onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
+                                    className={page === pagination.pages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                                />
+                            </PaginationItem>
+                        </PaginationContent>
+                    </Pagination>
+                </div>
+            )}
+
 
             {/* Dialogs */}
             {(isAddDialogOpen || isEditDialogOpen) && (

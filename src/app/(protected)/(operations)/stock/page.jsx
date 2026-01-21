@@ -104,6 +104,7 @@ export default function StockPage() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('ALL');
 
   // Stats Logic
   const stats = useMemo(() => {
@@ -167,11 +168,16 @@ export default function StockPage() {
       const productCode = m.productId?.code?.toLowerCase() || '';
       const note = m.note?.toLowerCase() || '';
 
-      return productName.includes(term) ||
+
+      const matchesSearch = productName.includes(term) ||
         productCode.includes(term) ||
         note.includes(term);
+
+      const matchesType = filterType === 'ALL' || m.type === filterType;
+
+      return matchesSearch && matchesType;
     });
-  }, [movements, searchQuery]);
+  }, [movements, searchQuery, filterType]);
 
   const handleSubmit = (payload, resetCallback) => {
     addMovement(payload, {
@@ -347,6 +353,24 @@ export default function StockPage() {
           onChange={(e) => setSearchQuery(e.target.value)}
           className="h-16 pr-16 pl-8 rounded-[2rem] bg-white/[0.03] border-white/5 focus:bg-white/[0.07] focus:border-primary/30 transition-all font-black text-xl placeholder:text-muted-foreground/30 shadow-inner ring-0 focus-visible:ring-0"
         />
+
+        {/* Type Filter */}
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="h-10 pl-4 pr-10 rounded-xl bg-black/40 border border-white/10 text-xs font-bold text-white focus:border-primary/50 outline-none appearance-none cursor-pointer hover:bg-black/60 transition-colors"
+            style={{ backgroundImage: 'none' }}
+          >
+            <option value="ALL">كل الحركات</option>
+            <option value="IN">وارد (شراء)</option>
+            <option value="OUT">صادر (بيع/تالف)</option>
+            <option value="TRANSFER_TO_SHOP">تحويل للمحل</option>
+            <option value="TRANSFER_TO_WAREHOUSE">تحويل للمخزن</option>
+            <option value="ADJUST">تسوية جردية</option>
+          </select>
+          <Layers className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary pointer-events-none" />
+        </div>
       </motion.div>
 
       {/* Enhanced Movement Feed */}
