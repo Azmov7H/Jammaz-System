@@ -124,6 +124,74 @@ export class DebtService {
     }
 
     /**
+     * Update debt record manually
+     */
+    static async updateDebt(id, data) {
+        await dbConnect();
+        const debt = await Debt.findById(id).populate('debtorId', 'name');
+        if (!debt) throw new Error('Debt not found');
+
+        // Calculate old collected amount before changes
+        const oldCollectedAmount = debt.originalAmount - debt.remainingAmount;
+
+        const allowedFields = ['originalAmount', 'remainingAmount', 'dueDate', 'description'];
+        allowedFields.forEach(field => {
+            if (data[field] !== undefined) {
+                if (field === 'dueDate') debt[field] = new Date(data[field]);
+                else debt[field] = data[field];
+            }
+        });
+
+        // Calculate new collected amount after changes
+        const newCollectedAmount = debt.originalAmount - debt.remainingAmount;
+        const collectedDifference = newCollectedAmount - oldCollectedAmount;
+
+        // Auto-settlement logic
+        if (debt.remainingAmount <= 0.01) {
+            debt.remainingAmount = 0;
+            debt.status = 'settled';
+        } else {
+            // Re-evaluate status if it was settled but now has a balance
+            debt.status = new Date(debt.dueDate) < new Date() ? 'overdue' : 'active';
+        }
+
+        await debt.save();
+
+        // Create treasury adjustment transaction if collected amount changed
+        if (Math.abs(collectedDifference) > 0.01) {
+            const TreasuryTransaction = (await import('@/models/TreasuryTransaction')).default;
+
+            const transactionType = debt.debtorType === 'Customer'
+                ? (collectedDifference > 0 ? 'INCOME' : 'EXPENSE')  // Customer: collected more = income, less = expense
+                : (collectedDifference > 0 ? 'EXPENSE' : 'INCOME'); // Supplier: paid more = expense, less = income
+
+            const adjustmentTransaction = new TreasuryTransaction({
+                type: transactionType,
+                amount: Math.abs(collectedDifference),
+                method: 'adjustment',
+                category: 'debt_adjustment',
+                description: `تعديل ${debt.debtorType === 'Customer' ? 'تحصيل' : 'سداد'} - ${debt.debtorId?.name || 'غير معروف'} - ${collectedDifference > 0 ? 'زيادة' : 'نقصان'}: ${Math.abs(collectedDifference).toLocaleString()} د.ل`,
+                referenceType: 'Debt',
+                referenceId: debt._id,
+                date: new Date(),
+                createdBy: null, // System adjustment
+                meta: {
+                    isAdjustment: true,
+                    debtId: debt._id,
+                    oldCollected: oldCollectedAmount,
+                    newCollected: newCollectedAmount,
+                    difference: collectedDifference
+                }
+            });
+
+            await adjustmentTransaction.save();
+            console.log(`[DebtService] Created treasury adjustment: ${transactionType} ${Math.abs(collectedDifference)}`);
+        }
+
+        return debt;
+    }
+
+    /**
      * Write-off debt (Bad Debt)
      */
     static async writeOff(id, reason, userId) {
@@ -173,6 +241,7 @@ export class DebtService {
         const result = {
             total: 0,
             overdue: 0,
+            collected: 0, // NEW: Sum of (original - remaining)
             tiers: {
                 current: 0,
                 tier1: 0, // 1-30 days
@@ -183,6 +252,7 @@ export class DebtService {
 
         debts.forEach(debt => {
             result.total += debt.remainingAmount;
+            result.collected += (debt.originalAmount - debt.remainingAmount);
 
             const daysOverdue = differenceInDays(now, debt.dueDate);
             if (daysOverdue > 0) {

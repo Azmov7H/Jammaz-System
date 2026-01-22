@@ -99,10 +99,21 @@ export function PaymentDialog({ open, onOpenChange, debt, targetInstallmentId })
                             )
                         ) : (
                             <>
-                                <span className="text-[10px] uppercase font-black tracking-widest text-primary opacity-60 block">المبلغ المتبقي حالياً</span>
-                                <div className="text-3xl font-black tracking-tighter text-foreground flex items-baseline gap-1">
-                                    {formatCurrency(debt.remainingAmount)}
-                                    <span className="text-xs text-muted-foreground font-bold italic">د.ل</span>
+                                <div className="flex justify-between items-end">
+                                    <div>
+                                        <span className="text-[10px] uppercase font-black tracking-widest text-primary opacity-60 block">المبلغ المتبقي حالياً</span>
+                                        <div className="text-3xl font-black tracking-tighter text-foreground flex items-baseline gap-1">
+                                            {formatCurrency(debt.remainingAmount)}
+                                            <span className="text-xs text-muted-foreground font-bold italic">د.ل</span>
+                                        </div>
+                                    </div>
+                                    <div className="text-left">
+                                        <span className="text-[10px] uppercase font-black tracking-widest text-emerald-600 opacity-60 block">تم {debt.debtorType === 'Customer' ? 'تحصيل' : 'سداد'}</span>
+                                        <div className="text-xl font-black tracking-tighter text-emerald-600 flex items-baseline gap-1">
+                                            {formatCurrency(debt.originalAmount - debt.remainingAmount)}
+                                            <span className="text-[10px] font-bold italic">د.ل</span>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="text-[11px] text-muted-foreground font-bold mt-2 pt-2 border-t border-primary/10">
                                     {debt.debtorId?.name} • {debt.referenceType === 'Invoice' ? 'فاتورة' : 'أمر شراء'}

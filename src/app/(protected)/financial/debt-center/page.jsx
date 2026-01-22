@@ -35,9 +35,9 @@ export default function DebtCenterPage() {
 
     const debts = debtsData?.debts || [];
     const stats = [
-        { title: 'إجمالي المستحقات', value: overview?.receivables?.total || 0, trend: '', icon: TrendingUp, color: 'text-emerald-500' },
-        { title: 'ديون متأخرة', value: overview?.receivables?.overdue || 0, trend: '', icon: AlertCircle, color: 'text-rose-500' },
-        { title: 'ديون الموردين', value: overview?.payables?.total || 0, trend: '', icon: TrendingDown, color: 'text-amber-500' },
+        { title: 'إجمالي المستحقات', value: overview?.receivables?.total || 0, trend: `تم تحصيل: ${(overview?.receivables?.collected || 0).toLocaleString()} د.ل`, icon: TrendingUp, color: 'text-emerald-500' },
+        { title: 'ديون الموردين', value: overview?.payables?.total || 0, trend: `تم سداد: ${(overview?.payables?.collected || 0).toLocaleString()} د.ل`, icon: TrendingDown, color: 'text-amber-500' },
+        { title: 'ديون متأخرة', value: overview?.receivables?.overdue || 0, trend: 'تحتاج متابعة', icon: AlertCircle, color: 'text-rose-500' },
         { title: 'الميزانية الصافية', value: overview?.totalNet || 0, trend: overview?.riskScore || 'HEALTHY', icon: CheckCircle2, color: 'text-blue-500' },
     ];
 

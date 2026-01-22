@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowUpCircle, ArrowDownCircle, Wallet, Plus, Minus, Loader2, Trash2 } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Wallet, Plus, Minus, Loader2, Trash2, Info, User, Clock, Tag, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 
@@ -21,11 +21,13 @@ export default function FinancialPage() {
         endDate: new Date().toISOString().split('T')[0]
     });
 
-    const { data, isLoading } = useTreasury(getDateRange());
+    const { data: treasuryData, isLoading } = useTreasury(getDateRange());
     const { mutate: addTransaction, isPending } = useAddTransaction();
     const { mutate: deleteTransaction, isPending: isDeleting } = useDeleteTransaction();
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [selectedTx, setSelectedTx] = useState(null);
+    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [formData, setFormData] = useState({ amount: '', description: '', type: 'INCOME' });
 
     // Calculate actual dates based on period
@@ -78,8 +80,13 @@ export default function FinancialPage() {
         );
     }
 
-    const balance = data?.balance || 0;
-    const allTransactions = data?.transactions || [];
+    const balance = treasuryData?.balance || 0;
+    const allTransactions = treasuryData?.transactions || [];
+
+    const handleTxClick = (tx) => {
+        setSelectedTx(tx);
+        setIsDetailsOpen(true);
+    };
 
     // Client-side filtering
     const filteredTransactions = allTransactions.filter(tx =>
@@ -87,9 +94,9 @@ export default function FinancialPage() {
     );
 
     const periodStats = {
-        income: data?.totalIncome || 0,
-        expense: data?.totalExpense || 0,
-        net: data?.periodBalance || 0
+        income: treasuryData?.totalIncome || 0,
+        expense: treasuryData?.totalExpense || 0,
+        net: treasuryData?.periodBalance || 0
     };
 
     return (
@@ -297,10 +304,11 @@ export default function FinancialPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead className="text-right">نوع المعاملة</TableHead>
+                                        <TableHead className="text-right">الجهة / الطرف</TableHead>
                                         <TableHead className="text-right">المبلغ</TableHead>
                                         <TableHead className="text-right hidden md:table-cell">الوصف</TableHead>
                                         <TableHead className="text-right hidden lg:table-cell">التاريخ</TableHead>
-                                        <TableHead className="text-right">الإجراءات</TableHead>
+                                        <TableHead className="text-right">إجراءات</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -312,11 +320,30 @@ export default function FinancialPage() {
                                         </TableRow>
                                     ) : (
                                         filteredTransactions.map((tx) => (
-                                            <TableRow key={tx._id}>
+                                            <TableRow
+                                                key={tx._id}
+                                                className="cursor-pointer hover:bg-muted/50"
+                                                onClick={() => handleTxClick(tx)}
+                                            >
                                                 <TableCell>
                                                     <Badge variant={tx.type === 'INCOME' ? 'default' : 'destructive'} className="gap-1 min-w-[70px] justify-center">
                                                         {tx.type === 'INCOME' ? 'وارد' : 'صادر'}
                                                     </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-medium">
+                                                            {tx.referenceType === 'Invoice' ? (tx.referenceId?.customer?.name || tx.referenceId?.customerName || 'عميل نقدي') :
+                                                                tx.referenceType === 'PurchaseOrder' ? (tx.referenceId?.supplier?.name || 'مورد') :
+                                                                    tx.referenceType === 'Debt' ? (tx.referenceId?.debtorId?.name || 'طرف مديون') :
+                                                                        '---'}
+                                                        </span>
+                                                        <span className="text-[10px] text-muted-foreground">
+                                                            {tx.referenceType === 'Invoice' ? `فاتورة #${tx.referenceId?.number || ''}` :
+                                                                tx.referenceType === 'PurchaseOrder' ? `أمر شراء #${tx.referenceId?.poNumber || ''}` :
+                                                                    tx.referenceType === 'Debt' ? `دين / مطالبات` : ''}
+                                                        </span>
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell className={`font-bold text-base ${tx.type === 'INCOME' ? 'text-green-600' : 'text-red-600'}`}>
                                                     {tx.amount.toLocaleString()} ج.م
@@ -327,25 +354,36 @@ export default function FinancialPage() {
                                                         <Badge variant="outline" className="text-[10px] w-fit mt-1 opacity-70">
                                                             {tx.referenceType === 'Manual' ? 'يدوي' :
                                                                 tx.referenceType === 'Invoice' ? 'فاتورة' :
-                                                                    tx.referenceType === 'PurchaseOrder' ? 'أمر شراء' : tx.referenceType}
+                                                                    tx.referenceType === 'PurchaseOrder' ? 'أمر شراء' :
+                                                                        tx.referenceType === 'Debt' ? 'دين / مديونية' : tx.referenceType}
                                                         </Badge>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-muted-foreground font-mono text-xs hidden lg:table-cell">
                                                     {format(new Date(tx.date || tx.createdAt), 'dd/MM/yyyy HH:mm', { locale: ar })}
                                                 </TableCell>
-                                                <TableCell>
-                                                    {tx.referenceType === 'Manual' && (
+                                                <TableCell onClick={(e) => e.stopPropagation()}>
+                                                    <div className="flex items-center gap-2">
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="text-muted-foreground hover:text-destructive h-8 w-8"
-                                                            onClick={() => handleDelete(tx._id)}
-                                                            disabled={isDeleting}
+                                                            className="text-muted-foreground hover:text-primary h-8 w-8"
+                                                            onClick={() => handleTxClick(tx)}
                                                         >
-                                                            <Trash2 size={16} />
+                                                            <Info size={16} />
                                                         </Button>
-                                                    )}
+                                                        {tx.referenceType === 'Manual' && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="text-muted-foreground hover:text-destructive h-8 w-8"
+                                                                onClick={() => handleDelete(tx._id)}
+                                                                disabled={isDeleting}
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </Button>
+                                                        )}
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))
@@ -356,6 +394,119 @@ export default function FinancialPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Transaction Details Dialog */}
+            <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+                <DialogContent dir="rtl" className="sm:max-w-[500px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-xl">
+                            <Info className="text-primary" />
+                            تفاصيل العملية المالية
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    {selectedTx && (
+                        <div className="space-y-6 py-4">
+                            <div className="flex justify-between items-center p-4 bg-muted/50 rounded-xl">
+                                <div className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">المبلغ</p>
+                                    <p className={`text-2xl font-bold ${selectedTx.type === 'INCOME' ? 'text-green-600' : 'text-red-600'}`}>
+                                        {selectedTx.amount.toLocaleString()} ج.م
+                                    </p>
+                                </div>
+                                <Badge variant={selectedTx.type === 'INCOME' ? 'default' : 'destructive'} className="h-8 px-4 text-sm">
+                                    {selectedTx.type === 'INCOME' ? 'وارد' : 'صادر'}
+                                </Badge>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-4">
+                                <div className="flex items-start gap-3">
+                                    <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                                        <Tag size={18} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-medium text-muted-foreground">الوصف</p>
+                                        <p className="text-base">{selectedTx.description}</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-3">
+                                    <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                                        <User size={18} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-medium text-muted-foreground">المسؤول عن العملية</p>
+                                        <p className="text-base font-semibold">{selectedTx.createdBy?.name || 'غير معروف'}</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-3">
+                                    <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                                        <Clock size={18} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-medium text-muted-foreground">وقت وتاريخ العملية</p>
+                                        <p className="text-base">{format(new Date(selectedTx.date || selectedTx.createdAt), 'PPPP p', { locale: ar })}</p>
+                                    </div>
+                                </div>
+
+                                {(selectedTx.referenceType === 'Invoice' || selectedTx.referenceType === 'PurchaseOrder' || selectedTx.referenceType === 'Debt') && (
+                                    <div className="flex items-start gap-3">
+                                        <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                                            <ExternalLink size={18} />
+                                        </div>
+                                        <div className="space-y-1 w-full">
+                                            <p className="text-sm font-medium text-muted-foreground">
+                                                {selectedTx.referenceType === 'Invoice' ? 'إلى العميل' :
+                                                    selectedTx.referenceType === 'PurchaseOrder' ? 'من المورد' : 'جهة المديونية'}
+                                            </p>
+                                            <div className="flex flex-col gap-1">
+                                                {selectedTx.referenceType === 'Invoice' && (
+                                                    <>
+                                                        <p className="font-semibold text-lg">{selectedTx.referenceId?.customer?.name || selectedTx.referenceId?.customerName || 'عميل نقدي'}</p>
+                                                        {selectedTx.referenceId?.number && <Badge variant="outline" className="w-fit">فاتورة #{selectedTx.referenceId.number}</Badge>}
+                                                    </>
+                                                )}
+                                                {selectedTx.referenceType === 'PurchaseOrder' && (
+                                                    <>
+                                                        <p className="font-semibold text-lg">{selectedTx.referenceId?.supplier?.name || 'مورد'}</p>
+                                                        {selectedTx.referenceId?.poNumber && <Badge variant="outline" className="w-fit">أمر شراء #{selectedTx.referenceId.poNumber}</Badge>}
+                                                    </>
+                                                )}
+                                                {selectedTx.referenceType === 'Debt' && (
+                                                    <>
+                                                        <p className="font-semibold text-lg">{selectedTx.referenceId?.debtorId?.name || 'غير معروف'}</p>
+                                                        <Badge variant="outline" className="w-fit">معاملة دين</Badge>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="flex items-start gap-3">
+                                    <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                                        <Info size={18} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-medium text-muted-foreground">مرجع النظام</p>
+                                        <Badge variant="outline" className="capitalize">
+                                            {selectedTx.referenceType === 'Manual' ? 'إدخال يدوي' :
+                                                selectedTx.referenceType === 'Invoice' ? 'نظام المبيعات' :
+                                                    selectedTx.referenceType === 'PurchaseOrder' ? 'نظام المشتريات' :
+                                                        selectedTx.referenceType === 'Debt' ? 'نظام الديون والمديونيات' : selectedTx.referenceType}
+                                        </Badge>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button className="w-full" onClick={() => setIsDetailsOpen(false)}>إغلاق</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

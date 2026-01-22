@@ -138,21 +138,26 @@ export const CustomerService = {
 
     async delete(id) {
         await dbConnect();
-        // Instead of hard delete, maybe soft delete or check dependencies (invoices).
-        // For now, implementing simple isActive toggle if we want soft delete, or direct delete.
-        // User requirements usually prefer soft delete for accounting.
-        // Let's implement toggle Active/Inactive for "deletion" if business logic allows, but API generally is REST DELETE.
-        // Let's check permissions in Route, here just do operation.
-        // Checking task: "Reject invalid...". Let's do simple delete or isActive = false.
 
         const customer = await Customer.findById(id);
         if (!customer) throw 'Customer not found';
 
-        // Soft delete logic preferred for customers with history
-        customer.isActive = false;
-        await customer.save();
+        // Check if customer has any invoices or debts before deleting
+        const Invoice = (await import('@/models/Invoice')).default;
+        const Debt = (await import('@/models/Debt')).default;
+
+        const [hasInvoices, hasDebts] = await Promise.all([
+            Invoice.exists({ customer: id }),
+            Debt.exists({ debtorId: id, debtorType: 'Customer' })
+        ]);
+
+        if (hasInvoices || hasDebts) {
+            throw 'لا يمكن حذف العميل لوجود معاملات مالية أو فواتير مرتبطة به. يمكنك إيقاف تنشيطه بدلاً من ذلك.';
+        }
+
+        await Customer.findByIdAndDelete(id);
 
         revalidateTag(CACHE_TAGS.CUSTOMERS);
-        return { message: 'Customer deactivated' };
+        return { message: 'Customer deleted permanently' };
     }
 };
