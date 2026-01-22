@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, ArrowUpRight, History, Calendar, User, FileText, Layers } from 'lucide-react';
+import { MoreHorizontal, ArrowUpRight, History, Calendar, User, FileText, Layers, Edit2 } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -19,6 +19,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { formatDate } from '@/utils';
 import { useRouter } from 'next/navigation';
+import { DebtEditDialog } from './DebtEditDialog';
+import { useState } from 'react';
 
 const STATUS_STYLES = {
     active: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
@@ -36,6 +38,13 @@ const STATUS_LABELS = {
 
 export function DebtTable({ debts, onRecordPayment, onScheduleInstallment }) {
     const router = useRouter();
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [selectedDebtForEdit, setSelectedDebtForEdit] = useState(null);
+
+    const handleEditDebt = (debt) => {
+        setSelectedDebtForEdit(debt);
+        setEditDialogOpen(true);
+    };
 
     return (
         <div className="overflow-hidden">
@@ -94,9 +103,13 @@ export function DebtTable({ debts, onRecordPayment, onScheduleInstallment }) {
                                         <span className="font-mono text-base">{debt.remainingAmount.toLocaleString()}</span>
                                         <span className="text-[10px] text-muted-foreground italic">د.ل</span>
                                     </div>
-                                    {debt.originalAmount !== debt.remainingAmount && (
-                                        <span className="text-[9px] text-muted-foreground line-through opacity-50">
-                                            من {debt.originalAmount.toLocaleString()}
+                                    {debt.originalAmount !== debt.remainingAmount ? (
+                                        <span className="text-[9px] text-emerald-600 font-bold">
+                                            تم {debt.debtorType === 'Customer' ? 'تحصيل' : 'سداد'}: {(debt.originalAmount - debt.remainingAmount).toLocaleString()}
+                                        </span>
+                                    ) : (
+                                        <span className="text-[9px] text-muted-foreground opacity-50">
+                                            المبلغ الأصلي: {debt.originalAmount.toLocaleString()}
                                         </span>
                                     )}
                                 </div>
@@ -125,6 +138,13 @@ export function DebtTable({ debts, onRecordPayment, onScheduleInstallment }) {
                                             onClick={() => router.push(`/financial/debt-center/${debt._id}`)}
                                         >
                                             <History size={16} className="text-primary" /> تفاصيل المديونية
+                                        </DropdownMenuItem>
+
+                                        <DropdownMenuItem
+                                            className="gap-2 p-3 rounded-xl cursor-pointer font-bold text-amber-500 focus:text-amber-500 focus:bg-amber-500/10 transition-colors"
+                                            onClick={() => handleEditDebt(debt)}
+                                        >
+                                            <Edit2 size={16} /> تعديل المبالغ
                                         </DropdownMenuItem>
 
                                         {debt.remainingAmount > 0 && (
@@ -161,6 +181,11 @@ export function DebtTable({ debts, onRecordPayment, onScheduleInstallment }) {
                     )}
                 </TableBody>
             </Table>
+            <DebtEditDialog
+                open={editDialogOpen}
+                onOpenChange={setEditDialogOpen}
+                debt={selectedDebtForEdit}
+            />
         </div >
     );
 }

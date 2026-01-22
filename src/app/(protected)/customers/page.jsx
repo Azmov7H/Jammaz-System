@@ -187,16 +187,16 @@ export default function CustomersPage() {
                         variant="accent"
                     />
                     <KPICard
-                        title="ذمم الفواتير (للسداد)"
-                        value={totalReceivables.toLocaleString()}
-                        subValue={`(${pendingInvoicesCount}) فاتورة مفتوحة`}
-                        icon={TrendingDown}
-                        trend={totalReceivables > 10000 ? "down" : "up"}
-                        trendValue="تحصيل فواتير"
-                        variant="primary"
+                        title="تم تحصيله (من الديون)"
+                        value={isDebtLoading ? "..." : (debtOverview?.receivables?.collected || 0).toLocaleString()}
+                        subValue="مبالغ تم استلامها فعلياً"
+                        icon={TrendingUp}
+                        trend="up"
+                        trendValue="تحصيلات"
+                        variant="success"
                     />
                     <KPICard
-                        title="ديون وذمم سابقة"
+                        title="ديون وذمم متبقية"
                         value={isDebtLoading ? "..." : (debtOverview?.receivables?.total || 0).toLocaleString()}
                         subValue="رصيد دفتري سابق"
                         icon={TrendingDown}
@@ -276,6 +276,8 @@ export default function CustomersPage() {
                                     return new Date(d.dueDate) < new Date();
                                 });
                                 const hasOverdueDebt = overdueDebts.length > 0;
+                                const totalOriginalDebt = customerDebtsList.reduce((sum, d) => sum + (d.originalAmount || 0), 0);
+                                const totalCollectedAmount = totalOriginalDebt - totalDebtAmount;
 
                                 return (
                                     <React.Fragment key={customer._id}>
@@ -352,9 +354,12 @@ export default function CustomersPage() {
                                                         )}>
                                                             <div className="flex flex-col items-end">
                                                                 <span className="font-mono">{totalDebtAmount.toLocaleString()}</span>
-                                                                <span className="text-[8px] font-bold opacity-70">
-                                                                    {activeDebtsCount} ديون {hasOverdueDebt && "متأخرة"}
-                                                                </span>
+                                                                <div className="flex items-center gap-1">
+                                                                    <span className="text-[8px] font-bold text-emerald-500">تم تحصيل: {totalCollectedAmount.toLocaleString()}</span>
+                                                                    <span className="text-[8px] font-bold opacity-70">
+                                                                        • {activeDebtsCount} ديون {hasOverdueDebt && "متأخرة"}
+                                                                    </span>
+                                                                </div>
                                                             </div>
                                                             <Wallet size={12} className={cn(hasOverdueDebt && "animate-pulse")} />
                                                         </div>

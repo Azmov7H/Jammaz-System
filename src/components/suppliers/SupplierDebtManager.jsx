@@ -25,12 +25,14 @@ import {
     useAddPayment,
     useDebtInstallments,
     useCreateInstallments,
-    useSyncDebts
+    useSyncDebts,
+    useUpdateDebt
 } from '@/hooks/useFinancial';
-import { Loader2, DollarSign, CalendarCheck, History, AlertCircle, ChevronLeft, RefreshCw } from 'lucide-react';
+import { Loader2, DollarSign, CalendarCheck, History, AlertCircle, ChevronLeft, RefreshCw, Edit2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import { DebtEditDialog } from '../financial/DebtEditDialog';
 
 export function SupplierDebtManager({ supplier, open, onOpenChange }) {
     const [view, setView] = useState('list'); // 'list', 'payment', 'schedule', 'details'
@@ -61,7 +63,7 @@ export function SupplierDebtManager({ supplier, open, onOpenChange }) {
     const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
     const handleBack = () => {
-        if (view === 'details' || view === 'payment' || view === 'schedule') setView('list');
+        if (view === 'details' || view === 'payment' || view === 'schedule' || view === 'edit') setView('list');
         else onOpenChange(false);
     };
 
@@ -107,6 +109,116 @@ export function SupplierDebtManager({ supplier, open, onOpenChange }) {
         });
     };
 
+    // Inline Edit Form Component to avoid nested dialogs
+    const EditDebtForm = ({ debt, onSuccess, onCancel }) => {
+        const { mutate: updateDebt, isPending } = useUpdateDebt();
+        const [formData, setFormData] = useState({
+            originalAmount: debt.originalAmount || 0,
+            remainingAmount: debt.remainingAmount || 0,
+            dueDate: debt.dueDate ? format(new Date(debt.dueDate), 'yyyy-MM-dd') : '',
+            description: debt.description || ''
+        });
+
+        const handleSubmit = (e) => {
+            e.preventDefault();
+            updateDebt({
+                id: debt._id,
+                data: {
+                    originalAmount: parseFloat(formData.originalAmount),
+                    remainingAmount: parseFloat(formData.remainingAmount),
+                    dueDate: formData.dueDate,
+                    description: formData.description
+                }
+            }, {
+                onSuccess: () => {
+                    toast.success('تم تحديث بيانات الدين بنجاح');
+                    onSuccess();
+                }
+            });
+        };
+
+        const collectedAmount = Math.max(0, (parseFloat(formData.originalAmount) || 0) - (parseFloat(formData.remainingAmount) || 0));
+
+        return (
+            <form onSubmit={handleSubmit} className="space-y-6 max-w-md mx-auto">
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label className="text-xs font-bold mr-1">المبلغ الإجمالي (Original)</Label>
+                        <Input
+                            type="number"
+                            step="0.01"
+                            value={formData.originalAmount}
+                            onChange={(e) => setFormData({ ...formData, originalAmount: e.target.value })}
+                            className="h-12 rounded-xl bg-muted/30 border-white/10 font-mono font-bold"
+                            required
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-xs font-bold mr-1">المبلغ المسدد</Label>
+                        <Input
+                            type="number"
+                            step="0.01"
+                            value={collectedAmount}
+                            onChange={(e) => {
+                                const collected = parseFloat(e.target.value) || 0;
+                                const original = parseFloat(formData.originalAmount) || 0;
+                                const remaining = Math.max(0, original - collected);
+                                setFormData({ ...formData, remainingAmount: remaining });
+                            }}
+                            className="h-12 rounded-xl bg-muted/30 border-white/10 font-mono font-bold"
+                            required
+                        />
+                    </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex justify-between items-center">
+                    <div className="flex items-center gap-2 text-blue-600">
+                        <DollarSign size={18} />
+                        <span className="text-xs font-black">المبلغ المتبقي (محسوب تلقائياً)</span>
+                    </div>
+                    <span className="text-xl font-black text-blue-600 font-mono">
+                        {(parseFloat(formData.originalAmount) - collectedAmount).toLocaleString()} <span className="text-[10px]">د.ل</span>
+                    </span>
+                </div>
+
+                <div className="space-y-2">
+                    <Label className="text-xs font-bold mr-1">تاريخ الاستحقاق</Label>
+                    <Input
+                        type="date"
+                        value={formData.dueDate}
+                        onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                        className="h-12 rounded-xl bg-muted/30 border-white/10 font-bold"
+                        required
+                    />
+                </div>
+
+                <div className="space-y-2">
+                    <Label className="text-xs font-bold mr-1">البيان / الوصف</Label>
+                    <Input
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        className="h-12 rounded-xl bg-muted/30 border-white/10 font-bold"
+                    />
+                </div>
+
+                <div className="flex gap-3">
+                    <Button type="button" variant="ghost" onClick={onCancel} className="rounded-xl px-6 h-12 font-bold flex-1">
+                        إلغاء
+                    </Button>
+                    <Button
+                        type="submit"
+                        disabled={isPending}
+                        className="h-12 rounded-xl px-8 font-black gradient-primary shadow-colored border-0 hover:scale-105 transition-all flex-1"
+                    >
+                        {isPending && <Loader2 className="animate-spin w-4 h-4 ml-2" />}
+                        حفظ التعديلات
+                    </Button>
+                </div>
+            </form>
+        );
+    };
+
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir="rtl">
@@ -122,6 +234,7 @@ export function SupplierDebtManager({ supplier, open, onOpenChange }) {
                             {view === 'payment' && 'تسجيل دفعة سداد'}
                             {view === 'schedule' && 'جدولة الديون'}
                             {view === 'details' && 'تفاصيل الأقساط'}
+                            {view === 'edit' && 'تعديل بيانات المديونية'}
                         </DialogTitle>
                     </div>
                     <div className="text-left">
@@ -187,6 +300,14 @@ export function SupplierDebtManager({ supplier, open, onOpenChange }) {
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
+                                                            className="h-8 gap-1 border-amber-500/20 hover:bg-amber-500/5 text-amber-500"
+                                                            onClick={() => { setSelectedDebt(debt); setView('edit'); }}
+                                                        >
+                                                            <Edit2 size={14} /> تعديل
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
                                                             className="h-8 gap-1 border-primary/20 hover:bg-primary/5 text-primary"
                                                             onClick={() => { setSelectedDebt(debt); setView('payment'); }}
                                                         >
@@ -220,9 +341,15 @@ export function SupplierDebtManager({ supplier, open, onOpenChange }) {
 
                     {view === 'payment' && selectedDebt && (
                         <div className="max-w-md mx-auto space-y-6">
-                            <div className="bg-primary/5 p-4 rounded-xl border border-primary/20">
-                                <p className="text-sm font-bold text-primary mb-1">المبلغ المطلوب سداده</p>
-                                <p className="text-2xl font-black text-primary">{selectedDebt.remainingAmount?.toLocaleString()} د.ل</p>
+                            <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 flex justify-between items-center">
+                                <div>
+                                    <p className="text-sm font-bold text-primary mb-1">المبلغ المتبقي</p>
+                                    <p className="text-2xl font-black text-primary">{selectedDebt.remainingAmount?.toLocaleString()} د.ل</p>
+                                </div>
+                                <div className="text-left">
+                                    <p className="text-[10px] font-bold text-emerald-600 mb-0.5">تم سداد</p>
+                                    <p className="text-lg font-black text-emerald-600">{(selectedDebt.originalAmount - selectedDebt.remainingAmount).toLocaleString()} د.ل</p>
+                                </div>
                             </div>
 
                             <div className="space-y-4">
@@ -372,6 +499,14 @@ export function SupplierDebtManager({ supplier, open, onOpenChange }) {
                                 </Table>
                             )}
                         </div>
+                    )}
+
+                    {view === 'edit' && selectedDebt && (
+                        <EditDebtForm
+                            debt={selectedDebt}
+                            onSuccess={() => setView('list')}
+                            onCancel={() => setView('list')}
+                        />
                     )}
                 </div>
 

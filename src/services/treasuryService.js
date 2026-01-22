@@ -346,6 +346,15 @@ export const TreasuryService = {
         return await TreasuryTransaction.find(query)
             .sort({ date: -1 })
             .populate('createdBy', 'name')
+            .populate({
+                path: 'referenceId',
+                options: { strictPopulate: false },
+                populate: [
+                    { path: 'customer', select: 'name phone', options: { strictPopulate: false } },
+                    { path: 'supplier', select: 'name phone', options: { strictPopulate: false } },
+                    { path: 'debtorId', select: 'name phone', options: { strictPopulate: false } }
+                ]
+            })
             .lean();
     },
     /**

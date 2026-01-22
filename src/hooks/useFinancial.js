@@ -121,3 +121,16 @@ export function useSyncDebts() {
         onError: (err) => toast.error(err.message || 'فشل مزامنة المديونيات')
     });
 }
+
+export function useUpdateDebt() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, data }) => api.patch(`/api/financial/debts/${id}`, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['debts'] });
+            queryClient.invalidateQueries({ queryKey: ['debt-overview'] });
+            toast.success('تم تحديث بيانات الدين بنجاح');
+        },
+        onError: (err) => toast.error(err.message || 'فشل تحديث بيانات الدين')
+    });
+}
