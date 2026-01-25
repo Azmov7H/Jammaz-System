@@ -6,6 +6,7 @@ const SalesReturnSchema = new mongoose.Schema({
 
     // Original Invoice Reference
     originalInvoice: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice', required: true },
+    customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: false },
 
     // Returned Items
     items: [{

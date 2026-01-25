@@ -350,10 +350,10 @@ export const FinanceService = {
                 }
             }
 
-            await TreasuryService.recordPaymentCollection(invoice, amount, userId, method, note);
+            const tx = await TreasuryService.recordPaymentCollection(invoice, amount, userId, method, note);
 
             // await session.commitTransaction();
-            return invoice;
+            return { invoice, transaction: tx };
         } catch (error) {
             // await session.abortTransaction();
             throw error;
@@ -474,6 +474,7 @@ export const FinanceService = {
             const salesReturn = await SalesReturn.create([{
                 returnNumber: `RET-${Date.now()}`,
                 originalInvoice: invoice._id,
+                customer: invoice.customer, // Added customer here
                 items: returnItems,
                 totalRefund,
                 refundMethod,
@@ -583,39 +584,33 @@ export const FinanceService = {
                 await customer.save();
                 await this.updateSchedulesAfterPayment(customer._id, 'Customer', amount);
             }
-
-            // Treasury Income
-            await TreasuryService.recordPaymentCollection({
-                number: 'رصيد افتتاحي/سابق',
-                _id: debt.referenceId // or debt._id
-            }, amount, userId, method, `سداد مديونية سابقة: ${note}`);
-
-            // Credit/Debt updated above
-
         } else if (debt.debtorType === 'Supplier') {
+            const { default: Supplier } = await import('@/models/Supplier');
             const supplier = await Supplier.findById(debt.debtorId);
             if (supplier) {
                 supplier.balance = Math.max(0, (supplier.balance || 0) - amount);
                 await supplier.save();
                 await this.updateSchedulesAfterPayment(supplier._id, 'Supplier', amount);
             }
-
-            // Treasury Expense
-            await TreasuryService.recordSupplierPayment(
-                supplier || { name: 'Unknown' },
-                amount,
-                'رصيد افتتاحي/سابق',
-                debt._id,
-                userId,
-                method,
-                note
-            );
-
-            // Supplier Balance updated above
         }
 
         // 2. Update Debt Record
         await DebtService.updateBalance(debt._id, amount);
+
+        // Record in Treasury
+        const tx = await TreasuryService.recordDebtTransaction(
+            debt._id,
+            debt.debtorId,
+            amount,
+            debt.debtorType === 'Customer' ? 'INCOME' : 'EXPENSE',
+            userId,
+            debt.debtorType === 'Customer'
+                ? `تحصيل مديونية سابقة: ${debt.description || ''} ${note ? `- ${note}` : ''}`
+                : `سداد مديونية سابقة للمورد: ${note ? `- ${note}` : ''}`,
+            method
+        );
+
+        return { debt, transaction: tx };
     },
 
     /**
@@ -633,28 +628,25 @@ export const FinanceService = {
             const invoice = await Invoice.findById(id).populate('customer');
 
             if (invoice) {
-                await this.recordCustomerPayment(invoice, amount, method, note, userId);
+                return await this.recordCustomerPayment(invoice, amount, method, note, userId);
             } else {
                 // Handle Manual Customer Debt (Opening Balance or Migrated)
                 const { default: Debt } = await import('@/models/Debt');
-                // Check if ID is a Debt ID or referenceId
                 let debt = await Debt.findById(id);
                 if (!debt) debt = await Debt.findOne({ referenceId: id, debtorType: 'Customer' });
 
                 if (debt) {
-                    await this.recordManualDebtPayment(debt, amount, method, note, userId);
+                    return await this.recordManualDebtPayment(debt, amount, method, note, userId);
                 } else {
                     throw 'الفاتورة أو المديونية غير موجودة';
                 }
             }
-            return { message: 'تم تحصيل الدفعة بنجاح' };
-
         } else if (type === 'payable') {
-            const PurchaseOrder = (await import('@/models/PurchaseOrder')).default;
+            const { default: PurchaseOrder } = await import('@/models/PurchaseOrder');
             const po = await PurchaseOrder.findById(id).populate('supplier');
 
             if (po) {
-                await this.recordSupplierPayment(po, amount, method, note, userId);
+                return await this.recordSupplierPayment(po, amount, method, note, userId);
             } else {
                 // Handle Manual Supplier Debt (Opening Balance)
                 const { default: Debt } = await import('@/models/Debt');
@@ -662,12 +654,11 @@ export const FinanceService = {
                 if (!debt) debt = await Debt.findOne({ referenceId: id, debtorType: 'Supplier' });
 
                 if (debt) {
-                    await this.recordManualDebtPayment(debt, amount, method, note, userId);
+                    return await this.recordManualDebtPayment(debt, amount, method, note, userId);
                 } else {
                     throw 'أمر الشراء أو المديونية غير موجودة';
                 }
             }
-            return { message: 'تم سداد الدفعة للمورد بنجاح' };
         }
 
         throw 'نوع عملية غير معروف';

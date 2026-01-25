@@ -2,6 +2,7 @@ import TreasuryTransaction from '@/models/TreasuryTransaction';
 import CashboxDaily from '@/models/CashboxDaily';
 import Invoice from '@/models/Invoice';
 import PurchaseOrder from '@/models/PurchaseOrder';
+import InvoiceSettings from '@/models/InvoiceSettings';
 
 /**
  * Treasury/Cashbox Management Service
@@ -12,13 +13,18 @@ export const TreasuryService = {
      * Record income from a sale (invoice)
      */
     async recordSaleIncome(invoice, userId, session = null) {
+        // Generate receipt number
+        const receiptNumber = await this.getNextReceiptNumber(session);
+
         // Create treasury transaction
         const transaction = await TreasuryTransaction.create([{
             type: 'INCOME',
+            receiptNumber,
             amount: invoice.total,
-            description: `مبيعات - فاتورة #${invoice.number}`,
+            description: `مبيعات - فاتورة #${invoice.number} (العميل: ${invoice.customerName || invoice.customer?.name || 'نقدي'})`,
             referenceType: 'Invoice',
             referenceId: invoice._id,
+            partnerId: invoice.customer || invoice.customerId,
             date: invoice.date || new Date(),
             createdBy: userId
         }], { session });
@@ -38,12 +44,19 @@ export const TreasuryService = {
      */
     async recordPaymentCollection(invoice, amount, userId, method = 'cash', note = '', session = null) {
         const methodLabel = method === 'bank' ? '(بنك)' : method === 'wallet' ? '(محفظة)' : '';
+        const customerName = invoice.customer?.name || invoice.customerName || '';
+
+        // Generate receipt number
+        const receiptNumber = await this.getNextReceiptNumber(session);
+
         const transaction = await TreasuryTransaction.create([{
             type: 'INCOME',
+            receiptNumber,
             amount: amount,
-            description: `تحصيل دفعة - فاتورة #${invoice.number} ${methodLabel} ${note ? `- ${note}` : ''}`,
+            description: `تحصيل دفعة - فاتورة #${invoice.number} - العميل: ${customerName} ${methodLabel} ${note ? `- ${note}` : ''}`,
             referenceType: 'Invoice',
             referenceId: invoice._id,
+            partnerId: invoice.customer || invoice.customerId,
             date: new Date(),
             createdBy: userId
         }], { session });
@@ -52,6 +65,36 @@ export const TreasuryService = {
         if (method === 'cash') {
             await this.updateDailyCashbox(new Date(), {
                 salesIncome: amount
+            }, session);
+        }
+
+        return transaction[0];
+    },
+
+    /**
+     * Record a transaction (collection/payment) for a generic debt (Manual/Opening Balance)
+     */
+    async recordDebtTransaction(debtId, partnerId, amount, type, userId, description, method = 'cash', session = null) {
+        let receiptNumber = null;
+        if (type === 'INCOME') {
+            receiptNumber = await this.getNextReceiptNumber(session);
+        }
+
+        const transaction = await TreasuryTransaction.create([{
+            type: type, // 'INCOME' or 'EXPENSE'
+            receiptNumber,
+            amount: amount,
+            description: description,
+            referenceType: 'Debt',
+            referenceId: debtId,
+            partnerId: partnerId,
+            date: new Date(),
+            createdBy: userId
+        }], { session });
+
+        if (method === 'cash') {
+            await this.updateDailyCashbox(new Date(), {
+                [type === 'INCOME' ? 'salesIncome' : 'purchaseExpenses']: amount
             }, session);
         }
 
@@ -69,9 +112,10 @@ export const TreasuryService = {
         const transaction = await TreasuryTransaction.create([{
             type: 'EXPENSE',
             amount: purchaseOrder.totalCost,
-            description: `مشتريات ${typeLabel} - أمر شراء #${purchaseOrder.poNumber}`,
+            description: `مشتريات ${typeLabel} - أمر شراء #${purchaseOrder.poNumber} (المورد: ${purchaseOrder.supplier?.name || '---'})`,
             referenceType: 'PurchaseOrder',
             referenceId: purchaseOrder._id,
+            partnerId: purchaseOrder.supplier,
             date: purchaseOrder.receivedDate || new Date(),
             createdBy: userId
         }], { session });
@@ -94,9 +138,10 @@ export const TreasuryService = {
         const transaction = await TreasuryTransaction.create([{
             type: 'EXPENSE',
             amount: amount,
-            description: `سداد للمورد: ${supplier.name} - أمر #${poNumber} ${methodLabel} ${note ? `- ${note}` : ''}`,
+            description: `سداد للمورد: ${supplier?.name || '---'} - أمر #${poNumber} ${methodLabel} ${note ? `- ${note}` : ''}`,
             referenceType: 'PurchaseOrder',
             referenceId: poId,
+            partnerId: supplier?._id || supplier,
             date: new Date(),
             createdBy: userId
         }], { session });
@@ -254,6 +299,7 @@ export const TreasuryService = {
             description: `استرداد نقدي - مرتجع #${salesReturn.returnNumber}`,
             referenceType: 'SalesReturn',
             referenceId: salesReturn._id,
+            partnerId: salesReturn.customer,
             date: new Date(),
             createdBy: userId
         }], { session });
@@ -448,5 +494,23 @@ export const TreasuryService = {
 
             await transaction.deleteOne({ session });
         }
+    },
+
+    /**
+     * Helper to get and increment the next receipt number
+     */
+    async getNextReceiptNumber(session = null) {
+        // We use a simple incrementing number stored in InvoiceSettings
+        const settings = await InvoiceSettings.findOneAndUpdate(
+            { isActive: true },
+            { $inc: { lastReceiptNumber: 1 } },
+            {
+                new: true,
+                upsert: true,
+                session
+            }
+        );
+
+        return `REC-${settings.lastReceiptNumber}`;
     }
 };

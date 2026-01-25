@@ -16,13 +16,21 @@ import {
     Banknote, CreditCard, Building2, TrendingDown,
     ArrowUpRight, Copy, DollarSign, Clock, FileText
 } from 'lucide-react';
+import Link from 'next/link';
+import { useDebts } from '@/hooks/useFinancial';
+import { useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { cn } from '@/utils';
+import { useReceivables } from '@/hooks/useFinancial';
+import { useRouter } from 'next/navigation';
 
 export default function ReceivablesPage() {
     const queryClient = useQueryClient();
+    const searchParams = useSearchParams();
+    const customerId = searchParams.get('customerId');
+
     const [search, setSearch] = useState('');
     const [selectedInvoice, setSelectedInvoice] = useState(null);
     const [paymentAmount, setPaymentAmount] = useState('');
@@ -31,27 +39,46 @@ export default function ReceivablesPage() {
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
 
     // Fetch unpaid invoices
-    const { data, isLoading } = useQuery({
-        queryKey: ['receivables'],
+    const { data: receivablesData, isLoading: isReceivablesLoading } = useReceivables({ customerId }, { enabled: !customerId });
+    const { data: debtsData, isLoading: isDebtsLoading } = useDebts({ debtorId: customerId, debtorType: 'Customer', status: 'active' }, { enabled: !!customerId });
+
+    // Fetch Customer Name for header if customerId is present
+    const { data: customerData } = useQuery({
+        queryKey: ['customer-basic', customerId],
         queryFn: async () => {
-            const res = await fetch('/api/payments');
-            if (!res.ok) throw new Error('Failed to fetch data');
+            const res = await fetch(`/api/customers/${customerId}`);
             const json = await res.json();
             return json.data;
         },
+        enabled: !!customerId
     });
+
+    const isLoading = isReceivablesLoading || isDebtsLoading;
+    const data = customerId ? debtsData : receivablesData;
+
+    // Use queryClient to invalidate both
+    const invalidateAll = () => {
+        queryClient.invalidateQueries({ queryKey: ['receivables'] });
+        queryClient.invalidateQueries({ queryKey: ['debts'] });
+        queryClient.invalidateQueries({ queryKey: ['debt-overview'] });
+    };
+
+    const router = useRouter();
 
     // Make Payment Mutation
     const paymentMutation = useMutation({
         mutationFn: async () => {
-            const res = await fetch('/api/payments', {
+            const url = '/api/financial/payments';
+
+            const res = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    invoiceId: selectedInvoice._id,
+                    id: selectedInvoice._id,
                     amount: parseFloat(paymentAmount),
                     method: paymentMethod,
-                    note: paymentNote
+                    note: paymentNote,
+                    type: 'receivable'
                 }),
             });
 
@@ -59,7 +86,7 @@ export default function ReceivablesPage() {
             if (!res.ok) throw new Error(data.error || 'Failed to record payment');
             return data;
         },
-        onSuccess: () => {
+        onSuccess: (res) => {
             toast.success('تم تسجيل الدفعة بنجاح', {
                 icon: <CheckCircle2 className="h-4 w-4 text-emerald-500" />
             });
@@ -67,17 +94,34 @@ export default function ReceivablesPage() {
             setPaymentAmount('');
             setPaymentNote('');
             setSelectedInvoice(null);
-            queryClient.invalidateQueries(['receivables']);
+            invalidateAll();
+
+            if (res.data?.transaction?._id) {
+                router.push(`/financial/receipts/${res.data.transaction._id}`);
+            }
         },
         onError: (err) => toast.error(err.message),
     });
 
     const filteredInvoices = useMemo(() => {
-        return data?.invoices?.filter(inv =>
-            inv.customerName.toLowerCase().includes(search.toLowerCase()) ||
-            inv.number.toLowerCase().includes(search.toLowerCase())
-        ) || [];
-    }, [data?.invoices, search]);
+        const rawList = customerId ? (data?.debts || []) : (data?.invoices || []);
+        return rawList.map(item => {
+            // Normalize Debt vs Invoice for the table
+            if (customerId) {
+                return {
+                    ...item,
+                    number: item.referenceId?.number || item.referenceType === 'Manual' ? 'رصيد سابق' : '---',
+                    customerName: item.debtorId?.name || customerData?.name || '---',
+                    total: item.originalAmount,
+                    paidAmount: item.originalAmount - item.remainingAmount
+                };
+            }
+            return item;
+        }).filter(inv =>
+            inv.customerName?.toLowerCase().includes(search.toLowerCase()) ||
+            inv.number?.toLowerCase().includes(search.toLowerCase())
+        );
+    }, [data, search, customerId, customerData]);
 
     const openPaymentDialog = (invoice) => {
         const remaining = invoice.total - invoice.paidAmount;
@@ -105,7 +149,9 @@ export default function ReceivablesPage() {
                             <Wallet className="h-8 w-8 text-red-500" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-black text-foreground tracking-tight">ذمم العملاء (الديون)</h1>
+                            <h1 className="text-3xl font-black text-foreground tracking-tight">
+                                {customerId ? `مستحقات العميل: ${customerData?.name || '...'}` : 'ذمم العملاء (الديون)'}
+                            </h1>
                             <p className="text-muted-foreground font-medium">متابعة الفواتير الآجلة وتحصيل الدفعات المستحقة</p>
                         </div>
                     </div>
@@ -234,7 +280,13 @@ export default function ReceivablesPage() {
                                                 </div>
                                                 <div className="space-y-1">
                                                     <div className="flex items-center gap-2">
-                                                        <h3 className="font-black text-lg">{inv.customerName}</h3>
+                                                        <Link
+                                                            href={`/customers/${inv.customer?._id || inv.customer || inv.debtorId?._id || inv.debtorId}`}
+                                                            className="hover:text-primary transition-colors"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <h3 className="font-black text-lg">{inv.customerName}</h3>
+                                                        </Link>
                                                         <Badge variant="outline" className="font-mono text-[10px] bg-white/5 border-white/10 hover:bg-white/10">
                                                             {inv.player || 'عميل'}
                                                         </Badge>

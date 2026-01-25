@@ -31,6 +31,7 @@ import { Search, Plus, FileEdit, Trash2, Phone, MapPin, Loader2, Wallet, Users, 
 import { cn } from '@/utils';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
 import { KPICard } from '@/components/dashboard/KPICard';
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog';
@@ -298,7 +299,13 @@ export default function CustomersPage() {
                                                         </AvatarFallback>
                                                     </Avatar>
                                                     <div className="flex flex-col">
-                                                        <span className="font-black text-foreground text-sm group-hover:text-primary transition-colors">{customer.name}</span>
+                                                        <Link
+                                                            href={`/customers/${customer._id}`}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="hover:text-primary transition-colors"
+                                                        >
+                                                            <span className="font-black text-foreground text-sm">{customer.name}</span>
+                                                        </Link>
                                                         <div className="flex items-center gap-2 mt-1">
                                                             <Badge
                                                                 variant={customer.isActive ? "secondary" : "destructive"}
