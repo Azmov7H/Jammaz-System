@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Wallet, Loader2, DollarSign, Banknote, Building2, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 
 export function InvoicePaymentDialog({ open, onOpenChange, invoice }) {
     const queryClient = useQueryClient();
@@ -24,6 +25,8 @@ export function InvoicePaymentDialog({ open, onOpenChange, invoice }) {
             setMethod('cash');
         }
     }, [open, invoice]);
+
+    const router = useRouter();
 
     const paymentMutation = useMutation({
         mutationFn: async () => {
@@ -42,11 +45,15 @@ export function InvoicePaymentDialog({ open, onOpenChange, invoice }) {
             if (!res.ok) throw new Error(data.error || 'Failed to record payment');
             return data;
         },
-        onSuccess: () => {
+        onSuccess: (res) => {
             toast.success('تم تسجيل الدفعة بنجاح');
             onOpenChange(false);
             queryClient.invalidateQueries(['receivables']);
-            queryClient.invalidateQueries(['customers']); // To update customer balance/stats if necessary
+            queryClient.invalidateQueries(['customers']);
+
+            if (res.data?.transaction?._id) {
+                router.push(`/financial/receipts/${res.data.transaction._id}`);
+            }
         },
         onError: (err) => toast.error(err.message),
     });

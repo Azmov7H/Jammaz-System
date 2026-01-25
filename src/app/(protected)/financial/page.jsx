@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowUpCircle, ArrowDownCircle, Wallet, Plus, Minus, Loader2, Trash2, Info, User, Clock, Tag, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
+import Link from "next/link"
 import { ar } from 'date-fns/locale';
 
 export default function FinancialPage() {
@@ -333,10 +334,37 @@ export default function FinancialPage() {
                                                 <TableCell>
                                                     <div className="flex flex-col">
                                                         <span className="font-medium">
-                                                            {tx.referenceType === 'Invoice' ? (tx.referenceId?.customer?.name || tx.referenceId?.customerName || 'عميل نقدي') :
-                                                                tx.referenceType === 'PurchaseOrder' ? (tx.referenceId?.supplier?.name || 'مورد') :
-                                                                    tx.referenceType === 'Debt' ? (tx.referenceId?.debtorId?.name || 'طرف مديون') :
-                                                                        '---'}
+                                                            {tx.referenceType === 'Invoice' ? (
+                                                                tx.referenceId?.customer?._id ? (
+                                                                    <Link
+                                                                        href={`/customers/${tx.referenceId.customer._id}`}
+                                                                        className="hover:text-primary underline-offset-4 hover:underline"
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                    >
+                                                                        {tx.referenceId?.customer?.name || tx.referenceId?.customerName || 'عميل نقدي'}
+                                                                    </Link>
+                                                                ) : (tx.referenceId?.customerName || 'عميل نقدي')
+                                                            ) : tx.referenceType === 'PurchaseOrder' ? (
+                                                                tx.referenceId?.supplier?._id ? (
+                                                                    <Link
+                                                                        href={`/suppliers/${tx.referenceId.supplier._id}`}
+                                                                        className="hover:text-primary underline-offset-4 hover:underline"
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                    >
+                                                                        {tx.referenceId?.supplier?.name || 'مورد'}
+                                                                    </Link>
+                                                                ) : (tx.referenceId?.supplierName || 'مورد')
+                                                            ) : tx.referenceType === 'Debt' ? (
+                                                                tx.referenceId?.debtorId?._id ? (
+                                                                    <Link
+                                                                        href={tx.referenceId?.debtorType === 'Supplier' ? `/suppliers/${tx.referenceId.debtorId._id}` : `/customers/${tx.referenceId.debtorId._id}`}
+                                                                        className="hover:text-primary underline-offset-4 hover:underline"
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                    >
+                                                                        {tx.referenceId?.debtorId?.name || 'طرف مديون'}
+                                                                    </Link>
+                                                                ) : (tx.referenceId?.debtorId?.name || 'طرف مديون')
+                                                            ) : '---'}
                                                         </span>
                                                         <span className="text-[10px] text-muted-foreground">
                                                             {tx.referenceType === 'Invoice' ? `فاتورة #${tx.referenceId?.number || ''}` :
@@ -463,7 +491,11 @@ export default function FinancialPage() {
                                             <div className="flex flex-col gap-1">
                                                 {selectedTx.referenceType === 'Invoice' && (
                                                     <>
-                                                        <p className="font-semibold text-lg">{selectedTx.referenceId?.customer?.name || selectedTx.referenceId?.customerName || 'عميل نقدي'}</p>
+                                                        <p className="font-semibold text-lg">
+                                                            {selectedTx.referenceId?.customer?.name ||
+                                                                selectedTx.referenceId?.customerName ||
+                                                                (selectedTx.description.includes('رصيد افتتاحي') ? 'عميل (رصيد سابق)' : 'عميل نقدي')}
+                                                        </p>
                                                         {selectedTx.referenceId?.number && <Badge variant="outline" className="w-fit">فاتورة #{selectedTx.referenceId.number}</Badge>}
                                                     </>
                                                 )}

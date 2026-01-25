@@ -6,6 +6,11 @@ const TreasuryTransactionSchema = new mongoose.Schema({
         enum: ['INCOME', 'EXPENSE'],
         required: true
     },
+    receiptNumber: {
+        type: String,
+        unique: false, // We'll handle uniqueness in service/app logic for simplicity with legacy data
+        index: true
+    },
     amount: {
         type: Number,
         required: true,
@@ -23,6 +28,11 @@ const TreasuryTransactionSchema = new mongoose.Schema({
     referenceId: {
         type: mongoose.Schema.Types.ObjectId,
         refPath: 'referenceType'
+    },
+    partnerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: false, // Optional for manual generic entries
+        index: true
     },
     date: {
         type: Date,

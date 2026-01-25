@@ -11,6 +11,7 @@ import { useAddPayment, useDebtInstallments } from '@/hooks/useFinancial';
 import { formatCurrency } from '@/utils';
 import { Loader2, Coins, Sparkles } from 'lucide-react';
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export function PaymentDialog({ open, onOpenChange, debt, targetInstallmentId }) {
     const [amount, setAmount] = useState('');
@@ -49,6 +50,8 @@ export function PaymentDialog({ open, onOpenChange, debt, targetInstallmentId })
         }
     }, [open, debt?._id, installments, isLoadingInstallments, targetInstallmentId]);
 
+    const router = useRouter();
+
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!debt) return;
@@ -59,10 +62,13 @@ export function PaymentDialog({ open, onOpenChange, debt, targetInstallmentId })
             method,
             notes
         }, {
-            onSuccess: () => {
+            onSuccess: (res) => {
                 onOpenChange(false);
                 setAmount('');
                 setNotes('');
+                if (res.data?.transaction?._id) {
+                    router.push(`/financial/receipts/${res.data.transaction._id}`);
+                }
             }
         });
     };
@@ -105,13 +111,6 @@ export function PaymentDialog({ open, onOpenChange, debt, targetInstallmentId })
                                         <div className="text-3xl font-black tracking-tighter text-foreground flex items-baseline gap-1">
                                             {formatCurrency(debt.remainingAmount)}
                                             <span className="text-xs text-muted-foreground font-bold italic">د.ل</span>
-                                        </div>
-                                    </div>
-                                    <div className="text-left">
-                                        <span className="text-[10px] uppercase font-black tracking-widest text-emerald-600 opacity-60 block">تم {debt.debtorType === 'Customer' ? 'تحصيل' : 'سداد'}</span>
-                                        <div className="text-xl font-black tracking-tighter text-emerald-600 flex items-baseline gap-1">
-                                            {formatCurrency(debt.originalAmount - debt.remainingAmount)}
-                                            <span className="text-[10px] font-bold italic">د.ل</span>
                                         </div>
                                     </div>
                                 </div>

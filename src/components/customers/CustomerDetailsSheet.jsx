@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { DebtTable } from '@/components/financial/DebtTable';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { cn } from '@/utils';
 
 export function CustomerDetailsSheet({
@@ -61,7 +62,9 @@ export function CustomerDetailsSheet({
 
                         <div className="flex-1 space-y-2">
                             <div>
-                                <SheetTitle className="text-3xl font-black tracking-tight">{customer.name}</SheetTitle>
+                                <Link href={`/customers/${customer._id}`} className="hover:text-primary transition-colors">
+                                    <SheetTitle className="text-3xl font-black tracking-tight cursor-pointer">{customer.name}</SheetTitle>
+                                </Link>
                                 <SheetDescription className="hidden">
                                     تفاصيل العميل {customer.name} - الفواتير والديون
                                 </SheetDescription>

@@ -37,12 +37,14 @@ export const POST = apiHandler(async (request) => {
 
     // 5. Execute Business Logic via centralized FinanceService
     const { FinanceService } = await import('@/services/financeService');
-    await FinanceService.recordCustomerPayment(invoice, amount, method, note, user.userId);
+    const result = await FinanceService.recordCustomerPayment(invoice, amount, method, note, user.userId);
 
     return {
-        invoice,
+        success: true,
+        invoice: result.invoice,
+        transaction: result.transaction,
         message: 'تم تسجيل الدفعة بنجاح',
-        remainingBalance: invoice.total - invoice.paidAmount
+        remainingBalance: result.invoice.total - result.invoice.paidAmount
     };
 });
 

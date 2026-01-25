@@ -100,6 +100,12 @@ const InvoiceSettingsSchema = new mongoose.Schema({
         default: 30
     },
 
+    // Sequences
+    lastReceiptNumber: {
+        type: Number,
+        default: 1000
+    },
+
 
     // Only one settings document should exist
     isActive: {

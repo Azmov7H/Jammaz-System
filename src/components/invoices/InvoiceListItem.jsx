@@ -79,9 +79,20 @@ export function InvoiceListItem({ invoice, onDelete }) {
                                 <User className="w-5 h-5" />
                             </div>
                             <div className="flex flex-col">
-                                <h3 className="text-lg font-black text-foreground group-hover:text-primary transition-colors truncate">
-                                    {invoice.customerName || invoice.customer?.name || 'عميل نقدي'}
-                                </h3>
+                                {invoice.customer ? (
+                                    <Link
+                                        href={`/customers/${invoice.customer?._id || invoice.customer}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <h3 className="text-lg font-black text-foreground hover:text-primary transition-colors truncate">
+                                            {invoice.customerName || invoice.customer?.name || 'عميل نقدي'}
+                                        </h3>
+                                    </Link>
+                                ) : (
+                                    <h3 className="text-lg font-black text-foreground transition-colors truncate">
+                                        {invoice.customerName || 'عميل نقدي'}
+                                    </h3>
+                                )}
                                 <p className="text-[10px] font-bold text-muted-foreground/60 flex items-center gap-1.5">
                                     بواسطة <span className="text-foreground/80">{invoice.createdBy?.name || 'النظام'}</span>
                                 </p>

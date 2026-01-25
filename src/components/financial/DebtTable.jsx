@@ -8,6 +8,7 @@ import {
     TableHeader,
     TableRow
 } from '@/components/ui/table';
+import Link from "next/link"
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal, ArrowUpRight, History, Calendar, User, FileText, Layers, Edit2 } from 'lucide-react';
@@ -86,7 +87,13 @@ export function DebtTable({ debts, onRecordPayment, onScheduleInstallment }) {
                                 <div className="flex items-center gap-2">
                                     <User size={14} className="text-muted-foreground" />
                                     <div className="flex flex-col">
-                                        <span className="font-bold text-sm">{debt.debtorId?.name || 'غير معروف'}</span>
+                                        <Link
+                                            href={debt.debtorType === 'Customer' ? `/customers/${debt.debtorId?._id}` : `/suppliers/${debt.debtorId?._id}`}
+                                            className="hover:text-primary transition-colors"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <span className="font-bold text-sm">{debt.debtorId?.name || 'غير معروف'}</span>
+                                        </Link>
                                         <span className="text-[10px] text-muted-foreground font-medium">{debt.debtorId?.phone}</span>
                                     </div>
                                 </div>

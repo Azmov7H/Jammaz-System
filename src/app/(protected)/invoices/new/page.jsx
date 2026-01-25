@@ -125,7 +125,7 @@ export default function NewInvoicePage() {
 
         const invoiceData = {
             items,
-            customerName: customerName || 'Walk-in',
+            customerName: customerName || 'عميل نقدي',
             customerPhone,
             customerId: selectedCustomer?._id,
             paymentType,
