@@ -7,7 +7,9 @@ export function useDashboard() {
             const res = await fetch('/api/dashboard');
             const json = await res.json();
             return json.data;
-        }
+        },
+        staleTime: 30 * 1000, // 30 seconds - reduces re-fetching
+        refetchOnWindowFocus: false, // Prevents unnecessary API calls
     });
 
     return {

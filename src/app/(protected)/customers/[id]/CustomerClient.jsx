@@ -31,8 +31,9 @@ import {
 } from '@/components/ui/dialog';
 import {
     Loader2, User, Phone, MapPin, DollarSign, Plus, Trash2,
-    ShoppingCart, ArrowDownLeft, ArrowUpRight, Activity
+    ShoppingCart, ArrowDownLeft, ArrowUpRight, Activity, Coins
 } from 'lucide-react';
+import { UnifiedPaymentDialog } from '@/components/financial/UnifiedPaymentDialog';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { cn } from '@/utils';
@@ -42,6 +43,7 @@ export default function CustomerClient({ id }) {
     const [isAddPriceOpen, setIsAddPriceOpen] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState('');
     const [customPrice, setCustomPrice] = useState('');
+    const [isUnifiedOpen, setIsUnifiedOpen] = useState(false);
 
     // Fetch Customer Details
     const { data: customer, isLoading } = useQuery({
@@ -145,11 +147,21 @@ export default function CustomerClient({ id }) {
                         <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {customer.address || '-'}</span>
                     </div>
                 </div>
-                <div className="bg-muted p-4 rounded-lg">
+                <div className="bg-muted p-4 rounded-lg flex flex-col items-center gap-2">
                     <p className="text-sm text-muted-foreground">الرصيد الحالي</p>
                     <p className={`text-2xl font-bold ${customer.balance > 0 ? 'text-red-500' : 'text-green-500'}`}>
                         {customer.balance?.toLocaleString()} ج.م
                     </p>
+                    {customer.balance > 0 && (
+                        <Button
+                            size="sm"
+                            variant="destructive"
+                            className="bg-primary hover:bg-primary/90 text-white font-black rounded-lg h-8 gap-2"
+                            onClick={() => setIsUnifiedOpen(true)}
+                        >
+                            <Coins size={14} /> تحصيل الديون
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -299,7 +311,18 @@ export default function CustomerClient({ id }) {
                                                 </TableRow>
                                             ) : (
                                                 statementData?.statement?.map((entry, idx) => (
-                                                    <TableRow key={idx} className="h-20 border-white/5 hover:bg-white/[0.02] transition-colors group">
+                                                    <TableRow
+                                                        key={idx}
+                                                        className={cn(
+                                                            "h-20 border-white/5 transition-colors group",
+                                                            (entry.type === 'PAYMENT' || entry.type === 'REFUND') ? "hover:bg-primary/5 cursor-pointer" : "hover:bg-white/[0.02]"
+                                                        )}
+                                                        onClick={() => {
+                                                            if (entry.type === 'PAYMENT' || entry.type === 'REFUND') {
+                                                                window.open(`/financial/receipts/${entry.referenceId}`, '_blank');
+                                                            }
+                                                        }}
+                                                    >
                                                         <TableCell className="px-8">
                                                             <div className="flex flex-col">
                                                                 <span className="font-mono font-bold text-sm text-foreground/80">
@@ -324,22 +347,17 @@ export default function CustomerClient({ id }) {
                                                                     }
                                                                 </div>
                                                                 <div className="flex flex-col">
-                                                                    {entry.type === 'PAYMENT' || entry.type === 'REFUND' ? (
-                                                                        <Link href={`/financial/receipts/${entry.referenceId}`} className="hover:text-primary transition-colors cursor-pointer">
-                                                                            <span className="font-black text-base tracking-tight">{entry.label}</span>
-                                                                        </Link>
-                                                                    ) : (
-                                                                        <span className="font-black text-base tracking-tight">{entry.label}</span>
-                                                                    )}
+                                                                    <span className="font-bold text-sm text-foreground/90">{entry.label}</span>
                                                                     <div className="flex items-center gap-2">
                                                                         <Badge variant="outline" className="text-[9px] h-4 font-black bg-white/5 border-white/10 px-1.5 opacity-60">
                                                                             {entry.type === 'SALES' ? 'فاتورة مبيعات' :
                                                                                 entry.type === 'PAYMENT' ? 'تحصيل دفعة' :
                                                                                     entry.type === 'DEBT_START' ? 'رصيد افتتاحي' : 'ارتجاع'}
                                                                         </Badge>
-                                                                        {entry.referenceId && (
-                                                                            <span className="text-[10px] text-muted-foreground/40 font-mono">#{entry.referenceId.toString().slice(-6).toUpperCase()}</span>
-                                                                        )}
+                                                                        <span className="text-[10px] text-muted-foreground font-mono flex items-center gap-1">
+                                                                            {entry.reference}
+                                                                            {(entry.type === 'PAYMENT' || entry.type === 'REFUND') && <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />}
+                                                                        </span>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -349,7 +367,7 @@ export default function CustomerClient({ id }) {
                                                                 "font-mono font-black text-lg",
                                                                 entry.debit > 0 ? "text-red-500" : "text-muted-foreground/20"
                                                             )}>
-                                                                {entry.debit > 0 ? `+${entry.debit.toLocaleString()}` : '---'}
+                                                                {entry.debit ? entry.debit.toLocaleString() : '-'}
                                                             </span>
                                                         </TableCell>
                                                         <TableCell className="text-center bg-emerald-500/[0.02]">
@@ -357,14 +375,14 @@ export default function CustomerClient({ id }) {
                                                                 "font-mono font-black text-lg",
                                                                 entry.credit > 0 ? "text-emerald-500" : "text-muted-foreground/20"
                                                             )}>
-                                                                {entry.credit > 0 ? `-${entry.credit.toLocaleString()}` : '---'}
+                                                                {entry.credit ? entry.credit.toLocaleString() : '-'}
                                                             </span>
                                                         </TableCell>
                                                         <TableCell className="text-center bg-primary/[0.02] border-r border-white/5">
                                                             <div className="flex items-center justify-center gap-2">
                                                                 <span className={cn(
                                                                     "text-xl font-black font-mono tracking-tighter",
-                                                                    entry.balance > 0 ? "text-red-500" : "text-emerald-500"
+                                                                    entry.balance > 0 ? "text-red-500" : entry.balance < 0 ? "text-emerald-500" : "text-muted-foreground"
                                                                 )}>
                                                                     {entry.balance.toLocaleString()}
                                                                 </span>
@@ -382,6 +400,14 @@ export default function CustomerClient({ id }) {
                     </Card>
                 </TabsContent>
             </Tabs>
+
+            <UnifiedPaymentDialog
+                open={isUnifiedOpen}
+                onOpenChange={setIsUnifiedOpen}
+                customerId={id}
+                customerName={customer.name}
+                totalBalance={customer.balance}
+            />
         </div>
     );
 }

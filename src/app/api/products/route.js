@@ -1,7 +1,6 @@
 import { apiHandler } from '@/lib/api-handler';
 import { ProductService } from '@/services/productService';
 import { productSchema } from '@/validations/validators';
-import { getCurrentUser } from '@/lib/auth';
 
 export const GET = apiHandler(async (req) => {
     const { searchParams } = new URL(req.url);
@@ -10,9 +9,7 @@ export const GET = apiHandler(async (req) => {
 });
 
 export const POST = apiHandler(async (req) => {
-    const user = await getCurrentUser();
-    if (!user) throw 'Unauthorized';
     const body = await req.json();
     const validated = productSchema.parse(body);
-    return await ProductService.create(validated, user.userId);
-});
+    return await ProductService.create(validated, req.user.userId);
+}, { auth: true });

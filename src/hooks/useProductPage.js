@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useProducts, useProductMetadata, useAddProduct, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useDebounce } from './useDebounce';
 
 export function useProductPage() {
     const [search, setSearch] = useState('');
@@ -20,8 +21,15 @@ export function useProductPage() {
 
     const [editFormData, setEditFormData] = useState({});
 
+    const debouncedSearch = useDebounce(search, 500);
+
+    // Reset page to 1 on search change
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedSearch]);
+
     // Fetch Data
-    const { data: productsData, isLoading } = useProducts({ search, page, limit });
+    const { data: productsData, isLoading } = useProducts({ search: debouncedSearch, page, limit });
     const products = productsData?.products || [];
     const pagination = productsData?.pagination || { page: 1, limit: 10, total: 0, pages: 1 };
     const { data: metadata = { brands: [], categories: [] } } = useProductMetadata();

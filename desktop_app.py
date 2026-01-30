@@ -107,15 +107,69 @@ class FinanceApp(tk.Tk):
         try:
             url = f"{BASE_URL}{endpoint}"
             response = self.session.request(method, url, **kwargs)
+            
+            if response.status_code == 401:
+                print("Unauthorized - please login again")
+                return None
+                
             response.raise_for_status()
-            return response.json() if response.content else True
+            if response.content:
+                data = response.json()
+                # If wrapped in common API handler format { success, data, message }
+                if isinstance(data, dict) and "success" in data:
+                    if not data.get("success"):
+                        print(f"API Logic Error: {data.get('message')}")
+                        return None
+                    return data.get("data", data)
+                return data
+            return True
         except Exception as e:
             msg = f"API Error: {e}"
             if hasattr(e, 'response') and e.response is not None:
-                try: msg = e.response.json().get('error', msg)
+                try: 
+                    err_data = e.response.json()
+                    msg = err_data.get('message', err_data.get('error', msg))
                 except: pass
             print(msg)
             return None
+
+    def print_receipt(self, invoice):
+        try:
+            filename = f"receipt_{invoice.get('number', 'draft')}.txt"
+            content = f"""
+========================================
+         {self.user_data.get('name', 'NKL System')}
+========================================
+رقم الفاتورة: {invoice.get('number', 'مسودة')}
+التاريخ: {invoice.get('createdAt', datetime.now().isoformat())[:10]}
+العميل: {invoice.get('customerName', invoice.get('customer', {}).get('name', 'عميل نقدي'))}
+----------------------------------------
+البيان          الكمية    السعر    الإجمالي
+----------------------------------------
+"""
+            items = invoice.get('items', [])
+            for item in items:
+                name = (item.get('name') or 'صنف')[:15].ljust(15)
+                qty = str(item.get('qty')).center(8)
+                price = f"{item.get('unitPrice', 0):,}".center(8)
+                total = f"{(item.get('qty', 0) * item.get('unitPrice', 0)):,}".rjust(8)
+                content += f"{name} {qty} {price} {total}\n"
+            
+            content += f"""----------------------------------------
+الإجمالي: {invoice.get('total', 0):,} ج.م
+المدفوع:  {invoice.get('paidAmount', 0):,} ج.م
+المتبقي:  {(invoice.get('total', 0) - invoice.get('paidAmount', 0)):,} ج.م
+----------------------------------------
+شكراً لتعاملكم معنا
+========================================
+"""
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write(content)
+            
+            import os
+            os.startfile(filename)
+        except Exception as e:
+            messagebox.showerror("خطأ في الطباعة", str(e))
 
 class Sidebar(ttk.Frame):
     def __init__(self, parent, controller):
@@ -124,8 +178,9 @@ class Sidebar(ttk.Frame):
         self.pack_propagate(False)
         profile = ttk.Frame(self, style="Sidebar.TFrame", padding=20)
         profile.pack(fill="x")
-        ttk.Label(profile, text=self.controller.user_data.get("name", ""), font=("Segoe UI", 12, "bold"), background=self.controller.colors["sidebar_bg"]).pack()
-        ttk.Label(profile, text=self.controller.user_data.get("role", ""), font=("Segoe UI", 9), foreground=self.controller.colors["muted"], background=self.controller.colors["sidebar_bg"]).pack()
+        user = self.controller.user_data or {}
+        ttk.Label(profile, text=user.get("name", "User"), font=("Segoe UI", 12, "bold"), background=self.controller.colors["sidebar_bg"]).pack()
+        ttk.Label(profile, text=user.get("role", "Guest"), font=("Segoe UI", 9), foreground=self.controller.colors["muted"], background=self.controller.colors["sidebar_bg"]).pack()
         ttk.Separator(self, orient="horizontal").pack(fill="x", padx=10, pady=10)
         nav_items = [("الرئيسية", DashboardView), ("الفواتير", InvoicesView), ("المنتجات", ProductsView), ("الخزينة", TreasuryView), ("العملاء", CustomersView), ("الموردين", SuppliersView)]
         for label, view_class in nav_items:
@@ -153,8 +208,11 @@ class LoginFrame(ttk.Frame):
     def login(self):
         def do():
             res = self.controller.api_request("POST", "/api/auth/login", json={"email": self.e_email.get(), "password": self.e_pass.get()})
-            if res: self.controller.user_data = res["user"]; self.controller.after(0, self.controller.show_main_interface)
-            else: self.controller.after(0, lambda: messagebox.showerror("Error", "Login Failed"))
+            if res and isinstance(res, dict) and "user" in res:
+                self.controller.user_data = res["user"]
+                self.controller.after(0, self.controller.show_main_interface)
+            else:
+                self.controller.after(0, lambda: messagebox.showerror("خطأ", "فشل تسجيل الدخول. تأكد من البيانات."))
         threading.Thread(target=do).start()
 
 class BaseView(ttk.Frame):
@@ -198,7 +256,9 @@ class DashboardView(BaseView):
     def load(self):
         def do():
             res = self.controller.api_request("GET", "/api/dashboard")
-            if res: self.controller.after(0, lambda: self.upd(res.get("kpis", {})))
+            if res:
+                kpis = res.get("kpis", {})
+                self.controller.after(0, lambda: self.upd(kpis))
         threading.Thread(target=do).start()
 
     def upd(self, data):
@@ -216,7 +276,10 @@ class ProductsView(BaseView):
     def load(self):
         def do():
             res = self.controller.api_request("GET", "/api/products")
-            if res: self.controller.after(0, lambda: self.upd(res.get("products", [])))
+            if res:
+                # API returns { products: [], count: 0 }
+                products = res.get("products", []) if isinstance(res, dict) else []
+                self.controller.after(0, lambda: self.upd(products))
         threading.Thread(target=do).start()
 
     def upd(self, data):
@@ -263,7 +326,7 @@ class TreasuryView(BaseView):
         threading.Thread(target=do).start()
 
     def upd(self, res):
-        self.bal.configure(text=f"الرصيد: {res['balance']:,.2f} ج.م")
+        self.bal.configure(text=f"الرصيد: {res.get('balance', 0):,.2f} ج.م")
         for i in self.t.get_children(): self.t.delete(i)
         for tx in res.get("transactions", []):
             self.t.insert("", "end", values=(tx['_id'], tx['date'][:16].replace('T', ' '), tx['description'], f"{tx['amount']:,}", "وارد" if tx['type']=="INCOME" else "صادر"))
@@ -291,19 +354,120 @@ class TxDialog(tk.Toplevel):
 class InvoicesView(BaseView):
     def __init__(self, parent, controller):
         super().__init__(parent, controller, "الفواتير")
+        self.add_btn("إنشاء فاتورة (+)", self.add, "Success.TButton")
         self.add_btn("تحديث", self.load)
-        self.t = self.create_table(("num", "cust", "total", "date"), ("رقم", "العميل", "الإجمالي", "التاريخ"))
+        self.t = self.create_table(("id", "num", "cust", "total", "date"), ("ID", "رقم", "العميل", "الإجمالي", "التاريخ"))
+        self.t.column("id", width=0, stretch=False)
+        self.t.bind("<Double-1>", self.on_double_click)
         self.load()
 
     def load(self):
         def do():
             res = self.controller.api_request("GET", "/api/invoices")
-            if res: self.controller.after(0, lambda: self.upd(res.get("invoices", [])))
+            if res:
+                invoices = res.get("invoices", []) if isinstance(res, dict) else []
+                self.controller.after(0, lambda: self.upd(invoices))
         threading.Thread(target=do).start()
 
     def upd(self, data):
         for i in self.t.get_children(): self.t.delete(i)
-        for inv in data: self.t.insert("", "end", values=(inv['number'], inv.get('customerName', 'عميل نقدي'), f"{inv['total']:,}", inv['createdAt'][:10]))
+        for inv in data: self.t.insert("", "end", values=(inv['_id'], inv['number'], inv.get('customerName', 'عميل نقدي'), f"{inv['total']:,}", inv['createdAt'][:10]))
+
+    def add(self):
+        d = InvoiceCreateDialog(self, self.controller); self.wait_window(d); self.load()
+
+    def on_double_click(self, e):
+        sel = self.t.selection()
+        if not sel: return
+        inv_id = self.t.item(sel[0])['values'][0]
+        def do():
+            inv = self.controller.api_request("GET", f"/api/invoices/{inv_id}")
+            if inv: self.controller.after(0, lambda: self.controller.print_receipt(inv))
+        threading.Thread(target=do).start()
+
+class InvoiceCreateDialog(tk.Toplevel):
+    def __init__(self, parent, controller):
+        super().__init__(parent); self.c = controller
+        self.title("إنشاء فاتورة مبيعات"); self.geometry("800x600"); self.configure(bg="#121212")
+        self.items = []
+        
+        main = ttk.Frame(self, style="Main.TFrame", padding=20)
+        main.pack(fill="both", expand=True)
+        
+        # Upper: Customer and Items input
+        up = ttk.Frame(main, style="Main.TFrame")
+        up.pack(fill="x", pady=(0, 20))
+        
+        ttk.Label(up, text="العميل (نقدي إذا ترك فارغاً)").pack(side="right", padx=5)
+        self.e_customer = ttk.Entry(up, width=30); self.e_customer.pack(side="right", padx=10)
+        
+        ttk.Separator(main, orient="horizontal").pack(fill="x", pady=10)
+        
+        # Item Input Area
+        item_f = ttk.Frame(main, style="Main.TFrame")
+        item_f.pack(fill="x", pady=10)
+        
+        ttk.Label(item_f, text="الصنف:").pack(side="right", padx=5)
+        self.e_item_name = ttk.Entry(item_f, width=20); self.e_item_name.pack(side="right", padx=5)
+        
+        ttk.Label(item_f, text="الكمية:").pack(side="right", padx=5)
+        self.e_item_qty = ttk.Entry(item_f, width=10); self.e_item_qty.pack(side="right", padx=5); self.e_item_qty.insert(0, "1")
+        
+        ttk.Label(item_f, text="السعر:").pack(side="right", padx=5)
+        self.e_item_price = ttk.Entry(item_f, width=10); self.e_item_price.pack(side="right", padx=5)
+        
+        ttk.Button(item_f, text="إضافة للصنف", command=self.add_item, style="Success.TButton").pack(side="right", padx=10)
+        
+        # Table of items
+        self.t = ttk.Treeview(main, columns=("name", "qty", "price", "total"), show="headings")
+        for c, h in [("name", "الصنف"), ("qty", "الكمية"), ("price", "السعر"), ("total", "الإجمالي")]:
+            self.t.heading(c, text=h); self.t.column(c, anchor="center")
+        self.t.pack(fill="both", expand=True, pady=10)
+        
+        # Bottom: Total and Save
+        bot = ttk.Frame(main, style="Main.TFrame")
+        bot.pack(fill="x", pady=10)
+        
+        self.l_total = ttk.Label(bot, text="الإجمالي: 0.00 ج.م", font=("Segoe UI", 14, "bold"), foreground="#10b981")
+        self.l_total.pack(side="right")
+        
+        ttk.Button(bot, text="حفظ وطباعة الفاتورة", style="Primary.TButton", command=self.save).pack(side="left", padx=10, ipady=5)
+
+    def add_item(self):
+        try:
+            name = self.e_item_name.get()
+            qty = float(self.e_item_qty.get())
+            price = float(self.e_item_price.get())
+            if not name: return
+            
+            total = qty * price
+            self.items.append({"name": name, "qty": qty, "unitPrice": price})
+            self.t.insert("", "end", values=(name, qty, price, f"{total:,}"))
+            
+            grand_total = sum(i['qty'] * i['unitPrice'] for i in self.items)
+            self.l_total.configure(text=f"الإجمالي: {grand_total:,.2f} ج.م")
+            
+            self.e_item_name.delete(0, "end"); self.e_item_qty.delete(0, "end"); self.e_item_qty.insert(0, "1"); self.e_item_price.delete(0, "end")
+        except: messagebox.showerror("خطأ", "بيانات الصنف غير صحيحة")
+
+    def save(self):
+        if not self.items: return
+        data = {
+            "customerName": self.e_customer.get() or "عميل نقدي",
+            "items": self.items,
+            "paymentType": "cash"
+        }
+        def do():
+            res = self.c.api_request("POST", "/api/invoices", json=data)
+            if res:
+                self.after(0, lambda: self.finish(res))
+            else:
+                self.after(0, lambda: messagebox.showerror("خطأ", "فشل حفظ الفاتورة"))
+        threading.Thread(target=do).start()
+
+    def finish(self, invoice):
+        self.c.print_receipt(invoice)
+        self.destroy()
 
 class CustomersView(BaseView):
     def __init__(self, parent, controller):

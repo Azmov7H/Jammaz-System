@@ -53,7 +53,6 @@ export class NotificationService {
 
             const exists = await Notification.findOne(query);
             if (exists) {
-                console.log(`Duplicate notification prevented: ${title} (${deduplicationKey})`);
                 return null;
             }
         }
@@ -341,7 +340,6 @@ export class NotificationService {
         const targetDate = new Date();
         targetDate.setDate(targetDate.getDate() + alertDays);
 
-        console.log(`[NotificationScanner] Checking installments due before ${targetDate.toLocaleDateString()}`);
 
         const soonInstallments = await PaymentSchedule.find({
             status: { $in: ['PENDING', 'OVERDUE'] },
@@ -351,11 +349,9 @@ export class NotificationService {
             populate: { path: 'debtorId' }
         });
 
-        console.log(`[NotificationScanner] Found ${soonInstallments.length} installments matching criteria`);
 
         for (const schedule of soonInstallments) {
             if (!schedule.debtId) {
-                console.warn(`[NotificationScanner] Schedule ${schedule._id} has no linked debtId`);
                 continue;
             }
 

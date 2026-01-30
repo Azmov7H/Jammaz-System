@@ -1,6 +1,5 @@
 'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
 import {
     LogOut,
     PanelLeftClose,
@@ -26,53 +25,44 @@ export default function Sidebar() {
     return (
         <>
             {/* Mobile Overlay */}
-            <AnimatePresence>
-                {isMobile && isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={closeSidebar}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-all"
-                    />
-                )}
-            </AnimatePresence>
+            {isMobile && isOpen && (
+                <div
+                    onClick={closeSidebar}
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity duration-300 animate-in fade-in"
+                />
+            )}
 
             {/* Sidebar Shell */}
-            <motion.aside
-                initial={isMobile ? { x: '100%' } : false}
-                animate={isMobile ? { x: isOpen ? 0 : '100%' } : { width: sidebarWidth }}
-                transition={{ type: 'tween', duration: 0.2 }}
+            <aside
                 className={cn(
-                    "relative h-screen flex flex-col z-50 overflow-hidden shrink-0 transition-colors duration-500",
+                    "relative h-screen flex flex-col z-50 overflow-hidden shrink-0 transition-all duration-300 ease-in-out",
                     isMobile ? "fixed inset-y-0 right-0 max-w-[300px] w-full" : "sticky top-0",
-                    "bg-card/90 backdrop-blur-3xl border-l border-white/5 shadow-2xl"
+                    isMobile && !isOpen && "translate-x-full",
+                    !isMobile && (isOpen ? "w-[280px]" : "w-[80px]"),
+                    "bg-card/90 backdrop-blur-xl border-l border-border shadow-xl"
                 )}
             >
                 {/* Header: Logo & Toggle */}
                 <div className={cn(
-                    "h-20 flex items-center px-6 shrink-0 border-b border-white/5 relative bg-white/[0.02]",
+                    "h-20 flex items-center px-6 shrink-0 border-b border-border relative bg-primary/5",
                     !isOpen && !isMobile && "justify-center px-0"
                 )}>
                     {isOpen || isMobile ? (
-                        <div className="flex items-center gap-3 group px-1">
-                            <div className="relative">
-                                <div className="w-10 h-10 bg-gradient-to-br from-primary via-primary to-primary/60 rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/20 rotate-3 group-hover:rotate-0 transition-all duration-500">
-                                    <Sparkles className="w-5 h-5" />
-                                </div>
-                                <div className="absolute inset-0 bg-primary/20 blur-xl scale-110 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                        <div className="flex items-center gap-3 px-1">
+                            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg">
+                                <Sparkles className="w-5 h-5" />
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-xl font-black tracking-tight text-foreground bg-clip-text text-transparent bg-gradient-to-l from-foreground to-foreground/70">
+                                <span className="text-xl font-black tracking-tight text-foreground">
                                     مخازن الجماز
                                 </span>
-                                <span className="text-[10px] font-black text-primary tracking-widest uppercase opacity-70">
+                                <span className="text-[10px] font-bold text-primary tracking-widest uppercase opacity-70">
                                     Enterprise Suite
                                 </span>
                             </div>
                         </div>
                     ) : (
-                        <div className="w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center text-primary border border-primary/20 shadow-inner">
+                        <div className="w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center text-primary border border-primary/20">
                             <Sparkles className="w-5 h-5" />
                         </div>
                     )}
@@ -180,7 +170,7 @@ export default function Sidebar() {
                 {/* Background Decor */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
                 <div className="absolute bottom-0 left-0 w-32 h-32 bg-secondary/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 pointer-events-none" />
-            </motion.aside>
+            </aside>
         </>
     );
 }

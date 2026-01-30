@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import { cn } from '@/utils';
 import {
     Tooltip,
@@ -53,9 +52,8 @@ export function SidebarItem({
             )}
 
             {isActive && !isCollapsed && (
-                <motion.div
-                    layoutId="active-indicator"
-                    className="absolute right-0 top-2 bottom-2 w-1.5 bg-secondary rounded-l-full shadow-[0_0_10px_rgba(var(--secondary),0.5)]"
+                <div
+                    className="absolute right-0 top-2 bottom-2 w-1.5 bg-secondary rounded-l-full shadow-[0_0_10px_rgba(var(--secondary),0.5)] transition-all duration-300"
                 />
             )}
         </Link>

@@ -3,6 +3,10 @@ import CashboxDaily from '@/models/CashboxDaily';
 import Invoice from '@/models/Invoice';
 import PurchaseOrder from '@/models/PurchaseOrder';
 import InvoiceSettings from '@/models/InvoiceSettings';
+import Customer from '@/models/Customer';
+import Supplier from '@/models/Supplier';
+import Debt from '@/models/Debt';
+import SalesReturn from '@/models/SalesReturn';
 
 /**
  * Treasury/Cashbox Management Service
@@ -42,7 +46,7 @@ export const TreasuryService = {
     /**
      * Record collection of a payment for an invoice (Debt repayment)
      */
-    async recordPaymentCollection(invoice, amount, userId, method = 'cash', note = '', session = null) {
+    async recordPaymentCollection(invoice, amount, userId, method = 'cash', note = '', meta = {}, session = null) {
         const methodLabel = method === 'bank' ? '(بنك)' : method === 'wallet' ? '(محفظة)' : '';
         const customerName = invoice.customer?.name || invoice.customerName || '';
 
@@ -58,7 +62,33 @@ export const TreasuryService = {
             referenceId: invoice._id,
             partnerId: invoice.customer || invoice.customerId,
             date: new Date(),
-            createdBy: userId
+            createdBy: userId,
+            meta: meta
+        }], { session });
+
+        return transaction[0];
+    },
+
+    /**
+     * Record Unified Collection (Payment against total balance)
+     */
+    async recordUnifiedCollection(customer, amount, userId, method = 'cash', note = '', meta = {}, session = null) {
+        const methodLabel = method === 'bank' ? '(بنك)' : method === 'wallet' ? '(محفظة)' : '';
+
+        // Generate receipt number
+        const receiptNumber = await this.getNextReceiptNumber(session);
+
+        const transaction = await TreasuryTransaction.create([{
+            type: 'INCOME',
+            receiptNumber,
+            amount: amount,
+            description: `تحصيل مجمع - ${customer.name} ${methodLabel} ${note ? `- ${note}` : ''}`,
+            referenceType: 'UnifiedCollection',
+            referenceId: customer._id,
+            partnerId: customer._id,
+            date: new Date(),
+            createdBy: userId,
+            meta: meta
         }], { session });
 
         // Update daily cashbox only if it's a cash transaction
@@ -74,7 +104,7 @@ export const TreasuryService = {
     /**
      * Record a transaction (collection/payment) for a generic debt (Manual/Opening Balance)
      */
-    async recordDebtTransaction(debtId, partnerId, amount, type, userId, description, method = 'cash', session = null) {
+    async recordDebtTransaction(debtId, partnerId, amount, type, userId, description, method = 'cash', meta = {}, session = null) {
         let receiptNumber = null;
         if (type === 'INCOME') {
             receiptNumber = await this.getNextReceiptNumber(session);
@@ -89,7 +119,8 @@ export const TreasuryService = {
             referenceId: debtId,
             partnerId: partnerId,
             date: new Date(),
-            createdBy: userId
+            createdBy: userId,
+            meta: meta
         }], { session });
 
         if (method === 'cash') {
@@ -133,7 +164,7 @@ export const TreasuryService = {
     /**
      * Record payment made to a supplier (Debt repayment)
      */
-    async recordSupplierPayment(supplier, amount, poNumber, poId, userId, method = 'cash', note = '', session = null) {
+    async recordSupplierPayment(supplier, amount, poNumber, poId, userId, method = 'cash', note = '', meta = {}, session = null) {
         const methodLabel = method === 'bank' ? '(بنك)' : method === 'wallet' ? '(محفظة)' : '';
         const transaction = await TreasuryTransaction.create([{
             type: 'EXPENSE',
@@ -143,7 +174,8 @@ export const TreasuryService = {
             referenceId: poId,
             partnerId: supplier?._id || supplier,
             date: new Date(),
-            createdBy: userId
+            createdBy: userId,
+            meta: meta
         }], { session });
 
         // Update daily cashbox only if it's a cash transaction

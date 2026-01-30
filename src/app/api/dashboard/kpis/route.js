@@ -3,4 +3,4 @@ import { DashboardService } from '@/services/dashboardService';
 
 export const GET = apiHandler(async () => {
     return await DashboardService.getKPIs();
-});
+}, { auth: true });

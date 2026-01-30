@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useDebts, useDebtOverview } from '@/hooks/useFinancial';
+import { useDebtors, useDebts, useDebtOverview } from '@/hooks/useFinancial';
 import {
     TrendingUp,
     TrendingDown,
@@ -16,23 +16,38 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DebtorTable } from '@/components/financial/DebtorTable';
 import { DebtTable } from '@/components/financial/DebtTable';
 import { PaymentDialog } from '@/components/financial/PaymentDialog';
 import { InstallmentDialog } from '@/components/financial/InstallmentDialog';
+import { UnifiedPaymentDialog } from '@/components/financial/UnifiedPaymentDialog';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatCard } from '@/components/ui/StatCard';
+import { cn } from '@/utils';
 
 export default function DebtCenterPage() {
     const [activeTab, setActiveTab] = useState('Customer');
     const [selectedDebt, setSelectedDebt] = useState(null);
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
     const [isInstallmentOpen, setIsInstallmentOpen] = useState(false);
+    const [isUnifiedOpen, setIsUnifiedOpen] = useState(false);
+    const [selectedDebtor, setSelectedDebtor] = useState(null);
     const [search, setSearch] = useState('');
 
     const { data: overview, isLoading: isOverviewLoading } = useDebtOverview();
-    const { data: debtsData, isLoading: isDebtsLoading } = useDebts({
-        debtorType: activeTab,
-        status: 'active'
+    // For Customers: Aggregated view
+    const { data: debtorsData, isLoading: isDebtorsLoading } = useDebtors({
+        type: 'Customer',
+        search: search
     });
 
+    // For Suppliers: Classic Invoice view
+    const { data: debtsData, isLoading: isDebtsLoading } = useDebts({
+        debtorType: 'Supplier',
+        status: 'active,overdue'
+    });
+
+    const debtors = debtorsData?.debtors || [];
     const debts = debtsData?.debts || [];
     const stats = [
         { title: 'إجمالي المستحقات', value: overview?.receivables?.total || 0, trend: `تم تحصيل: ${(overview?.receivables?.collected || 0).toLocaleString()} د.ل`, icon: TrendingUp, color: 'text-emerald-500' },
@@ -51,42 +66,69 @@ export default function DebtCenterPage() {
         setIsInstallmentOpen(true);
     };
 
+    const handleUnifiedCollection = (debtorItem) => {
+        setSelectedDebtor({
+            id: debtorItem.debtor._id,
+            name: debtorItem.debtor.name,
+            balance: debtorItem.totalDebt
+        });
+        setIsUnifiedOpen(true);
+    };
+
     return (
-        <div className="space-y-8 animate-fade-in-up" dir="rtl">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div>
-                    <h1 className="text-3xl font-black tracking-tight text-foreground flex items-center gap-3">مركز إدارة الديون</h1>
-                    <p className="text-muted-foreground font-medium mt-1">متابعة المستحقات والمدفوعات والتسويات المالية</p>
-                </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" className="h-12 rounded-xl gap-2 border-white/10 bg-white/5 font-bold">
-                        <Download size={16} /> تصدير تقرير
-                    </Button>
-                </div>
+        <div className="min-h-screen bg-[#0f172a]/20 space-y-8 p-4 md:p-8 rounded-[2rem]" dir="rtl">
+            {/* Ambient Background Effect */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+                <div className="absolute -top-[10%] -right-[10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px] animate-pulse" />
+                <div className="absolute -bottom-[10%] -left-[10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[120px] animate-pulse delay-700" />
             </div>
+
+            {/* Header Section */}
+            <PageHeader
+                title="مركز إدارة الديون"
+                subtitle="متابعة المستحقات والمدفوعات والتسويات المالية"
+                icon={TrendingUp}
+                actions={
+                    <Button variant="outline" className="h-14 px-8 rounded-2xl font-black text-lg gap-3 glass-card border-white/10 hover:border-primary/50 transition-all shadow-lg">
+                        <Download size={22} /> تصدير تقرير
+                    </Button>
+                }
+            />
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {stats.map((stat, i) => (
-                    <Card key={i} className="border-white/5 bg-card/50 backdrop-blur-xl rounded-2xl shadow-custom-md">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-xs font-black text-muted-foreground uppercase tracking-wider">
-                                {stat.title}
-                            </CardTitle>
-                            <stat.icon className={`h-5 w-5 ${stat.color}`} />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-black">
-                                {typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}
-                                {typeof stat.value === 'number' && <span className="text-xs text-muted-foreground mr-1">د.ل</span>}
-                            </div>
-                            <p className="text-[10px] font-bold mt-1 text-muted-foreground">
-                                {stat.trend ? `الحالة: ${stat.trend}` : 'تحديث لحظي'}
-                            </p>
-                        </CardContent>
-                    </Card>
-                ))}
+                <StatCard
+                    title="إجمالي المستحقات"
+                    value={overview?.receivables?.total?.toLocaleString() || 0}
+                    unit="ج.م"
+                    icon={TrendingUp}
+                    variant="primary"
+                    subtitle={`تم تحصيل: ${(overview?.receivables?.collected || 0).toLocaleString()} ج.م`}
+                />
+                <StatCard
+                    title="ديون الموردين"
+                    value={overview?.payables?.total?.toLocaleString() || 0}
+                    unit="ج.م"
+                    icon={TrendingDown}
+                    variant="warning"
+                    subtitle={`تم سداد: ${(overview?.payables?.collected || 0).toLocaleString()} ج.م`}
+                />
+                <StatCard
+                    title="ديون متأخرة"
+                    value={overview?.receivables?.overdue?.toLocaleString() || 0}
+                    unit="ج.م"
+                    icon={AlertCircle}
+                    variant="destructive"
+                    subtitle="تحتاج متابعة فورية"
+                />
+                <StatCard
+                    title="الميزانية الصافية"
+                    value={overview?.totalNet?.toLocaleString() || 0}
+                    unit="ج.م"
+                    icon={CheckCircle2}
+                    variant="success"
+                    subtitle={overview?.riskScore || 'HEALTHY'}
+                />
             </div>
 
             {/* Main Content Tabs */}
@@ -97,12 +139,12 @@ export default function DebtCenterPage() {
                 </TabsList>
 
                 {/* Filters Bar */}
-                <div className="flex flex-col md:flex-row gap-4 items-center bg-card p-4 rounded-2xl border border-white/5 shadow-custom-sm">
-                    <div className="relative w-full md:w-96 group">
-                        <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4 group-focus-within:text-primary transition-colors" />
+                <div className="flex flex-col md:flex-row gap-6 items-stretch md:items-center justify-between">
+                    <div className="relative group flex-1">
+                        <Search className="absolute right-6 top-1/2 -translate-y-1/2 text-primary h-6 w-6 group-focus-within:animate-pulse transition-all" />
                         <Input
                             placeholder="بحث باسم العميل أو المورد..."
-                            className="h-12 pr-12 rounded-xl bg-muted/30 border-white/10 font-bold"
+                            className="h-16 pr-16 pl-8 rounded-[2rem] bg-card/40 border-white/10 focus:bg-card/60 focus:border-primary/50 transition-all font-black text-xl placeholder:text-muted-foreground/30 shadow-2xl backdrop-blur-xl ring-0 focus-visible:ring-0"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
@@ -110,24 +152,39 @@ export default function DebtCenterPage() {
                 </div>
 
                 <TabsContent value={activeTab} className="m-0 focus-visible:outline-none">
-                    <Card className="border-white/5 bg-card/30 backdrop-blur-sm rounded-[2rem] overflow-hidden shadow-custom-xl">
-                        <CardContent className="p-0">
-                            {isDebtsLoading ? (
+                    <div className="glass-card shadow-[0_40px_80px_rgba(0,0,0,0.3)] border border-white/10 rounded-[2.5rem] overflow-hidden">
+                        <div className="p-8 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-3 h-3 rounded-full bg-primary animate-pulse" />
+                                <h2 className="text-2xl font-black tracking-tight">سجل التزامات الجهات</h2>
+                            </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                            {(activeTab === 'Customer' ? isDebtorsLoading : isDebtsLoading) ? (
                                 <div className="p-32 text-center">
                                     <Loader2 className="animate-spin mx-auto text-primary w-12 h-12 opacity-50" />
                                     <p className="mt-4 text-muted-foreground font-black">جاري مزامنة الديون...</p>
                                 </div>
                             ) : (
-                                <DebtTable
-                                    debts={debts.filter(d =>
-                                        d.debtorId?.name?.toLowerCase().includes(search.toLowerCase())
-                                    )}
-                                    onRecordPayment={handleRecordPayment}
-                                    onScheduleInstallment={handleScheduleInstallment}
-                                />
+                                activeTab === 'Customer' ? (
+                                    <DebtorTable
+                                        debtors={debtors}
+                                        onUnifiedCollection={handleUnifiedCollection}
+                                    />
+                                ) : (
+                                    <DebtTable
+                                        debts={debts.filter(d =>
+                                            d.debtorId?.name?.toLowerCase().includes(search.toLowerCase())
+                                        )}
+                                        // These handlers for DebtTable need to be defined or we need to ensure they are passed if we use DebtTable
+                                        onRecordPayment={handleRecordPayment}
+                                        onScheduleInstallment={handleScheduleInstallment}
+                                        onUnifiedCollection={() => { }} // Not applicable for suppliers yet
+                                    />
+                                )
                             )}
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
                 </TabsContent>
             </Tabs>
 
@@ -141,6 +198,14 @@ export default function DebtCenterPage() {
                 open={isInstallmentOpen}
                 onOpenChange={setIsInstallmentOpen}
                 debt={selectedDebt}
+            />
+
+            <UnifiedPaymentDialog
+                open={isUnifiedOpen}
+                onOpenChange={setIsUnifiedOpen}
+                customerId={selectedDebtor?.id}
+                customerName={selectedDebtor?.name}
+                totalBalance={selectedDebtor?.balance}
             />
         </div>
     );

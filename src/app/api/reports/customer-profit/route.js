@@ -8,4 +8,4 @@ export const GET = apiHandler(async (req) => {
 
     const report = await ReportingService.getCustomerProfitReport(startDate, endDate);
     return { report };
-});
+}, { roles: ['owner'] });

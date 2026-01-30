@@ -2,15 +2,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-utils';
 import { toast } from 'sonner';
 
-export function useProducts(params = {}) {
+export function useProducts(params = {}, options = {}) {
     return useQuery({
         queryKey: ['products', params],
         queryFn: async () => {
-            const searchParams = new URLSearchParams(params);
+            // Filter out internal options from query params
+            const queryData = { ...params };
+            const searchParams = new URLSearchParams(queryData);
             const res = await api.get(`/api/products?${searchParams.toString()}`);
             return res.data;
         },
         placeholderData: (previousData) => previousData,
+        ...options
     });
 }
 

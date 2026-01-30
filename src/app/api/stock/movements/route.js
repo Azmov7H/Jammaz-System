@@ -6,7 +6,6 @@ import { StockService } from '@/services/stockService';
  * Get stock movements
  */
 export const GET = apiHandler(async (request) => {
-    await dbConnect();
     const { searchParams } = new URL(request.url);
 
     const startDateStr = searchParams.get('startDate');
@@ -19,4 +18,4 @@ export const GET = apiHandler(async (request) => {
     const movements = await StockService.getMovements(startDate, endDate, type);
 
     return { movements };
-});
+}, { auth: true });

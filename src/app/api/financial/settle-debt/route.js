@@ -1,6 +1,5 @@
 import { apiHandler } from '@/lib/api-handler';
 import { FinanceService } from '@/services/financeService';
-import { getCurrentUser } from '@/lib/auth';
 import { z } from 'zod';
 
 const settleDebtSchema = z.object({
@@ -12,12 +11,8 @@ const settleDebtSchema = z.object({
 });
 
 export const POST = apiHandler(async (req) => {
-    const user = await getCurrentUser();
-    if (!user) throw 'Unauthorized';
-
     const body = await req.json();
     const validated = settleDebtSchema.parse(body);
 
-    const result = await FinanceService.settleDebt(validated, user.userId);
-    return result;
-});
+    return await FinanceService.settleDebt(validated, req.user.userId);
+}, { auth: true });

@@ -48,15 +48,5 @@ const Button = React.forwardRef(({ className, variant, size, fullWidth, asChild 
 })
 Button.displayName = "Button"
 
-const Card = React.forwardRef(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      "rounded-[1.5rem] border bg-card text-card-foreground shadow-custom-md transition-all duration-300 hover:shadow-custom-lg",
-      className
-    )}
-    {...props} />
-))
-Card.displayName = "Card"
+export { Button, buttonVariants }
 
-export { Button, buttonVariants, Card }

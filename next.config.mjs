@@ -1,5 +1,7 @@
 const nextConfig = {
     compress: true,
+    poweredByHeader: false,
+    reactStrictMode: true,
     compiler: {
         removeConsole: process.env.NODE_ENV === "production",
     },
@@ -22,9 +24,13 @@ const nextConfig = {
             '@radix-ui/react-tooltip',
             'lucide-react',
             'date-fns',
-            'recharts'
+            'recharts',
+            'chart.js',
+            'react-chartjs-2',
+            'framer-motion',
         ],
     }
 };
 
 export default nextConfig;
+

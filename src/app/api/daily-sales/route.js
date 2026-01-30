@@ -19,4 +19,4 @@ export const GET = apiHandler(async (req) => {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 30);
     return await DailySalesService.getSalesSummary(startDate, endDate);
-});
+}, { auth: true });

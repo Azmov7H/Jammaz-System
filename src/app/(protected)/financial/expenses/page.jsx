@@ -8,8 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Receipt, ArrowDownRight, Wallet } from 'lucide-react';
+import { Loader2, Receipt, ArrowDownRight, Wallet, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { cn } from '@/utils';
 
 export default function ExpensesPage() {
     const queryClient = useQueryClient();
@@ -47,26 +49,38 @@ export default function ExpensesPage() {
     };
 
     return (
-        <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">إدارة المصروفات</h1>
-                <p className="text-muted-foreground mt-2">تسجيل المصاريف التشغيلية والنثرية (إيجار، رواتب، الخ)</p>
+        <div className="min-h-screen bg-[#0f172a]/20 space-y-8 p-4 md:p-8 rounded-[2rem]" dir="rtl">
+            {/* Ambient Background Effect */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+                <div className="absolute -top-[10%] -right-[10%] w-[40%] h-[40%] bg-rose-500/10 rounded-full blur-[120px] animate-pulse" />
+                <div className="absolute -bottom-[10%] -left-[10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px] animate-pulse delay-700" />
             </div>
 
-            <Card className="border-none shadow-xl bg-card">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Receipt className="text-primary h-6 w-6" />
-                        تسجيل مصروف جديد
-                    </CardTitle>
-                    <CardDescription>سيتم خصم هذا المبلغ من رصيد الخزينة الحالي</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="amount">المبلغ (ج.م)</Label>
-                                <div className="relative">
+            {/* Header Section */}
+            <PageHeader
+                title="إدارة المصروفات"
+                subtitle="تسجيل المصاريف التشغيلية والنثرية والرواتب"
+                icon={Receipt}
+            />
+
+            <div className="max-w-4xl mx-auto">
+                <div className="glass-card shadow-[0_40px_80px_rgba(0,0,0,0.3)] border border-white/10 rounded-[2.5rem] overflow-hidden">
+                    <div className="p-8 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-rose-500/10 rounded-2xl flex items-center justify-center border border-rose-500/20 text-rose-500">
+                                <ArrowDownRight size={24} />
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-black tracking-tight uppercase">تسجيل مصروف جديد</h2>
+                                <p className="text-sm font-bold text-white/20">سيتم خصم المبلغ من رصيد الخزينة</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="p-10">
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div className="space-y-4">
+                                <Label htmlFor="amount" className="font-black text-white/40 uppercase tracking-widest text-xs mr-2">المبلغ (ج.م)</Label>
+                                <div className="relative group">
                                     <Input
                                         id="amount"
                                         type="number"
@@ -74,75 +88,79 @@ export default function ExpensesPage() {
                                         required
                                         value={amount}
                                         onChange={(e) => setAmount(e.target.value)}
-                                        className="pl-10 text-lg font-bold"
+                                        className="h-16 pl-14 pr-6 rounded-2xl bg-white/[0.03] border-white/10 focus:bg-white/[0.05] focus:border-rose-500/50 transition-all font-black text-2xl tabular-nums shadow-inner ring-0 focus-visible:ring-0"
                                         placeholder="0.00"
                                     />
-                                    <Wallet className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                    <Wallet className="absolute left-6 top-1/2 -translate-y-1/2 h-6 w-6 text-rose-500/50 group-focus-within:text-rose-500 transition-colors" />
                                 </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="date">التاريخ</Label>
-                                <Input
-                                    id="date"
-                                    type="date"
+                            <div className="space-y-4">
+                                <Label htmlFor="date" className="font-black text-white/40 uppercase tracking-widest text-xs mr-2">التاريخ</Label>
+                                <div className="relative">
+                                    <Input
+                                        id="date"
+                                        type="date"
+                                        required
+                                        value={date}
+                                        onChange={(e) => setDate(e.target.value)}
+                                        className="h-16 pl-14 pr-6 rounded-2xl bg-white/[0.03] border-white/10 focus:bg-white/[0.05] focus:border-primary/50 transition-all font-black text-lg ring-0 focus-visible:ring-0"
+                                    />
+                                    <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 h-6 w-6 text-primary/50" />
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <Label htmlFor="category" className="font-black text-white/40 uppercase tracking-widest text-xs mr-2">التصنيف</Label>
+                                <Select value={category} onValueChange={setCategory}>
+                                    <SelectTrigger className="h-16 rounded-2xl bg-white/[0.03] border-white/10 focus:bg-white/[0.05] focus:border-primary/50 transition-all font-black text-lg px-6 ring-0 focus-visible:ring-0">
+                                        <SelectValue placeholder="اختر التصنيف" />
+                                    </SelectTrigger>
+                                    <SelectContent className="glass-card border-white/10 rounded-2xl overflow-hidden backdrop-blur-3xl">
+                                        <SelectItem value="rent" className="h-12 font-bold focus:bg-primary/20">إيجار</SelectItem>
+                                        <SelectItem value="salaries" className="h-12 font-bold focus:bg-primary/20">رواتب وأجور</SelectItem>
+                                        <SelectItem value="utilities" className="h-12 font-bold focus:bg-primary/20">مرافق (كهرباء/مياه)</SelectItem>
+                                        <SelectItem value="maintenance" className="h-12 font-bold focus:bg-primary/20">صيانة</SelectItem>
+                                        <SelectItem value="marketing" className="h-12 font-bold focus:bg-primary/20">تسويق</SelectItem>
+                                        <SelectItem value="supplies" className="h-12 font-bold focus:bg-primary/20">أدوات مكتبية/مخزنية</SelectItem>
+                                        <SelectItem value="other" className="h-12 font-bold focus:bg-primary/20">أخرى</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-4">
+                                <Label htmlFor="reason" className="font-black text-white/40 uppercase tracking-widest text-xs mr-2">البيان / السبب</Label>
+                                <Textarea
+                                    id="reason"
                                     required
-                                    value={date}
-                                    onChange={(e) => setDate(e.target.value)}
+                                    value={reason}
+                                    onChange={(e) => setReason(e.target.value)}
+                                    placeholder="مثلاً: سداد فاتورة الكهرباء لشهر ديسمبر"
+                                    rows={3}
+                                    className="rounded-2xl bg-white/[0.03] border-white/10 focus:bg-white/[0.05] focus:border-primary/50 transition-all font-bold text-lg p-6 ring-0 focus-visible:ring-0 resize-none"
                                 />
                             </div>
-                        </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="category">التصنيف</Label>
-                            <Select value={category} onValueChange={setCategory}>
-                                <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="اختر التصنيف" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="rent">إيجار</SelectItem>
-                                    <SelectItem value="salaries">رواتب وأجور</SelectItem>
-                                    <SelectItem value="utilities">مرافق (كهرباء/مياه)</SelectItem>
-                                    <SelectItem value="maintenance">صيانة</SelectItem>
-                                    <SelectItem value="marketing">تسويق</SelectItem>
-                                    <SelectItem value="supplies">أدوات مكتبية/مخزنية</SelectItem>
-                                    <SelectItem value="other">أخرى</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
+                            <Button
+                                type="submit"
+                                className="w-full h-16 text-xl font-black uppercase tracking-widest rounded-2xl bg-rose-500 hover:bg-rose-600 text-white shadow-2xl shadow-rose-500/30 transition-all duration-300 disabled:opacity-50 group"
+                                disabled={mutation.isPending}
+                            >
+                                {mutation.isPending ? (
+                                    <Loader2 className="mr-3 h-6 w-6 animate-spin" />
+                                ) : (
+                                    <ArrowDownRight className="mr-3 h-6 w-6 group-hover:rotate-45 transition-transform" />
+                                )}
+                                حفظ المصروف
+                            </Button>
+                        </form>
+                    </div>
+                </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="reason">البيان / السبب</Label>
-                            <Textarea
-                                id="reason"
-                                required
-                                value={reason}
-                                onChange={(e) => setReason(e.target.value)}
-                                placeholder="مثلاً: سداد فاتورة الكهرباء لشهر ديسمبر"
-                                rows={3}
-                                className="resize-none"
-                            />
-                        </div>
-
-                        <Button
-                            type="submit"
-                            className="w-full h-12 text-lg font-semibold gradient-primary shadow-lg hover-lift"
-                            disabled={mutation.isPending}
-                        >
-                            {mutation.isPending ? (
-                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                            ) : (
-                                <ArrowDownRight className="mr-2 h-5 w-5" />
-                            )}
-                            حفظ المصروف
-                        </Button>
-                    </form>
-                </CardContent>
-            </Card>
-
-            <div className="bg-muted/40 p-4 rounded-lg border border-dashed border-border text-center">
-                <p className="text-sm text-muted-foreground">
-                    تنبيه: سيظهر هذا المصروف في إجمالي "مصاريف اليوم" ويؤثر على "صافي الربح" في لوحة التحكم.
-                </p>
+                <div className="max-w-4xl mx-auto glass-card p-8 rounded-3xl border border-white/10 border-dashed text-center">
+                    <p className="text-lg font-bold text-white/30 italic">
+                        تنبيه: سيظهر هذا المصروف في إجمالي "مصاريف اليوم" ويؤثر على "صافي الربح" في لوحة التحكم.
+                    </p>
+                </div>
             </div>
         </div>
     );

@@ -1,8 +1,6 @@
 import { apiHandler } from '@/lib/api-handler';
 import { SupplierService } from '@/services/supplierService';
 import { supplierSchema } from '@/validations/validators';
-import { getCurrentUser } from '@/lib/auth';
-import { NextResponse } from 'next/server';
 
 export const GET = apiHandler(async (req) => {
     const { searchParams } = new URL(req.url);
@@ -11,10 +9,7 @@ export const GET = apiHandler(async (req) => {
 });
 
 export const POST = apiHandler(async (req) => {
-    const user = await getCurrentUser();
-    if (!user) throw 'Unauthorized';
-
     const body = await req.json();
     const validated = supplierSchema.parse(body);
     return await SupplierService.create(validated);
-});
+}, { auth: true });

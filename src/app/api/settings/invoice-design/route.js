@@ -1,42 +1,24 @@
-import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
+import { apiHandler } from '@/lib/api-handler';
 import InvoiceSettings from '@/models/InvoiceSettings';
-import { getCurrentUser } from '@/lib/auth';
+import { revalidateTag } from 'next/cache';
+import { CACHE_TAGS } from '@/lib/cache';
 
-export async function GET() {
-    try {
-        await dbConnect();
-        const settings = await InvoiceSettings.getSettings();
-        return NextResponse.json(settings);
-    } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-}
+export const GET = apiHandler(async () => {
+    return await InvoiceSettings.getSettings();
+}, { auth: true });
 
-export async function POST(request) {
-    try {
-        await dbConnect();
-        const user = await getCurrentUser();
+export const POST = apiHandler(async (req) => {
+    const body = await req.json();
 
-        // Only core/admin users should be able to change settings
-        // Assuming user.role check or similar if available, otherwise just letting it through for now as it's a dashboard action
+    // Use getSettingsBase() to get the live Mongoose document
+    const settings = await InvoiceSettings.getSettingsBase();
 
-        const body = await request.json();
+    // Update fields
+    Object.assign(settings, body);
+    await settings.save();
 
-        // Use getSettingsBase() to get the live Mongoose document instead of the cached plain object
-        const settings = await InvoiceSettings.getSettingsBase();
+    // Revalidate cache
+    revalidateTag(CACHE_TAGS.SETTINGS);
 
-        // Update fields
-        Object.assign(settings, body);
-        await settings.save();
-
-        // Revalidate cache
-        const { revalidateTag } = await import('next/cache');
-        const { CACHE_TAGS } = await import('@/lib/cache');
-        revalidateTag(CACHE_TAGS.SETTINGS);
-
-        return NextResponse.json({ success: true, settings });
-    } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-}
+    return { success: true, settings };
+}, { roles: ['owner', 'admin', 'manager'] });

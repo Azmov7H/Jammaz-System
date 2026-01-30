@@ -50,4 +50,4 @@ export const GET = apiHandler(async (req) => {
             transactions
         };
     }
-});
+}, { auth: true });

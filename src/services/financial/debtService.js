@@ -28,7 +28,6 @@ export class DebtService {
         // 2. duplication check (same reference)
         const existing = await Debt.findOne({ referenceType, referenceId, debtorType, debtorId }).session(session);
         if (existing) {
-            console.log(`Debt already exists for ${referenceType} ${referenceId}`);
             return existing;
         }
 
@@ -37,7 +36,7 @@ export class DebtService {
             debtorType,
             debtorId,
             originalAmount: amount,
-            remainingAmount: amount, // Starts full
+            remainingAmount: amount,
             dueDate: new Date(dueDate),
             referenceType,
             referenceId,
@@ -46,6 +45,15 @@ export class DebtService {
             createdBy
         });
         await debt.save({ session });
+
+        // 4. Update Parent Balance (Consolidated)
+        const Model = debtorType === 'Customer'
+            ? (await import('@/models/Customer')).default
+            : (await import('@/models/Supplier')).default;
+
+        await Model.findByIdAndUpdate(debtorId, {
+            $inc: { balance: amount }
+        }).session(session);
 
         return debt;
     }
@@ -66,6 +74,9 @@ export class DebtService {
             } else {
                 query.status = filter.status;
             }
+        } else {
+            // Default: Exclude settled debts from active views
+            query.status = { $in: ['active', 'overdue'] };
         }
         if (filter.startDate && filter.endDate) {
             query.dueDate = { $gte: new Date(filter.startDate), $lte: new Date(filter.endDate) };
@@ -76,7 +87,7 @@ export class DebtService {
                 .sort({ dueDate: 1 }) // Earliest due first
                 .skip(skip)
                 .limit(limit)
-                .populate('debtorId', 'name phone') // simplified populate
+                .populate('debtorId', 'name phone balance') // simplified populate
                 .lean(),
             Debt.countDocuments(query)
         ]);
@@ -103,9 +114,9 @@ export class DebtService {
     /**
      * Update remaining amount (Internal use by PaymentService)
      */
-    static async updateBalance(id, amountPaid) {
+    static async updateBalance(id, amountPaid, session = null) {
         await dbConnect();
-        const debt = await Debt.findById(id);
+        const debt = await Debt.findById(id).session(session);
         if (!debt) throw new Error('Debt not found');
 
         debt.remainingAmount -= amountPaid;
@@ -119,7 +130,17 @@ export class DebtService {
             debt.status = debt.dueDate < new Date() ? 'overdue' : 'active';
         }
 
-        await debt.save();
+        await debt.save({ session });
+
+        // Update Parent Balance (Consolidated)
+        const Model = debt.debtorType === 'Customer'
+            ? (await import('@/models/Customer')).default
+            : (await import('@/models/Supplier')).default;
+
+        await Model.findByIdAndUpdate(debt.debtorId, {
+            $inc: { balance: -amountPaid }
+        }).session(session);
+
         return debt;
     }
 
@@ -185,7 +206,6 @@ export class DebtService {
             });
 
             await adjustmentTransaction.save();
-            console.log(`[DebtService] Created treasury adjustment: ${transactionType} ${Math.abs(collectedDifference)}`);
         }
 
         return debt;
@@ -293,7 +313,6 @@ export class DebtService {
 
         const debt = await Debt.findById(debtId);
         if (!debt) {
-            console.error(`Debt lookup failed for ID: ${debtId}`);
             throw new Error('الديون المطلوبة غير موجودة في النظام (Debt not found)');
         }
 
@@ -330,11 +349,9 @@ export class DebtService {
         }
 
         // Delete existing scheduled payments for this debt to avoid overlaps if re-scheduling
-        const deleteResult = await PaymentSchedule.deleteMany({ debtId, status: 'PENDING' });
-        console.log(`[DebtService] Deleted ${deleteResult.deletedCount} existing pending schedules for debt ${debtId}`);
+        await PaymentSchedule.deleteMany({ debtId, status: 'PENDING' });
 
         const createdSchedules = await PaymentSchedule.insertMany(schedules);
-        console.log(`[DebtService] Created ${createdSchedules.length} new schedules for debt ${debtId}`);
 
         // Update Debt Meta
         if (!debt.meta) {
@@ -345,7 +362,6 @@ export class DebtService {
         debt.meta.set('lastScheduledUpdate', new Date());
 
         await debt.save();
-        console.log(`[DebtService] Updated debt ${debtId} meta to 'isScheduled: true'`);
 
         return createdSchedules;
     }
@@ -421,5 +437,117 @@ export class DebtService {
         }
 
         return { message: 'المورد لديه مديونيات نشطة بالفعل', count: 0 };
+    }
+
+    /**
+     * Get Aggregated Debtors with Totals
+     */
+    static async getDebtorsWithBalance(type, filter = {}, { page = 1, limit = 20 } = {}) {
+        await dbConnect();
+        const skip = (page - 1) * limit;
+
+        const matchStage = {
+            debtorType: type,
+            status: { $in: ['active', 'overdue'] },
+            remainingAmount: { $gt: 0 }
+        };
+
+        const lookupCollection = type === 'Customer' ? 'customers' : 'suppliers';
+
+        const pipeline = [
+            { $match: matchStage },
+            {
+                $group: {
+                    _id: '$debtorId',
+                    totalDebt: { $sum: '$remainingAmount' },
+                    originalTotal: { $sum: '$originalAmount' },
+                    invoicesCount: { $sum: 1 },
+                    oldestDueDate: { $min: '$dueDate' }
+                }
+            },
+            {
+                $lookup: {
+                    from: lookupCollection,
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'debtorDetails'
+                }
+            },
+            { $unwind: '$debtorDetails' },
+            // Search logic
+            ...(filter.search ? [{
+                $match: {
+                    'debtorDetails.name': { $regex: filter.search, $options: 'i' }
+                }
+            }] : []),
+            {
+                $facet: {
+                    data: [
+                        { $skip: skip },
+                        { $limit: limit },
+                        {
+                            $project: {
+                                _id: 1,
+                                totalDebt: 1,
+                                originalTotal: 1,
+                                invoicesCount: 1,
+                                oldestDueDate: 1,
+                                debtor: {
+                                    _id: '$debtorDetails._id',
+                                    name: '$debtorDetails.name',
+                                    phone: '$debtorDetails.phone',
+                                    priceType: '$debtorDetails.priceType',
+                                    balance: '$debtorDetails.balance'
+                                }
+                            }
+                        }
+                    ],
+                    totalCount: [
+                        { $count: 'count' }
+                    ]
+                }
+            }
+        ];
+
+        const result = await Debt.aggregate(pipeline);
+        const data = result[0].data;
+        const total = result[0].totalCount[0]?.count || 0;
+
+        return {
+            debtors: data,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit)
+            }
+        };
+    }
+
+    /**
+     * Delete a debt record and reverse its effect on parent balance
+     */
+    static async deleteDebt(id, session = null) {
+        await dbConnect();
+        const debt = await Debt.findById(id).session(session);
+        if (!debt) throw new Error('Debt not found');
+
+        // 1. Reverse Parent Balance
+        const Model = debt.debtorType === 'Customer'
+            ? (await import('@/models/Customer')).default
+            : (await import('@/models/Supplier')).default;
+
+        await Model.findByIdAndUpdate(debt.debtorId, {
+            $inc: { balance: -debt.remainingAmount }
+        }).session(session);
+
+        // 2. Delete Schedules
+        const { default: PaymentSchedule } = await import('@/models/PaymentSchedule');
+        await PaymentSchedule.deleteMany({ debtId: debt._id }).session(session);
+
+        // 3. Delete the debt
+        await debt.deleteOne({ session });
+
+        return { success: true };
     }
 }

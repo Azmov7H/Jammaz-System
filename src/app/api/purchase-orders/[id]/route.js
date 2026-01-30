@@ -1,6 +1,5 @@
 import { apiHandler } from '@/lib/api-handler';
 import { PurchaseOrderService } from '@/services/purchaseOrderService';
-import { getCurrentUser } from '@/lib/auth';
 
 export const GET = apiHandler(async (req, { params }) => {
     const { id } = await params;
@@ -14,23 +13,17 @@ export const GET = apiHandler(async (req, { params }) => {
 });
 
 export const PATCH = apiHandler(async (req, { params }) => {
-    const user = await getCurrentUser();
-    if (!user) throw 'Unauthorized';
-
     const { id } = await params;
     const body = await req.json();
 
-    const purchaseOrder = await PurchaseOrderService.updateStatus(id, body, user.userId);
+    const purchaseOrder = await PurchaseOrderService.updateStatus(id, body, req.user.userId);
     return {
         message: body.status === 'RECEIVED' ? 'تم استلام الطلب وتحديث المخزون والحسابات' : 'تم تحديث حالة الطلب',
         purchaseOrder
     };
-});
+}, { auth: true });
 
 export const DELETE = apiHandler(async (req, { params }) => {
-    const user = await getCurrentUser();
-    if (!user) throw 'Unauthorized';
-
     const { id } = await params;
     return await PurchaseOrderService.delete(id);
-});
+}, { auth: true });

@@ -1,8 +1,5 @@
 import { apiHandler } from '@/lib/api-handler';
 import { StockService } from '@/services/stockService';
-import { getCurrentUser } from '@/lib/auth';
-import { hasPermission } from '@/lib/permissions';
-import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const stockAdjustSchema = z.object({
@@ -13,14 +10,6 @@ const stockAdjustSchema = z.object({
 });
 
 export const POST = apiHandler(async (req) => {
-    const user = await getCurrentUser();
-    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-
-    const canAudit = hasPermission(user.role, 'stock:audit') || user.role === 'manager' || user.role === 'owner';
-    if (!canAudit) {
-        return NextResponse.json({ success: false, error: 'غير مسموح لك بتعديل المخزون يدوياً' }, { status: 403 });
-    }
-
     const body = await req.json();
     const validated = stockAdjustSchema.parse(body);
 
@@ -29,8 +18,8 @@ export const POST = apiHandler(async (req) => {
         validated.warehouseQty,
         validated.shopQty,
         validated.note,
-        user.userId
+        req.user.userId
     );
 
-    return NextResponse.json({ success: true, data: result });
-});
+    return result;
+}, { roles: ['owner', 'admin', 'manager'] });

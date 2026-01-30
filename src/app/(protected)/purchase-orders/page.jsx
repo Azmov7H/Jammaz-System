@@ -11,15 +11,27 @@ import { ShoppingCart, Plus, CheckCircle, Eye, Loader2 } from 'lucide-react';
 import { usePurchaseOrders, useCreatePO, useUpdatePOStatus } from '@/hooks/usePurchaseOrders';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useProducts } from '@/hooks/useProducts';
+import { useDebounce } from '@/hooks/useDebounce';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { SmartCombobox } from '@/components/ui/smart-combobox';
+import { QuickAddProductDialog } from '@/components/products/QuickAddProductDialog';
 
 export default function PurchaseOrdersPage() {
-    const { data: posData, isLoading: posLoading } = usePurchaseOrders();
+    const searchParams = useSearchParams();
+    const filterSupplierId = searchParams.get('supplierId');
+
+    const [productSearch, setProductSearch] = useState('');
+    const debouncedProductSearch = useDebounce(productSearch, 500);
+
+    const { data: posData, isLoading: posLoading } = usePurchaseOrders(filterSupplierId ? { supplierId: filterSupplierId } : {});
     const pos = posData?.purchaseOrders || [];
     const { data: suppliersData } = useSuppliers();
     const suppliers = suppliersData?.suppliers || [];
-    const { data: productsData } = useProducts({ limit: 100 });
+    const { data: productsData } = useProducts({
+        search: debouncedProductSearch,
+        limit: 50
+    });
     const products = productsData?.products || [];
     const createMutation = useCreatePO();
     const updateMutation = useUpdatePOStatus();
@@ -30,13 +42,39 @@ export default function PurchaseOrdersPage() {
     const [poItems, setPoItems] = useState([]);
 
     const [selectedProduct, setSelectedProduct] = useState('');
+    const [selectedProductDetails, setSelectedProductDetails] = useState(null);
     const [qty, setQty] = useState('');
     const [cost, setCost] = useState('');
 
+    // Quick add product dialog state
+    const [quickAddOpen, setQuickAddOpen] = useState(false);
+    const [quickAddName, setQuickAddName] = useState('');
+
+    // Handle new product added from quick dialog
+    const handleProductAdded = (newProduct) => {
+        // We set the product ID immediately
+        setSelectedProduct(newProduct._id);
+        setSelectedProductDetails(newProduct);
+
+        // If the product has a buy price, pre-fill the cost
+        if (newProduct.buyPrice) {
+            setCost(newProduct.buyPrice.toString());
+        }
+
+        // Optional: We could also manually update the local products list cache
+        // to make sure the name shows up even before the refetch finishes,
+        // but SmartCombobox might not support that easily without a custom option.
+    };
+
     const addItem = () => {
         if (!selectedProduct || !qty || !cost) return;
-        const products = productsData?.products || [];
-        const prod = products.find(p => p._id === selectedProduct);
+
+        // Try to find the product in current list or use already stored details
+        const productsList = productsData?.products || [];
+        const prod = productsList.find(p => p._id === selectedProduct) || selectedProductDetails;
+
+        if (!prod) return;
+
         setPoItems([...poItems, {
             productId: selectedProduct,
             name: prod.name,
@@ -44,6 +82,7 @@ export default function PurchaseOrdersPage() {
             costPrice: Number(cost)
         }]);
         setSelectedProduct('');
+        setSelectedProductDetails(null);
         setQty('');
         setCost('');
     };
@@ -194,8 +233,17 @@ export default function PurchaseOrdersPage() {
                                     className="flex-1 min-w-[200px]"
                                     options={products.map(p => ({ label: p.name, value: p._id }))}
                                     value={selectedProduct}
-                                    onChange={setSelectedProduct}
+                                    onChange={(val) => {
+                                        setSelectedProduct(val);
+                                        const p = products.find(prod => prod._id === val);
+                                        if (p) setSelectedProductDetails(p);
+                                    }}
+                                    onSearchChange={setProductSearch}
                                     placeholder="اختر المنتج..."
+                                    onCreate={(name) => {
+                                        setQuickAddName(name);
+                                        setQuickAddOpen(true);
+                                    }}
                                 />
                                 <Input type="number" placeholder="الكمية" className="w-20" value={qty} onChange={e => setQty(e.target.value)} />
                                 <Input type="number" placeholder="التكلفة" className="w-24" value={cost} onChange={e => setCost(e.target.value)} />
@@ -219,6 +267,14 @@ export default function PurchaseOrdersPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Quick Add Product Dialog */}
+            <QuickAddProductDialog
+                open={quickAddOpen}
+                onOpenChange={setQuickAddOpen}
+                initialName={quickAddName}
+                onSuccess={handleProductAdded}
+            />
         </div>
     );
 }

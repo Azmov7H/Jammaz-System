@@ -10,55 +10,33 @@ import { Search, Loader2, Package, Check, Store, Warehouse, Plus } from 'lucide-
 import { cn } from '@/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+import { useProducts, useProductMetadata } from '@/hooks/useProducts';
+import { useDebounce } from '@/hooks/useDebounce';
+
 export function ProductSelectorModal({ open, onOpenChange, onSelect, defaultSource = 'shop' }) {
     const [searchTerm, setSearchTerm] = useState('');
-    const [products, setProducts] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [metadata, setMetadata] = useState({ brands: [], categories: [] });
     const [filters, setFilters] = useState({ category: 'all', brand: 'all' });
     const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
 
-    // Initial load and metadata
+    const debouncedSearch = useDebounce(searchTerm, 500);
+
+    const { data: productsData, isLoading: loading } = useProducts({
+        page,
+        limit: 10,
+        search: debouncedSearch,
+        category: filters.category,
+        brand: filters.brand,
+    }, { enabled: open });
+
+    const { data: metadata = { brands: [], categories: [] } } = useProductMetadata();
+
+    const products = productsData?.products || [];
+    const totalPages = productsData?.pagination?.pages || 1;
+
+    // Reset page on search or filter change
     useEffect(() => {
-        if (open) {
-            fetchProducts();
-            if (metadata.categories.length === 0) fetchMetadata();
-        }
-    }, [open, page, filters, searchTerm]);
-
-    const fetchMetadata = async () => {
-        try {
-            const res = await fetch('/api/products/metadata');
-            const json = await res.json();
-            if (json.data) setMetadata(json.data);
-        } catch (error) {
-            console.error('Failed to fetch metadata:', error);
-        }
-    };
-
-    const fetchProducts = async () => {
-        setLoading(true);
-        try {
-            const queryParams = new URLSearchParams({
-                page: page.toString(),
-                limit: '10',
-                search: searchTerm,
-                category: filters.category,
-                brand: filters.brand
-            });
-            const res = await fetch(`/api/products?${queryParams}`);
-            const json = await res.json();
-            if (json.data) {
-                setProducts(json.data.products);
-                setTotalPages(json.data.pagination.pages);
-            }
-        } catch (error) {
-            console.error('Failed to fetch products:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+        if (open) setPage(1);
+    }, [debouncedSearch, filters, open]);
 
     const handleSelect = (product) => {
         onSelect(product);

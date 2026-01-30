@@ -26,7 +26,7 @@ export const POST = apiHandler(async (req) => {
 
         case 'products':
             data = await ProductService.getAll({});
-            // Flattener/Mapper might be needed if ProductService returns complex objects
+            // Flattener/Mapper
             data = data.map(p => ({
                 code: p.code,
                 name: p.name,
@@ -45,7 +45,7 @@ export const POST = apiHandler(async (req) => {
             break;
 
         default:
-            throw new Error('Invalid export type');
+            throw 'Invalid export type';
     }
 
     // 2. Generate Excel
@@ -60,5 +60,5 @@ export const POST = apiHandler(async (req) => {
         });
     }
 
-    throw new Error('Unsupported format');
-});
+    throw 'Unsupported format';
+}, { roles: ['owner', 'admin'] });
