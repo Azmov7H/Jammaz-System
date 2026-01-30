@@ -89,7 +89,8 @@ export const GET = apiHandler(async (req, { params }) => {
             date: tx.date,
             type: tx.type === 'INCOME' ? 'PAYMENT' : 'REFUND',
             label: label,
-            reference: tx.referenceId?.toString() || '---',
+            label: label,
+            reference: tx.receiptNumber || tx.referenceId?.toString() || '---',
             referenceId: tx._id, // Link to the TreasuryTransaction itself (the receipt)
             originalReferenceId: tx.referenceId, // Keep original reference (Invoice/Debt)
             referenceType: tx.referenceType,

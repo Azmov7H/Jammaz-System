@@ -1,6 +1,5 @@
 import { apiHandler } from '@/lib/api-handler';
 import { TreasuryService } from '@/services/treasuryService';
-import { getCurrentUser } from '@/lib/auth';
 
 export const GET = apiHandler(async (req) => {
     const { searchParams } = new URL(req.url);
@@ -13,19 +12,16 @@ export const GET = apiHandler(async (req) => {
     }
 
     return await TreasuryService.getTransactions(startDate, endDate, type);
-});
+}, { auth: true });
 
 export const POST = apiHandler(async (req) => {
-    const user = await getCurrentUser();
-    if (!user) throw new Error('غير مصرح لك');
-
     const { amount, description, type, category } = await req.json();
 
     if (type === 'INCOME') {
-        return await TreasuryService.addManualIncome(new Date(), Number(amount), description, user.userId);
+        return await TreasuryService.addManualIncome(new Date(), Number(amount), description, req.user.userId);
     } else if (type === 'EXPENSE') {
-        return await TreasuryService.addManualExpense(new Date(), Number(amount), description, category || 'other', user.userId);
+        return await TreasuryService.addManualExpense(new Date(), Number(amount), description, category || 'other', req.user.userId);
     } else {
         throw new Error('نوع معاملة غير معروف');
     }
-});
+}, { auth: true });

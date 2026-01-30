@@ -11,10 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import {
-    Search, Wallet, Filter, Loader2,
+    Search, Wallet, Loader2,
     Calendar, User, AlertCircle, CheckCircle2,
     Banknote, CreditCard, Building2, TrendingDown,
-    ArrowUpRight, Copy, DollarSign, Clock, FileText
+    DollarSign, FileText
 } from 'lucide-react';
 import Link from 'next/link';
 import { useDebts } from '@/hooks/useFinancial';

@@ -8,4 +8,4 @@ export const GET = apiHandler(async (req) => {
 
     const history = await ReportingService.getPriceHistory(productId, limit);
     return { history };
-});
+}, { auth: true });

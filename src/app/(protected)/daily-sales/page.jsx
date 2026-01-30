@@ -15,9 +15,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
-import { Loader2, DollarSign, CreditCard, TrendingUp, Calendar, ShoppingBag } from 'lucide-react';
+import { Loader2, DollarSign, CreditCard, TrendingUp, Calendar, ShoppingBag, Package } from 'lucide-react';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatCard } from '@/components/ui/StatCard';
+import { cn } from '@/utils';
 
 export default function DailySalesPage() {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -34,141 +37,174 @@ export default function DailySalesPage() {
     const invoices = dailySales?.invoices || [];
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">تقرير المبيعات اليومية</h1>
-                    <p className="text-muted-foreground mt-2">
-                        ملخص المبيعات، الأرباح، والتحصيلات ليوم {format(new Date(date), 'dd MMMM yyyy', { locale: ar })}
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Input
-                        type="date"
-                        value={date}
-                        onChange={(e) => setDate(e.target.value)}
-                        className="w-[180px]"
-                    />
-                </div>
+        <div className="min-h-screen bg-[#0f172a]/20 space-y-8 p-4 md:p-8 rounded-[2rem]" dir="rtl">
+            {/* Ambient Background Effect */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+                <div className="absolute -top-[10%] -right-[10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px] animate-pulse" />
+                <div className="absolute -bottom-[10%] -left-[10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[120px] animate-pulse delay-700" />
             </div>
+
+            {/* Header Section */}
+            <PageHeader
+                title="تقرير المبيعات اليومية"
+                subtitle={`ملخص المبيعات، الأرباح، والتحصيلات ليوم ${format(new Date(date), 'dd MMMM yyyy', { locale: ar })}`}
+                icon={TrendingUp}
+                actions={
+                    <div className="flex items-center gap-3 glass-card p-2 rounded-2xl border border-white/10 shadow-xl bg-white/[0.02] backdrop-blur-xl">
+                        <Calendar className="w-5 h-5 text-primary ml-2" />
+                        <Input
+                            type="date"
+                            value={date}
+                            onChange={(e) => setDate(e.target.value)}
+                            className="w-[180px] h-10 border-none bg-transparent focus-visible:ring-0 font-black text-sm tracking-tight"
+                        />
+                    </div>
+                }
+            />
 
             {/* KPIs */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="bg-blue-50 border-blue-100">
-                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-blue-900">إجمالي المبيعات</CardTitle></CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-blue-700">
-                            {(summary.totalRevenue || 0).toLocaleString()}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="bg-green-50 border-green-100">
-                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-green-900">مبيعات نقدية</CardTitle></CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-700 flex items-center gap-2">
-                            <DollarSign className="h-5 w-5" />
-                            {(summary.cashReceived || 0).toLocaleString()}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="bg-orange-50 border-orange-100">
-                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-orange-900">مبيعات آجلة</CardTitle></CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-orange-700 flex items-center gap-2">
-                            <CreditCard className="h-5 w-5" />
-                            {((summary.creditSales || (summary.totalRevenue - summary.cashReceived)) || 0).toLocaleString()}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="bg-indigo-50 border-indigo-100">
-                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-indigo-900">إجمالي الربح</CardTitle></CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-indigo-700 flex items-center gap-2">
-                            <TrendingUp className="h-5 w-5" />
-                            {(summary.grossProfit || 0).toLocaleString()}
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <StatCard
+                    title="إجمالي المبيعات"
+                    value={(summary.totalRevenue || 0).toLocaleString()}
+                    unit="ج.م"
+                    icon={TrendingUp}
+                    variant="primary"
+                    subtitle="إجمالي حركة مبيعات اليوم"
+                />
+                <StatCard
+                    title="مبيعات نقدية"
+                    value={(summary.cashReceived || 0).toLocaleString()}
+                    unit="ج.م"
+                    icon={DollarSign}
+                    variant="success"
+                    subtitle="التحصيل النقدي المباشر"
+                />
+                <StatCard
+                    title="مبيعات آجلة"
+                    value={((summary.creditSales || (summary.totalRevenue - summary.cashReceived)) || 0).toLocaleString()}
+                    unit="ج.م"
+                    icon={CreditCard}
+                    variant="warning"
+                    subtitle="المديونيات الجديدة لليوم"
+                />
+                <StatCard
+                    title="إجمالي الربح"
+                    value={(summary.grossProfit || 0).toLocaleString()}
+                    unit="ج.م"
+                    icon={TrendingUp}
+                    variant="info"
+                    subtitle="صافي ربح المبيعات"
+                />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Invoices List */}
-                <Card className="md:col-span-2">
-                    <CardHeader>
-                        <CardTitle>فواتير اليوم</CardTitle>
-                        <CardDescription>عدد الفواتير: {summary.invoiceCount || 0}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                <div className="lg:col-span-2 glass-card shadow-2xl border border-white/10 rounded-[3rem] overflow-hidden group">
+                    <div className="p-8 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-4 h-4 rounded-full bg-primary animate-pulse shadow-[0_0_15px_rgba(var(--primary),0.5)]" />
+                            <h2 className="text-3xl font-black tracking-tight group-hover:text-primary transition-colors">فواتير اليوم ({summary.invoiceCount || 0})</h2>
+                        </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
                         {isLoading ? (
-                            <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
-                        ) : (
-                            <div className="border rounded-md">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>رقم الفاتورة</TableHead>
-                                            <TableHead>العميل</TableHead>
-                                            <TableHead>النوع</TableHead>
-                                            <TableHead>القيمة</TableHead>
-                                            <TableHead>الربح</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {invoices.length === 0 ? (
-                                            <TableRow>
-                                                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">لا توجد مبيعات لهذا اليوم</TableCell>
-                                            </TableRow>
-                                        ) : (
-                                            invoices.map(invoice => (
-                                                <TableRow key={invoice._id}>
-                                                    <TableCell className="font-medium">{invoice.number}</TableCell>
-                                                    <TableCell>{invoice.customerName}</TableCell>
-                                                    <TableCell>
-                                                        <Badge variant={invoice.paymentType === 'credit' ? 'outline' : 'secondary'}>
-                                                            {invoice.paymentType === 'credit' ? 'آجل' : 'نقدي'}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>{invoice.total.toLocaleString()}</TableCell>
-                                                    <TableCell className="text-green-600 font-bold">{invoice.profit?.toLocaleString()}</TableCell>
-                                                </TableRow>
-                                            ))
-                                        )}
-                                    </TableBody>
-                                </Table>
+                            <div className="flex flex-col items-center justify-center py-32 gap-6 bg-card/10 rounded-[2.5rem] border border-white/5 shadow-inner">
+                                <Loader2 size={64} className="text-primary animate-spin" />
+                                <p className="text-2xl font-black text-white/30 italic">جاري تحميل مبيعات اليوم...</p>
                             </div>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="hover:bg-transparent border-white/5 h-16 bg-white/[0.01]">
+                                        <TableHead className="text-right font-black text-white/40 uppercase tracking-widest text-xs px-8">رقم الفاتورة</TableHead>
+                                        <TableHead className="text-right font-black text-white/40 uppercase tracking-widest text-xs px-8">العميل</TableHead>
+                                        <TableHead className="text-center font-black text-white/40 uppercase tracking-widest text-xs px-8">النوع</TableHead>
+                                        <TableHead className="text-center font-black text-white/40 uppercase tracking-widest text-xs px-8">القيمة</TableHead>
+                                        <TableHead className="text-center font-black text-white/40 uppercase tracking-widest text-xs px-8">الربح</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {invoices.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="h-96 text-center border-none">
+                                                <div className="flex flex-col items-center gap-6">
+                                                    <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 shadow-inner group">
+                                                        <ShoppingBag size={64} className="text-muted-foreground/20 group-hover:scale-110 transition-transform" />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <p className="text-2xl font-black text-white/30 italic">لا توجد مبيعات مسجلة لهذا اليوم</p>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        invoices.map(invoice => (
+                                            <TableRow key={invoice._id} className="group hover:bg-white/[0.02] border-white/5 h-20 transition-all duration-300">
+                                                <TableCell className="px-8 font-black text-lg">{invoice.number}</TableCell>
+                                                <TableCell className="px-8 font-bold text-white/70">{invoice.customerName}</TableCell>
+                                                <TableCell className="px-8 text-center">
+                                                    <Badge variant={invoice.paymentType === 'credit' ? 'outline' : 'secondary'} className={cn(
+                                                        "px-4 py-1.5 rounded-full font-black text-xs uppercase tracking-widest border-2",
+                                                        invoice.paymentType === 'credit'
+                                                            ? "border-amber-500/20 bg-amber-500/5 text-amber-500"
+                                                            : "border-emerald-500/20 bg-emerald-500/5 text-emerald-500"
+                                                    )}>
+                                                        {invoice.paymentType === 'credit' ? 'آجل' : 'نقدي'}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="px-8 text-center font-black text-xl tabular-nums">{invoice.total.toLocaleString()} <span className="text-[10px] opacity-40 mr-1">ج.م</span></TableCell>
+                                                <TableCell className="px-8 text-center">
+                                                    <span className="bg-emerald-500/10 text-emerald-500 px-4 py-1.5 rounded-full font-black text-sm border border-emerald-500/20">
+                                                        +{invoice.profit?.toLocaleString()}
+                                                    </span>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
                         )}
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
 
                 {/* Top Products */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>الأكثر مبيعاً</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-4">
-                            {summary.topProducts?.map((product, i) => (
-                                <div key={i} className="flex items-center justify-between border-b last:border-0 pb-2 last:pb-0">
-                                    <div className="flex items-center gap-3">
-                                        <div className="bg-primary/30 text-primary w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
-                                            {i + 1}
-                                        </div>
-                                        <div>
-                                            <div className="font-medium">{product.name}</div>
-                                            <div className="text-xs text-muted-foreground">{product.quantitySold} قطعة</div>
-                                        </div>
+                <div className="glass-card shadow-2xl border border-white/10 rounded-[3rem] overflow-hidden h-fit group">
+                    <div className="p-8 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-4 h-4 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
+                            <h2 className="text-3xl font-black tracking-tight group-hover:text-emerald-500 transition-colors">الأكثر مبيعاً</h2>
+                        </div>
+                    </div>
+                    <div className="p-8 space-y-6">
+                        {summary.topProducts?.map((product, i) => (
+                            <div key={i} className="flex items-center justify-between group">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center border border-primary/20 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-500 shadow-inner">
+                                        <Package size={20} />
                                     </div>
-                                    <div className="font-bold">
-                                        {product.revenue.toLocaleString()}
+                                    <div>
+                                        <div className="font-black text-lg tracking-tight">{product.name}</div>
+                                        <div className="text-xs font-bold text-white/20 uppercase tracking-widest">{product.quantitySold} قطعة مباعة</div>
                                     </div>
                                 </div>
-                            ))}
-                            {(!summary.topProducts || summary.topProducts.length === 0) && (
-                                <div className="text-center text-muted-foreground py-4">لا توجد بيانات</div>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
+                                <div className="text-right">
+                                    <div className="font-black text-xl tabular-nums">{product.revenue.toLocaleString()}</div>
+                                    <div className="text-[10px] font-black text-emerald-500 tracking-tighterUppercase uppercase">ج.م كلي</div>
+                                </div>
+                            </div>
+                        ))}
+                        {(!summary.topProducts || summary.topProducts.length === 0) && (
+                            <div className="flex flex-col items-center justify-center py-12 gap-4 text-white/10">
+                                <div className="p-6 bg-white/5 rounded-full">
+                                    <ShoppingBag size={32} />
+                                </div>
+                                <p className="font-black text-sm uppercase tracking-widest">لا توجد حركة مبيعات</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
         </div>
     );

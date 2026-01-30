@@ -276,7 +276,7 @@ export function SupplierDebtManager({ supplier, open, onOpenChange }) {
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead className="text-right">البيان</TableHead>
-                                            <TableHead className="text-center">المبلغ الأصلي</TableHead>
+
                                             <TableHead className="text-center">المتبقي</TableHead>
                                             <TableHead className="text-center">تاريخ الاستحقاق</TableHead>
                                             <TableHead className="text-left">إجراءات</TableHead>
@@ -288,7 +288,7 @@ export function SupplierDebtManager({ supplier, open, onOpenChange }) {
                                                 <TableCell className="font-bold">
                                                     {debt.description || `أمر شراء #${debt.referenceId?.toString().slice(-6).toUpperCase()}`}
                                                 </TableCell>
-                                                <TableCell className="text-center font-mono">{debt.originalAmount?.toLocaleString()}</TableCell>
+
                                                 <TableCell className="text-center">
                                                     <span className="font-black text-rose-500">{debt.remainingAmount?.toLocaleString()}</span>
                                                 </TableCell>

@@ -48,18 +48,9 @@ export const SupplierService = {
             throw 'اسم المورد موجود بالفعل';
         }
 
-        let initialBalance = 0;
-        if (openingBalance && openingBalance > 0) {
-            if (openingBalanceType === 'credit') {
-                initialBalance = parseFloat(openingBalance); // Positive = We owe them
-            } else {
-                initialBalance = -parseFloat(openingBalance); // Negative = They owe us
-            }
-        }
-
         const supplier = await Supplier.create({
             ...supplierData,
-            balance: initialBalance
+            balance: 0
         });
 
         if (openingBalance && openingBalance > 0) {

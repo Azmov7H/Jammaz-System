@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useDeferredValue } from 'react';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useDebtOverview, useDebts, useReceivables } from '@/hooks/useFinancial';
 import { Button } from '@/components/ui/button';
@@ -14,36 +14,40 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, FileEdit, Trash2, Phone, MapPin, Loader2, Wallet, Users, AlertTriangle, ArrowRightLeft, Activity, TrendingUp, TrendingDown, GripHorizontal } from 'lucide-react';
+import { Search, Plus, Users, Activity, RefreshCcw } from 'lucide-react';
 import { cn } from '@/utils';
+import { LABELS } from '@/constants';
+import { LoadingState, TableLoadingState } from '@/components/common/LoadingState';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import Link from 'next/link';
 
-import { KPICard } from '@/components/dashboard/KPICard';
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog';
 import { PaymentDialog } from '@/components/financial/PaymentDialog';
 import { InvoicePaymentDialog } from '@/components/financial/InvoicePaymentDialog';
 import { InstallmentDialog } from '@/components/financial/InstallmentDialog';
+import { UnifiedPaymentDialog } from '@/components/financial/UnifiedPaymentDialog';
 import { CustomerDetailsSheet } from '@/components/customers/CustomerDetailsSheet';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { CustomerRow } from '@/components/customers/CustomerRow';
+import { DebtOverviewCards, CustomerStatsCards } from '@/components/customers/CustomerStats';
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+    PaginationEllipsis
+} from '@/components/ui/pagination';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 export default function CustomersPage() {
     const router = useRouter();
     const [search, setSearch] = useState('');
+    const [page, setPage] = useState(1);
+    const limit = 15;
+    const deferredSearch = useDeferredValue(search);
+
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -54,23 +58,50 @@ export default function CustomersPage() {
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
     const [isInvoicePaymentOpen, setIsInvoicePaymentOpen] = useState(false);
     const [isInstallmentOpen, setIsInstallmentOpen] = useState(false);
+    const [isUnifiedOpen, setIsUnifiedOpen] = useState(false);
+    const [unifiedPaymentData, setUnifiedPaymentData] = useState(null);
 
-    const { data: queryData, isLoading, addMutation, updateMutation, deleteMutation } = useCustomers({ search });
-    const customers = queryData?.customers || [];
+    // Reset page on search change
+    const handleSearchChange = (e) => {
+        setSearch(e.target.value);
+        setPage(1);
+    };
 
-    // Debt Management
-    const { data: debtOverview, isLoading: isDebtLoading } = useDebtOverview();
-    const { data: debtsData } = useDebts({
-        debtorType: 'Customer'
+    // Data Fetching
+    const { data: queryData, isLoading, addMutation, updateMutation, deleteMutation, refetch } = useCustomers({
+        search: deferredSearch,
+        page,
+        limit
     });
-    const customerDebts = debtsData?.debts || [];
+    const customers = queryData?.customers || [];
+    const pagination = queryData?.pagination || { total: 0, pages: 1, page: 1, limit };
+    const totalPages = pagination.pages;
 
-    // Collection Management
+    // Generate page numbers to display
+    const getPageNumbers = () => {
+        const pages = [];
+        const maxVisible = 5;
+        let start = Math.max(1, page - Math.floor(maxVisible / 2));
+        let end = Math.min(totalPages, start + maxVisible - 1);
+        if (end - start + 1 < maxVisible) {
+            start = Math.max(1, end - maxVisible + 1);
+        }
+        for (let i = start; i <= end; i++) {
+            pages.push(i);
+        }
+        return pages;
+    };
+
+    // Financial Data
+    const { data: debtOverview, isLoading: isDebtLoading } = useDebtOverview();
+    const { data: debtsData } = useDebts({ debtorType: 'Customer' });
+    const customerDebts = debtsData?.debts || [];
     const { data: collectionData } = useReceivables();
     const collectionInvoices = collectionData?.invoices || [];
     const totalReceivables = collectionData?.totalReceivables || 0;
     const pendingInvoicesCount = collectionData?.count || 0;
 
+    // Handlers
     const handleRowClick = (customer) => {
         setDetailCustomer(customer);
         setIsDetailsOpen(true);
@@ -91,10 +122,7 @@ export default function CustomersPage() {
         setIsEditOpen(true);
     };
 
-
-
     const handleFormSubmit = (formData) => {
-        // Prevent duplicate submissions
         if (addMutation.isPending || updateMutation.isPending) {
             toast.warning('جاري معالجة الطلب، يرجى الانتظار...');
             return;
@@ -114,327 +142,269 @@ export default function CustomersPage() {
             });
         } else {
             addMutation.mutate(payload, {
-                onSuccess: () => {
-                    setIsAddOpen(false);
-                }
+                onSuccess: () => setIsAddOpen(false)
             });
         }
     };
 
-
-
     const handleDelete = (id) => {
-        if (confirm('هل أنت متأكد من تعطيل حساب هذا العميل؟')) {
+        if (window.confirm('هل أنت متأكد من حذف هذا العميل نهائياً؟ لا يمكن التراجع عن هذا الإجراء.')) {
             deleteMutation.mutate(id);
         }
     };
 
-    // Stats
-    const activeCustomers = customers.filter(c => c.isActive).length;
-    const debtCustomers = customers.filter(c => c.balance > 0).length;
-    const creditCustomers = customers.filter(c => c.creditBalance > 0).length;
-    const inactiveCustomers = customers.filter(c => {
-        if (!c.lastPurchaseDate) return false;
-        const diff = (new Date() - new Date(c.lastPurchaseDate)) / (1000 * 60 * 60 * 24);
-        return diff > 30;
-    }).length;
+    const handleUnifiedCollection = (customer, balance) => {
+        if (!customer) return;
+        setUnifiedPaymentData({
+            id: customer._id,
+            name: customer.name,
+            balance: balance
+        });
+        setIsUnifiedOpen(true);
+    };
 
+    const {
+        title,
+        subtitle,
+        addCustomer,
+        searchPlaceholder,
+        loading: loadingLabel,
+        noCustomers,
+        tableCustomer,
+        tableContact,
+        tablePriceType,
+        tableDebt,
+        tableActions,
+        financialOverview
+    } = LABELS.customers;
 
     return (
-        <div className="space-y-8 animate-fade-in-up" dir="rtl">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div>
-                    <h1 className="text-3xl font-black tracking-tight text-foreground flex items-center gap-3">
-                        <Users className="text-primary w-8 h-8" />
-                        إدارة العملاء
-                    </h1>
-                    <p className="text-muted-foreground font-medium mt-1">قائمة العملاء وبيانات الاتصال والأسعار المخصصة</p>
-                </div>
-                <Button
-                    onClick={() => { setSelectedCustomer(null); setIsAddOpen(true); }}
-                    className="h-14 px-8 rounded-2xl font-black gap-2 gradient-primary border-0 shadow-colored hover:scale-105 active:scale-95 transition-all"
-                >
-                    <Plus className="w-5 h-5" /> إضافة عميل جديد
-                </Button>
+        <div className="min-h-screen bg-[#0f172a]/20 space-y-8 p-4 md:p-8 rounded-[2rem]" dir="rtl">
+            {/* Ambient Background Effect */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+                <div className="absolute -top-[10%] -right-[10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px] animate-pulse" />
+                <div className="absolute -bottom-[10%] -left-[10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[120px] animate-pulse delay-700" />
             </div>
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-                <KPICard title="إجمالي العملاء" value={customers.length} unit="" icon={Users} variant="default" />
-                <KPICard title="نشط" value={activeCustomers} unit="" icon={Activity} variant="success" />
-                <KPICard title="مديونية" value={debtCustomers} unit="" icon={Wallet} variant="destructive" />
-                <KPICard title="رصيد" value={creditCustomers} unit="" icon={ArrowRightLeft} variant="primary" />
-                <KPICard title="غير نشط" value={inactiveCustomers} unit="" icon={AlertTriangle} variant="warning" />
-            </div>
+            {/* Header Section */}
+            <PageHeader
+                title="إدارة العملاء"
+                subtitle="قاعدة بيانات العملاء، الائتمان وسجل التحصيلات"
+                icon={Users}
+                actions={
+                    <>
+                        <div className="hidden xl:flex items-center gap-6 glass-card px-8 py-4 rounded-3xl border border-white/10 shadow-xl ml-4">
+                            <div className="flex flex-col items-end">
+                                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">إجمالي العملاء</span>
+                                <span className="text-xl font-bold tabular-nums">{(pagination.total || 0).toLocaleString()}</span>
+                            </div>
+                            <div className="w-px h-10 bg-white/10" />
+                            <div className="flex flex-col items-end text-rose-500">
+                                <span className="text-[10px] font-black opacity-60 uppercase tracking-[0.2em]">إجمالي المديونيات</span>
+                                <span className="text-xl font-bold tabular-nums">{(totalReceivables || 0).toLocaleString()} ج.م</span>
+                            </div>
+                        </div>
 
-            {/* Debt Overview KPIs */}
-            <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent"></div>
-                    <h2 className="text-xl font-black text-primary flex items-center gap-2">
-                        <Wallet className="w-5 h-5" />
-                        نظرة عامة على المستحقات المالية
-                    </h2>
-                    <div className="h-px flex-1 bg-gradient-to-r from-primary/20 via-transparent to-transparent"></div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <KPICard
-                        title="إجمالي المستحقات (فواتير + ذمم)"
-                        value={(Math.abs(debtOverview?.totalNet || 0) + totalReceivables).toLocaleString()}
-                        subValue="الرصيد الكلي المتوقع"
-                        icon={Wallet}
-                        trend="down"
-                        trendValue="رصيد إجمالي"
-                        variant="accent"
-                    />
-                    <KPICard
-                        title="تم تحصيله (من الديون)"
-                        value={isDebtLoading ? "..." : (debtOverview?.receivables?.collected || 0).toLocaleString()}
-                        subValue="مبالغ تم استلامها فعلياً"
-                        icon={TrendingUp}
-                        trend="up"
-                        trendValue="تحصيلات"
-                        variant="success"
-                    />
-                    <KPICard
-                        title="ديون وذمم متبقية"
-                        value={isDebtLoading ? "..." : (debtOverview?.receivables?.total || 0).toLocaleString()}
-                        subValue="رصيد دفتري سابق"
-                        icon={TrendingDown}
-                        trend="neutral"
-                        trendValue="مديونيات"
-                        variant="default"
-                    />
-                    <KPICard
-                        title="ديون متأخرة"
-                        value={isDebtLoading ? "..." : (debtOverview?.receivables?.overdue || 0).toLocaleString()}
-                        subValue="تجاوزت تاريخ الاستحقاق"
-                        icon={AlertTriangle}
-                        trend="down"
-                        trendValue="مخاطرة"
-                        variant={debtOverview?.receivables?.overdue > 0 ? "destructive" : "success"}
-                    />
-                </div>
-            </div>
+                        <div className="flex items-center gap-3 flex-1 lg:flex-none">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="w-14 h-14 rounded-2xl glass-card border-white/10 hover:border-primary/50 transition-all shadow-lg"
+                                onClick={() => refetch()}
+                            >
+                                <RefreshCcw className="w-6 h-6 text-muted-foreground group-hover:rotate-180 transition-transform duration-700" />
+                            </Button>
+                            <Button
+                                onClick={() => { setSelectedCustomer(null); setIsAddOpen(true); }}
+                                className="h-14 px-8 rounded-2xl font-black text-lg gap-3 shadow-2xl shadow-primary/30 transition-all hover:scale-[1.02] active:scale-95 flex-1 lg:flex-none bg-primary text-primary-foreground"
+                            >
+                                <Plus size={24} />
+                                إضافة عميل
+                            </Button>
+                        </div>
+                    </>
+                }
+            />
 
-            {/* Search Bar */}
-            <div className="relative group max-w-2xl">
-                <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-primary transition-colors">
-                    <Search className="h-5 w-5" />
+            {/* Stats Overview */}
+            {!isLoading && (
+                <CustomerStatsCards
+                    totalCustomers={queryData?.total || 0}
+                    wholesaleCount={customers.filter(c => c.priceType === 'wholesale').length}
+                    retailCount={customers.filter(c => c.priceType === 'retail').length}
+                    activeBalanceCount={customers.filter(c => c.balance > 0).length}
+                />
+            )}
+
+            {/* Financial Overview Section */}
+            <div className="space-y-6">
+                <div className="flex items-center gap-3 px-2">
+                    <div className="w-2 h-6 bg-primary rounded-full" />
+                    <h2 className="text-2xl font-black tracking-tight">{financialOverview}</h2>
                 </div>
-                <Input
-                    placeholder="بحث باسم العميل، العنوان، أو رقم الهاتف..."
-                    className="h-14 pr-12 rounded-2xl bg-card border-white/5 shadow-custom-md focus-visible:ring-primary/20 focus-visible:bg-accent/50 transition-all text-lg font-bold"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                <DebtOverviewCards
+                    totalReceivables={totalReceivables}
+                    pendingInvoicesCount={pendingInvoicesCount}
+                    debtsCount={customerDebts.length}
+                    totalOverdue={debtOverview?.receivables?.overdue || 0}
                 />
             </div>
 
-            {/* Table */}
-            <div className="overflow-hidden bg-card border border-white/5 rounded-[2rem] shadow-custom-xl">
-                <Table>
-                    <TableHeader className="bg-muted/30">
-                        <TableRow className="hover:bg-transparent border-white/5 h-16">
-                            <TableHead className="w-[50px]"></TableHead>
-                            <TableHead className="font-black text-xs uppercase tracking-widest text-right px-6">العميل / الحالة</TableHead>
-                            <TableHead className="font-black text-xs uppercase tracking-widest text-right">الاتصال</TableHead>
-                            <TableHead className="font-black text-xs uppercase tracking-widest text-center">نوع السعر</TableHead>
-                            <TableHead className="font-black text-xs uppercase tracking-widest text-center">ديون / رصيد</TableHead>
-                            <TableHead className="font-black text-xs uppercase tracking-widest text-center">الإجراءات</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
-                            <TableRow>
-                                <TableCell colSpan={6} className="h-64 text-center">
-                                    <Loader2 className="animate-spin mx-auto text-primary w-10 h-10" />
-                                </TableCell>
-                            </TableRow>
-                        ) : customers.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={6} className="h-64 text-center text-muted-foreground font-bold">
-                                    <div className="flex flex-col items-center gap-4 opacity-50">
-                                        <Users className="w-16 h-16" />
-                                        <p>لا يوجد عملاء مطابقين للبحث</p>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            customers.map((customer) => {
-                                // Calculate inactivity
-                                const lastPurchase = customer.lastPurchaseDate ? new Date(customer.lastPurchaseDate) : null;
-                                const daysSinceLast = lastPurchase ? Math.floor((new Date() - lastPurchase) / (1000 * 60 * 60 * 24)) : null;
-                                const isInactive = daysSinceLast !== null && daysSinceLast > 30;
-
-                                // Calculate debt statistics for this customer
-                                const customerDebtsList = customerDebts.filter(d =>
-                                    d.debtorId?._id === customer._id || d.debtorId === customer._id
-                                );
-                                const totalDebtAmount = customerDebtsList.reduce((sum, d) => sum + (d.remainingAmount || 0), 0);
-                                const activeDebtsCount = customerDebtsList.filter(d => d.status !== 'settled' && d.status !== 'written-off').length;
-                                const overdueDebts = customerDebtsList.filter(d => {
-                                    if (!d.dueDate || d.status === 'settled') return false;
-                                    return new Date(d.dueDate) < new Date();
-                                });
-                                const hasOverdueDebt = overdueDebts.length > 0;
-                                const totalOriginalDebt = customerDebtsList.reduce((sum, d) => sum + (d.originalAmount || 0), 0);
-                                const totalCollectedAmount = totalOriginalDebt - totalDebtAmount;
-
-                                return (
-                                    <React.Fragment key={customer._id}>
-                                        <TableRow
-                                            className="group hover:bg-muted/50 transition-colors h-20 border-white/5 cursor-pointer"
-                                            onClick={() => handleRowClick(customer)}
-                                        >
-                                            <TableCell className="text-center px-4">
-                                                <div className="w-8 h-8 flex items-center justify-center rounded-xl bg-muted/30 text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition-all duration-300">
-                                                    <GripHorizontal size={16} />
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="px-6">
-                                                <div className="flex items-center gap-4">
-                                                    <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-lg group-hover:scale-110 transition-transform">
-                                                        <AvatarFallback className="bg-gradient-to-tr from-primary to-primary/60 text-white font-black">
-                                                            {customer.name.charAt(0)}
-                                                        </AvatarFallback>
-                                                    </Avatar>
-                                                    <div className="flex flex-col">
-                                                        <Link
-                                                            href={`/customers/${customer._id}`}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            className="hover:text-primary transition-colors"
-                                                        >
-                                                            <span className="font-black text-foreground text-sm">{customer.name}</span>
-                                                        </Link>
-                                                        <div className="flex items-center gap-2 mt-1">
-                                                            <Badge
-                                                                variant={customer.isActive ? "secondary" : "destructive"}
-                                                                className="text-[10px] h-4 font-black"
-                                                            >
-                                                                {customer.isActive ? 'نشط' : 'متوقف'}
-                                                            </Badge>
-                                                            {isInactive && (
-                                                                <Badge variant="destructive" className="bg-rose-500/10 text-rose-500 border-none text-[10px] h-4 font-black">
-                                                                    منقطع ({daysSinceLast} يوم)
-                                                                </Badge>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground group-hover:text-foreground transition-colors">
-                                                        <Phone size={12} className="text-primary" />
-                                                        <span className="font-mono">{customer.phone}</span>
-                                                    </div>
-                                                    {customer.address && (
-                                                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
-                                                            <MapPin size={10} />
-                                                            <span className="truncate max-w-[150px]">{customer.address}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="text-center">
-                                                <Badge
-                                                    variant="outline"
-                                                    className={cn(
-                                                        "font-bold py-1 px-3 border-2 transition-all",
-                                                        customer.priceType === 'wholesale' && "bg-blue-500/10 text-blue-500 border-blue-500/20",
-                                                        customer.priceType === 'special' && "bg-purple-500/10 text-purple-500 border-purple-500/20",
-                                                        customer.priceType === 'retail' && "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                                                    )}
-                                                >
-                                                    {customer.priceType === 'wholesale' ? '🏪 جملة' :
-                                                        customer.priceType === 'special' ? '⭐ خاص' : '🛒 قطاعي'}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-center">
-                                                <div className="flex flex-col items-center gap-1.5">
-                                                    {activeDebtsCount > 0 ? (
-                                                        <div className={cn(
-                                                            "flex items-center gap-2 font-black px-3 py-1 rounded-xl border text-xs transition-all",
-                                                            hasOverdueDebt
-                                                                ? "text-rose-500 bg-rose-500/10 border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.1)]"
-                                                                : "text-amber-500 bg-amber-500/10 border-amber-500/20"
-                                                        )}>
-                                                            <div className="flex flex-col items-end">
-                                                                <span className="font-mono">{totalDebtAmount.toLocaleString()}</span>
-                                                                <div className="flex items-center gap-1">
-                                                                    <span className="text-[8px] font-bold text-emerald-500">تم تحصيل: {totalCollectedAmount.toLocaleString()}</span>
-                                                                    <span className="text-[8px] font-bold opacity-70">
-                                                                        • {activeDebtsCount} ديون {hasOverdueDebt && "متأخرة"}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                            <Wallet size={12} className={cn(hasOverdueDebt && "animate-pulse")} />
-                                                        </div>
-                                                    ) : customer.balance > 0 ? (
-                                                        <div className="flex items-center gap-2 font-black text-rose-500 bg-rose-500/10 px-3 py-1 rounded-xl border border-rose-500/20 text-xs">
-                                                            <span className="font-mono">{customer.balance?.toLocaleString()}</span>
-                                                            <span className="text-[10px] opacity-70">دين</span>
-                                                        </div>
-                                                    ) : null}
-
-                                                    {customer.creditBalance > 0 ? (
-                                                        <div className="flex items-center gap-2 font-black text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-xl border border-emerald-500/20 text-xs">
-                                                            <span className="font-mono">{customer.creditBalance?.toLocaleString()}</span>
-                                                            <span className="text-[10px] opacity-70">رصيد</span>
-                                                        </div>
-                                                    ) : null}
-
-                                                    {(!activeDebtsCount && !customer.balance && !customer.creditBalance) && (
-                                                        <Badge variant="outline" className="opacity-50 font-bold border-dashed border-2">بدون رصيد</Badge>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-
-                                            <TableCell className="text-center px-6">
-                                                <div className="flex items-center justify-center gap-1">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={(e) => { e.stopPropagation(); handleEditClick(customer); }}
-                                                        className="h-10 w-10 rounded-xl hover:bg-primary/10 hover:text-primary transition-all"
-                                                        title="تعديل"
-                                                    >
-                                                        <FileEdit size={16} />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-10 w-10 rounded-xl hover:bg-blue-500/10 text-blue-500 transition-all"
-                                                        onClick={(e) => { e.stopPropagation(); router.push(`/receivables?customerId=${customer._id}`); }}
-                                                        title="سجل الديون"
-                                                    >
-                                                        <Wallet size={16} />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-10 w-10 rounded-xl hover:bg-destructive/10 text-destructive transition-all"
-                                                        onClick={(e) => { e.stopPropagation(); handleDelete(customer._id); }}
-                                                        title="حذف"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </Button>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    </React.Fragment>
-                                );
-                            })
-                        )}
-                    </TableBody>
-                </Table>
+            {/* Control Bar */}
+            <div className="flex flex-col xl:flex-row gap-6 items-stretch xl:items-center justify-between">
+                <div className="relative group flex-1">
+                    <Search className="absolute right-6 top-1/2 -translate-y-1/2 text-primary h-6 w-6 group-focus-within:animate-pulse transition-all" />
+                    <Input
+                        placeholder={searchPlaceholder}
+                        className="h-16 pr-16 pl-8 rounded-[2rem] bg-card/40 border-white/10 focus:bg-card/60 focus:border-primary/50 transition-all font-black text-xl placeholder:text-muted-foreground/30 shadow-2xl backdrop-blur-xl ring-0 focus-visible:ring-0"
+                        value={search}
+                        onChange={handleSearchChange}
+                    />
+                </div>
             </div>
 
+            {/* Customers Table Container */}
+            <div className="glass-card shadow-[0_40px_80px_rgba(0,0,0,0.3)] border border-white/10 rounded-[2.5rem] overflow-hidden">
+                <div className="p-8 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full bg-primary animate-pulse shadow-[0_0_15px_rgba(var(--primary),0.5)]" />
+                        <h2 className="text-2xl font-black tracking-tight">قائمة العملاء</h2>
+                    </div>
+                    <Badge variant="outline" className="px-4 py-1.5 rounded-full border-primary/20 bg-primary/5 text-primary font-black">
+                        {pagination.total} عميل مسجل
+                    </Badge>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="hover:bg-transparent border-white/5 h-16 bg-white/[0.01]">
+                                <TableHead className="w-[80px] px-8"></TableHead>
+                                <TableHead className="text-right font-black text-white/40 uppercase tracking-widest text-xs px-8">{tableCustomer}</TableHead>
+                                <TableHead className="text-right font-black text-white/40 uppercase tracking-widest text-xs px-8">{tableContact}</TableHead>
+                                <TableHead className="text-center font-black text-white/40 uppercase tracking-widest text-xs px-8">{tablePriceType}</TableHead>
+                                <TableHead className="text-center font-black text-white/40 uppercase tracking-widest text-xs px-8">{tableDebt}</TableHead>
+                                <TableHead className="text-center font-black text-white/40 uppercase tracking-widest text-xs px-8">{tableActions}</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading ? (
+                                <TableLoadingState colSpan={6} message={loadingLabel} />
+                            ) : customers.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="h-96 text-center border-none">
+                                        <div className="flex flex-col items-center gap-6">
+                                            <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 shadow-inner group">
+                                                <Users className="h-16 w-16 text-muted-foreground/20 group-hover:scale-110 transition-transform" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <p className="text-2xl font-black text-white/30">{noCustomers}</p>
+                                                <p className="text-sm text-white/10 font-bold uppercase tracking-widest">تحقق من معايير البحث</p>
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                customers.map((customer) => (
+                                    <CustomerRow
+                                        key={customer._id}
+                                        customer={customer}
+                                        customerDebts={customerDebts}
+                                        onEdit={handleEditClick}
+                                        onDelete={handleDelete}
+                                        onRowClick={handleRowClick}
+                                        router={router}
+                                    />
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </div>
+
+            {/* Elegant Pagination */}
+            {!isLoading && totalPages > 1 && (
+                <div className="flex justify-center pt-8" dir="ltr">
+                    <div className="glass-card px-4 py-2 rounded-2xl border border-white/10 shadow-xl">
+                        <Pagination>
+                            <PaginationContent className="gap-2">
+                                <PaginationItem>
+                                    <PaginationPrevious
+                                        onClick={() => setPage(Math.max(1, page - 1))}
+                                        className={cn(
+                                            "h-10 px-4 rounded-xl border-white/5 hover:bg-white/5 transition-all text-sm font-black",
+                                            page === 1 ? 'pointer-events-none opacity-25' : 'cursor-pointer'
+                                        )}
+                                    />
+                                </PaginationItem>
+
+                                {page > 3 && (
+                                    <>
+                                        <PaginationItem>
+                                            <PaginationLink onClick={() => setPage(1)} className="h-10 w-10 rounded-xl cursor-pointer font-black border-white/5 text-muted-foreground">
+                                                1
+                                            </PaginationLink>
+                                        </PaginationItem>
+                                        <PaginationEllipsis className="text-white/10" />
+                                    </>
+                                )}
+
+                                {getPageNumbers().map((p) => (
+                                    <PaginationItem key={p}>
+                                        <PaginationLink
+                                            onClick={() => setPage(p)}
+                                            isActive={p === page}
+                                            className={cn(
+                                                "h-10 w-10 rounded-xl cursor-pointer font-black transition-all",
+                                                p === page
+                                                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                                                    : "border-white/5 hover:bg-white/5 text-muted-foreground"
+                                            )}
+                                        >
+                                            {p}
+                                        </PaginationLink>
+                                    </PaginationItem>
+                                ))}
+
+                                {page < totalPages - 2 && (
+                                    <>
+                                        <PaginationEllipsis className="text-white/10" />
+                                        <PaginationItem>
+                                            <PaginationLink onClick={() => setPage(totalPages)} className="h-10 w-10 rounded-xl cursor-pointer font-black border-white/5 text-muted-foreground">
+                                                {totalPages}
+                                            </PaginationLink>
+                                        </PaginationItem>
+                                    </>
+                                )}
+
+                                <PaginationItem>
+                                    <PaginationNext
+                                        onClick={() => setPage(Math.min(totalPages, page + 1))}
+                                        className={cn(
+                                            "h-10 px-4 rounded-xl border-white/5 hover:bg-white/5 transition-all text-sm font-black",
+                                            page === totalPages ? 'pointer-events-none opacity-25' : 'cursor-pointer'
+                                        )}
+                                    />
+                                </PaginationItem>
+                            </PaginationContent>
+                        </Pagination>
+                    </div>
+                </div>
+            )}
+
+            {/* Page info */}
+            {!isLoading && pagination.total > 0 && (
+                <p className="text-center text-sm font-black text-white/10 uppercase tracking-[0.2em] pt-4">
+                    {LABELS.pagination.page} {page} {LABELS.pagination.of} {totalPages} ({pagination.total} {LABELS.pagination.customer})
+                </p>
+            )}
+
+            {/* Detail Sheet & Dialogs */}
             <CustomerDetailsSheet
                 open={isDetailsOpen}
                 onOpenChange={setIsDetailsOpen}
                 customer={detailCustomer}
-                debts={debtsData?.debts?.filter(d => d.debtorId?._id === detailCustomer?._id || d.debtorId === detailCustomer?._id) || []}
+                debts={customerDebts.filter(d => d.debtorId?._id === detailCustomer?._id || d.debtorId === detailCustomer?._id) || []}
                 invoices={collectionInvoices}
                 onRecordPayment={handleRecordPayment}
                 onManageInstallment={handleScheduleInstallment}
@@ -442,9 +412,9 @@ export default function CustomersPage() {
                     setSelectedInvoice(invoice);
                     setIsInvoicePaymentOpen(true);
                 }}
+                onUnifiedCollection={handleUnifiedCollection}
             />
 
-            {/* Dialogs */}
             <CustomerFormDialog
                 open={isAddOpen || isEditOpen}
                 onOpenChange={(open) => {
@@ -470,6 +440,10 @@ export default function CustomersPage() {
                 open={isInvoicePaymentOpen}
                 onOpenChange={setIsInvoicePaymentOpen}
                 invoice={selectedInvoice}
+                onSuccess={() => {
+                    setIsInvoicePaymentOpen(false);
+                    setSelectedInvoice(null);
+                }}
             />
 
             <InstallmentDialog
@@ -477,6 +451,14 @@ export default function CustomersPage() {
                 onOpenChange={setIsInstallmentOpen}
                 debt={selectedDebt}
             />
-        </div >
+
+            <UnifiedPaymentDialog
+                open={isUnifiedOpen}
+                onOpenChange={setIsUnifiedOpen}
+                customerId={unifiedPaymentData?.id}
+                customerName={unifiedPaymentData?.name}
+                totalBalance={unifiedPaymentData?.balance}
+            />
+        </div>
     );
 }

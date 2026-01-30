@@ -10,6 +10,7 @@ import {
     Briefcase, ClipboardList, Wallet, Download, X, ChevronDown,
     DollarSign, Receipt, Activity, ChevronLeft, ChevronRight
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,98 +18,54 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatCard } from '@/components/ui/StatCard';
 
 // Statistics Dashboard Component
 const StatisticsDashboard = ({ entries = [] }) => {
     const stats = useMemo(() => {
         const totalDebit = entries.reduce((sum, e) => sum + (e.amount || 0), 0);
         const totalCredit = entries.reduce((sum, e) => sum + (e.amount || 0), 0);
-        const entryTypes = {};
-        entries.forEach(e => {
-            entryTypes[e.type] = (entryTypes[e.type] || 0) + 1;
-        });
-
         return {
             totalEntries: entries.length,
             totalDebit,
             totalCredit,
-            entryTypes,
             isBalanced: Math.abs(totalDebit - totalCredit) < 0.01
         };
     }, [entries]);
 
-    const statCards = [
-        {
-            title: 'إجمالي القيود',
-            value: stats.totalEntries,
-            icon: Receipt,
-            color: 'from-blue-500/20 to-blue-500/5',
-            iconColor: 'text-blue-500',
-            borderColor: 'border-blue-500/20'
-        },
-        {
-            title: 'إجمالي المدين',
-            value: stats.totalDebit.toLocaleString(),
-            suffix: 'EGP',
-            icon: ArrowUpRight,
-            color: 'from-purple-500/20 to-purple-500/5',
-            iconColor: 'text-purple-500',
-            borderColor: 'border-purple-500/20'
-        },
-        {
-            title: 'إجمالي الدائن',
-            value: stats.totalCredit.toLocaleString(),
-            suffix: 'EGP',
-            icon: ArrowDownRight,
-            color: 'from-emerald-500/20 to-emerald-500/5',
-            iconColor: 'text-emerald-500',
-            borderColor: 'border-emerald-500/20'
-        },
-        {
-            title: 'حالة التوازن',
-            value: stats.isBalanced ? 'متوازن' : 'غير متوازن',
-            icon: stats.isBalanced ? CheckCircle2 : AlertCircle,
-            color: stats.isBalanced ? 'from-green-500/20 to-green-500/5' : 'from-red-500/20 to-red-500/5',
-            iconColor: stats.isBalanced ? 'text-green-500' : 'text-red-500',
-            borderColor: stats.isBalanced ? 'border-green-500/20' : 'border-red-500/20'
-        }
-    ];
-
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {statCards.map((stat, i) => (
-                <motion.div
-                    key={stat.title}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.1 }}
-                    className={cn(
-                        "glass-card p-6 rounded-[1.5rem] border relative overflow-hidden",
-                        `bg-gradient-to-br ${stat.color}`,
-                        stat.borderColor
-                    )}
-                >
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 blur-3xl rounded-full translate-x-8 -translate-y-8" />
-                    <div className="relative z-10 flex items-start justify-between">
-                        <div className="flex-1">
-                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                                {stat.title}
-                            </p>
-                            <div className="flex items-baseline gap-2">
-                                <h3 className="text-2xl font-black tracking-tight">{stat.value}</h3>
-                                {stat.suffix && (
-                                    <span className="text-xs font-bold text-muted-foreground opacity-50">
-                                        {stat.suffix}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                        <div className={cn("p-3 rounded-xl bg-white/10 backdrop-blur-sm", stat.iconColor)}>
-                            <stat.icon className="w-5 h-5" />
-                        </div>
-                    </div>
-                </motion.div>
-            ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatCard
+                title="إجمالي القيود"
+                value={stats.totalEntries}
+                icon={Receipt}
+                variant="primary"
+                subtitle="عمليات مسجلة"
+            />
+            <StatCard
+                title="إجمالي المدين"
+                value={stats.totalDebit.toLocaleString()}
+                unit="ج.م"
+                icon={ArrowUpRight}
+                variant="info"
+                subtitle="أرصدة مدينة"
+            />
+            <StatCard
+                title="إجمالي الدائن"
+                value={stats.totalCredit.toLocaleString()}
+                unit="ج.م"
+                icon={ArrowDownRight}
+                variant="success"
+                subtitle="أرصدة دائنة"
+            />
+            <StatCard
+                title="حالة التوازن"
+                value={stats.isBalanced ? 'متوازن' : 'غير متوازن'}
+                icon={stats.isBalanced ? CheckCircle2 : AlertCircle}
+                variant={stats.isBalanced ? 'success' : 'destructive'}
+                subtitle={stats.isBalanced ? "ميزان مطابق" : "ميزان غير مطابق"}
+            />
         </div>
     );
 };
@@ -143,53 +100,50 @@ const FiltersBar = ({ filters, setFilters, onReset, onExport, totalEntries }) =>
     const [showFilters, setShowFilters] = useState(false);
 
     return (
-        <div className="space-y-4">
-            <div className="flex flex-col md:flex-row gap-3">
+        <div className="space-y-4 animate-in fade-in duration-500">
+            <div className="flex flex-col md:flex-row gap-4 items-center">
                 {/* Search */}
-                <div className="flex-1 relative">
-                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <div className="flex-1 relative group w-full">
+                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     <Input
                         placeholder="ابحث في الوصف أو رقم القيد..."
                         value={filters.search}
                         onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                        className="pr-11 h-12 bg-white/5 border-white/10 rounded-xl"
+                        className="pr-12 h-14 glass-card border-white/5 rounded-2xl focus-visible:ring-primary/20 bg-white/[0.02]"
                     />
                 </div>
 
-                {/* Toggle Advanced Filters */}
-                <button
-                    onClick={() => setShowFilters(!showFilters)}
-                    className={cn(
-                        "flex items-center gap-2 px-6 h-12 rounded-xl font-bold text-sm transition-all border",
-                        showFilters
-                            ? "bg-primary text-white border-primary"
-                            : "bg-white/5 border-white/10 hover:bg-white/10"
-                    )}
-                >
-                    <Filter className="w-4 h-4" />
-                    فلاتر متقدمة
-                    <ChevronDown className={cn("w-4 h-4 transition-transform", showFilters && "rotate-180")} />
-                </button>
-
-                {/* Export Button */}
-                <button
-                    onClick={onExport}
-                    className="flex items-center gap-2 px-6 h-12 rounded-xl font-bold text-sm bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20 transition-all"
-                >
-                    <Download className="w-4 h-4" />
-                    تصدير ({totalEntries})
-                </button>
-
-                {/* Reset Filters */}
-                {(filters.search || filters.type || filters.dateFrom || filters.dateTo) && (
-                    <button
-                        onClick={onReset}
-                        className="flex items-center gap-2 px-6 h-12 rounded-xl font-bold text-sm bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-all"
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                    <Button
+                        variant="outline"
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={cn(
+                            "h-14 px-6 rounded-2xl font-black text-sm glass-card border-white/10 transition-all",
+                            showFilters && "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
+                        )}
                     >
-                        <X className="w-4 h-4" />
-                        إعادة تعيين
-                    </button>
-                )}
+                        <Filter className="w-4 h-4 ml-2" />
+                        تصفية
+                    </Button>
+
+                    <Button
+                        onClick={onExport}
+                        className="h-14 px-6 rounded-2xl font-black text-sm bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 gap-2"
+                    >
+                        <Download className="w-4 h-4" />
+                        تصدير ({totalEntries})
+                    </Button>
+
+                    {(filters.search || filters.type || filters.dateFrom || filters.dateTo) && (
+                        <Button
+                            variant="ghost"
+                            onClick={onReset}
+                            className="h-14 px-4 rounded-2xl font-black text-sm text-rose-500 hover:bg-rose-500/10"
+                        >
+                            <X className="w-4 h-4" />
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {/* Advanced Filters */}
@@ -263,234 +217,158 @@ const JournalEntriesTab = ({ filters }) => {
         }
     });
 
-    // Apply filters
     const filteredEntries = useMemo(() => {
         if (!data?.entries) return [];
-
         return data.entries.filter(entry => {
-            // Search filter
             if (filters.search) {
                 const searchLower = filters.search.toLowerCase();
-                const matchesSearch =
-                    entry.description?.toLowerCase().includes(searchLower) ||
-                    entry.entryNumber?.toString().includes(searchLower) ||
-                    entry.debitAccount?.toLowerCase().includes(searchLower) ||
-                    entry.creditAccount?.toLowerCase().includes(searchLower);
-                if (!matchesSearch) return false;
+                if (!entry.description?.toLowerCase().includes(searchLower) &&
+                    !entry.entryNumber?.toString().includes(searchLower)) return false;
             }
-
-            // Type filter
-            if (filters.type && filters.type !== 'all') {
-                if (entry.type !== filters.type) return false;
-            }
-
-            // Date filters
-            if (filters.dateFrom) {
-                if (new Date(entry.date) < new Date(filters.dateFrom)) return false;
-            }
-            if (filters.dateTo) {
-                if (new Date(entry.date) > new Date(filters.dateTo)) return false;
-            }
-
+            if (filters.type && filters.type !== 'all' && entry.type !== filters.type) return false;
+            if (filters.dateFrom && new Date(entry.date) < new Date(filters.dateFrom)) return false;
+            if (filters.dateTo && new Date(entry.date) > new Date(filters.dateTo)) return false;
             return true;
         });
     }, [data?.entries, filters]);
 
-    // Group by date
-    const groupedEntries = useMemo(() => {
-        const groups = {};
-        filteredEntries.forEach(entry => {
-            const dateKey = format(new Date(entry.date), 'yyyy-MM-dd');
-            if (!groups[dateKey]) {
-                groups[dateKey] = [];
-            }
-            groups[dateKey].push(entry);
-        });
-        return Object.entries(groups).sort((a, b) => new Date(b[0]) - new Date(a[0]));
-    }, [filteredEntries]);
-
-    // Pagination
     const totalPages = Math.ceil(filteredEntries.length / pageSize);
     const paginatedEntries = useMemo(() => {
-        const start = (currentPage - 1) * pageSize;
-        const end = start + pageSize;
-        return filteredEntries.slice(start, end);
+        return filteredEntries.slice((currentPage - 1) * pageSize, currentPage * pageSize);
     }, [filteredEntries, currentPage, pageSize]);
 
     const paginatedGroupedEntries = useMemo(() => {
         const groups = {};
         paginatedEntries.forEach(entry => {
             const dateKey = format(new Date(entry.date), 'yyyy-MM-dd');
-            if (!groups[dateKey]) {
-                groups[dateKey] = [];
-            }
+            if (!groups[dateKey]) groups[dateKey] = [];
             groups[dateKey].push(entry);
         });
         return Object.entries(groups).sort((a, b) => new Date(b[0]) - new Date(a[0]));
     }, [paginatedEntries]);
 
-    // Reset to page 1 when filters change
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [filters]);
-
-    if (isLoading) return <div className="p-10 flex justify-center"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>;
+    if (isLoading) return <div className="p-32 flex justify-center"><Loader2 className="animate-spin text-primary w-12 h-12 opacity-20" /></div>;
 
     if (filteredEntries.length === 0) {
         return (
-            <div className="text-center p-12 glass-card rounded-[2rem] border-dashed border-2 border-white/10">
-                <Activity className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-                <h3 className="font-bold text-lg mb-2">لا توجد قيود</h3>
-                <p className="text-sm text-muted-foreground">لم يتم العثور على قيود تطابق معايير البحث</p>
+            <div className="text-center p-24 glass-card rounded-[3rem] border-dashed border border-white/10">
+                <Activity className="w-20 h-20 mx-auto mb-6 text-muted-foreground/10" />
+                <h3 className="font-black text-2xl text-white/20 mb-2 uppercase tracking-widest">لا توجد قيود حالياً</h3>
+                <p className="text-sm text-white/5 font-bold uppercase tracking-widest">تحقق من معايير البحث أو التاريخ</p>
             </div>
         );
     }
 
     return (
-        <div className="space-y-6">
-            {/* Pagination Controls */}
-            {filteredEntries.length > 0 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 glass-card p-4 rounded-xl border border-white/10">
-                    <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium text-muted-foreground">
-                            عرض {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, filteredEntries.length)} من {filteredEntries.length}
-                        </span>
-                        <Select value={pageSize.toString()} onValueChange={(val) => { setPageSize(Number(val)); setCurrentPage(1); }}>
-                            <SelectTrigger className="h-9 w-[100px] bg-white/5 border-white/10">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="10">10</SelectItem>
-                                <SelectItem value="20">20</SelectItem>
-                                <SelectItem value="50">50</SelectItem>
-                                <SelectItem value="100">100</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            className={cn(
-                                "p-2 rounded-lg border transition-all",
-                                currentPage === 1
-                                    ? "bg-white/5 border-white/5 text-muted-foreground/50 cursor-not-allowed"
-                                    : "bg-white/5 border-white/10 hover:bg-white/10 text-foreground"
-                            )}
-                        >
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
-                        <div className="flex items-center gap-1">
-                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                let pageNum;
-                                if (totalPages <= 5) {
-                                    pageNum = i + 1;
-                                } else if (currentPage <= 3) {
-                                    pageNum = i + 1;
-                                } else if (currentPage >= totalPages - 2) {
-                                    pageNum = totalPages - 4 + i;
-                                } else {
-                                    pageNum = currentPage - 2 + i;
-                                }
-                                return (
-                                    <button
-                                        key={pageNum}
-                                        onClick={() => setCurrentPage(pageNum)}
-                                        className={cn(
-                                            "w-9 h-9 rounded-lg font-bold text-sm transition-all",
-                                            currentPage === pageNum
-                                                ? "bg-primary text-white"
-                                                : "bg-white/5 hover:bg-white/10 text-muted-foreground"
-                                        )}
-                                    >
-                                        {pageNum}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                        <button
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages}
-                            className={cn(
-                                "p-2 rounded-lg border transition-all",
-                                currentPage === totalPages
-                                    ? "bg-white/5 border-white/5 text-muted-foreground/50 cursor-not-allowed"
-                                    : "bg-white/5 border-white/10 hover:bg-white/10 text-foreground"
-                            )}
-                        >
-                            <ChevronLeft className="w-4 h-4" />
-                        </button>
-                    </div>
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {/* Pagination */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 glass-card px-8 py-4 rounded-3xl border border-white/5 shadow-xl">
+                <div className="flex items-center gap-4 text-xs font-black text-muted-foreground uppercase tracking-widest">
+                    <span>المعروض: {paginatedEntries.length} قيد من {filteredEntries.length}</span>
+                    <div className="h-4 w-px bg-white/10" />
+                    <Select value={pageSize.toString()} onValueChange={(val) => { setPageSize(Number(val)); setCurrentPage(1); }}>
+                        <SelectTrigger className="h-8 w-20 bg-white/5 border-none font-black text-[10px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="glass-card border-white/10">
+                            {[10, 20, 50, 100].map(s => <SelectItem key={s} value={s.toString()}>{s}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
                 </div>
-            )}
+
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="w-10 h-10 rounded-xl"
+                    >
+                        <ChevronRight />
+                    </Button>
+                    <div className="flex gap-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let p = i + 1;
+                            if (totalPages > 5 && currentPage > 3) p = currentPage - 2 + i;
+                            if (p > totalPages) return null;
+                            return (
+                                <Button
+                                    key={i}
+                                    variant={currentPage === p ? "default" : "ghost"}
+                                    onClick={() => setCurrentPage(p)}
+                                    className={cn("w-10 h-10 rounded-xl font-black transition-all", currentPage === p && "shadow-lg shadow-primary/20")}
+                                >
+                                    {p}
+                                </Button>
+                            )
+                        })}
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="w-10 h-10 rounded-xl"
+                    >
+                        <ChevronLeft />
+                    </Button>
+                </div>
+            </div>
 
             {paginatedGroupedEntries.map(([date, entries]) => (
-                <div key={date} className="space-y-3">
-                    {/* Date Header */}
-                    <div className="flex items-center gap-3 px-2">
-                        <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl border border-white/10">
+                <div key={date} className="space-y-4">
+                    <div className="flex items-center gap-4 px-4 group">
+                        <div className="flex items-center gap-3 px-6 py-2 glass-card rounded-2xl border border-primary/20 shadow-lg shadow-primary/5">
                             <Calendar className="w-4 h-4 text-primary" />
-                            <span className="font-bold text-sm">
+                            <span className="font-black text-xs uppercase tracking-widest">
                                 {format(new Date(date), 'dd MMMM yyyy', { locale: ar })}
                             </span>
                         </div>
-                        <div className="h-px flex-1 bg-white/5" />
-                        <Badge variant="outline" className="bg-white/5 border-white/10">
-                            {entries.length} قيد
+                        <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
+                        <Badge variant="outline" className="px-4 py-1.5 rounded-full border-white/10 text-[10px] font-black opacity-30 group-hover:opacity-100 transition-opacity">
+                            {entries.length} عمليات
                         </Badge>
                     </div>
 
-                    {/* Entries */}
-                    <div className="grid gap-3">
-                        <AnimatePresence mode="popLayout">
-                            {entries.map((entry, i) => (
-                                <motion.div
-                                    key={entry._id}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.95 }}
-                                    transition={{ delay: i * 0.02 }}
-                                    className="glass-card p-4 rounded-[1.5rem] border border-white/5 hover:bg-white/5 transition-all group"
-                                >
-                                    <div className="flex flex-col md:flex-row md:items-center gap-4">
-                                        {/* ID */}
-                                        <div className="flex items-center gap-3 min-w-[100px]">
-                                            <div className="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0 text-muted-foreground font-mono font-bold text-xs">
-                                                #{entry.entryNumber}
-                                            </div>
-                                        </div>
+                    <div className="grid gap-4">
+                        {entries.map((entry, i) => (
+                            <div
+                                key={entry._id}
+                                className="glass-card hover:bg-white/[0.04] p-6 rounded-[2.5rem] border border-white/5 transition-all duration-500 group shadow-xl"
+                            >
+                                <div className="flex flex-col md:flex-row md:items-center gap-6">
+                                    <div className="h-14 w-14 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center shrink-0 font-black text-xs text-white/20 group-hover:text-primary group-hover:border-primary/30 transition-all">
+                                        #{entry.entryNumber}
+                                    </div>
 
-                                        {/* Description */}
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <Badge variant="outline" className="text-[10px] h-5 bg-white/5 border-white/10 hover:bg-white/10 text-muted-foreground">
-                                                    {entry.type}
-                                                </Badge>
-                                                <h4 className="font-bold text-sm truncate" title={entry.description}>{entry.description}</h4>
-                                            </div>
-                                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 text-xs font-medium text-muted-foreground/80">
-                                                <span className="flex items-center gap-1.5 overflow-hidden">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                                                    <span className="truncate">{entry.debitAccount}</span>
-                                                </span>
-                                                <span className="flex items-center gap-1.5 overflow-hidden">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                                    <span className="truncate">{entry.creditAccount}</span>
-                                                </span>
-                                            </div>
+                                    <div className="flex-1 space-y-3">
+                                        <div className="flex items-center gap-3">
+                                            <Badge className="bg-primary/10 text-primary border-primary/20 text-[8px] font-black uppercase tracking-widest px-3 py-1">
+                                                {entry.type}
+                                            </Badge>
+                                            <h4 className="font-black text-lg tracking-tight group-hover:text-primary transition-colors truncate">{entry.description}</h4>
                                         </div>
-
-                                        {/* Amount */}
-                                        <div className="flex items-center justify-end gap-3 min-w-[120px] pl-2 border-l border-white/5">
-                                            <div className="text-right">
-                                                <div className="text-lg font-black font-mono tracking-tight">{entry.amount.toLocaleString()}</div>
-                                                <div className="text-[10px] font-bold text-muted-foreground uppercase opacity-50">EGP</div>
+                                        <div className="flex flex-wrap gap-x-8 gap-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                                                <span className="text-xs font-bold text-white/40 tracking-tight">{entry.debitAccount}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                                                <span className="text-xs font-bold text-white/40 tracking-tight">{entry.creditAccount}</span>
                                             </div>
                                         </div>
                                     </div>
-                                </motion.div>
-                            ))}
-                        </AnimatePresence>
+
+                                    <div className="flex items-center justify-end gap-6 pl-6 border-r border-white/5">
+                                        <div className="text-right">
+                                            <div className="text-2xl font-black tracking-tighter tabular-nums">{entry.amount.toLocaleString()}</div>
+                                            <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest opacity-50">EGP</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             ))}
@@ -742,19 +620,30 @@ export default function AccountingPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0f172a]/20 space-y-8 p-6" dir="rtl">
-            {/* Header */}
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-1">
-                <div className="flex items-center gap-3">
-                    <div className="p-3 bg-purple-500/10 rounded-2xl">
-                        <Briefcase className="h-8 w-8 text-purple-500" />
+        <div className="min-h-screen bg-[#0f172a]/20 space-y-8 p-4 md:p-8 rounded-[2rem]" dir="rtl">
+            {/* Ambient Background Effect */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+                <div className="absolute -top-[10%] -right-[10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px] animate-pulse" />
+                <div className="absolute -bottom-[10%] -left-[10%] w-[40%] h-[40%] bg-purple-500/10 rounded-full blur-[120px] animate-pulse delay-700" />
+            </div>
+
+            {/* Header Section */}
+            <PageHeader
+                title="النظام المحاسبي الذكي"
+                subtitle="مركز التحكم المالي والتقارير العامة للمنشأة"
+                icon={Briefcase}
+                actions={
+                    <div className="flex items-center gap-3">
+                        <Button
+                            onClick={handleExport}
+                            className="h-14 px-8 rounded-2xl font-black text-lg gap-3 bg-emerald-500 hover:bg-emerald-600 text-white shadow-2xl shadow-emerald-500/20"
+                        >
+                            <Download size={24} />
+                            تصدير البيانات
+                        </Button>
                     </div>
-                    <div>
-                        <h1 className="text-3xl font-black text-foreground tracking-tight">النظام المحاسبي</h1>
-                        <p className="text-muted-foreground font-medium">مركز التحكم المالي والتقارير</p>
-                    </div>
-                </div>
-            </motion.div>
+                }
+            />
 
             {/* Statistics Dashboard */}
             <StatisticsDashboard entries={allEntriesData?.entries || []} />

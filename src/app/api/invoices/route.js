@@ -10,9 +10,7 @@ export const GET = apiHandler(async (req) => {
 });
 
 export const POST = apiHandler(async (req) => {
-    const user = await getCurrentUser();
-    if (!user) throw 'Unauthorized';
     const body = await req.json();
     const validated = invoiceSchema.parse(body);
-    return await InvoiceService.create(validated, user.userId);
-});
+    return await InvoiceService.create(validated, req.user.userId);
+}, { auth: true });

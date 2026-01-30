@@ -10,4 +10,4 @@ export const GET = apiHandler(async (req) => {
     const endDate = searchParams.get('endDate') ? new Date(searchParams.get('endDate')) : new Date();
 
     return await ReportingService.getFinancialReport(startDate, endDate);
-});
+}, { roles: ['owner'] });

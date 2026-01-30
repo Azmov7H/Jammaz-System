@@ -1,7 +1,6 @@
 import { apiHandler } from '@/lib/api-handler';
 import { FinanceService } from '@/services/financeService';
 import { DebtService } from '@/services/financial/debtService';
-import { getCurrentUser } from '@/lib/auth';
 
 export const GET = apiHandler(async (req) => {
     const { searchParams } = new URL(req.url);
@@ -11,14 +10,10 @@ export const GET = apiHandler(async (req) => {
         throw 'debtId is required';
     }
 
-    const payments = await DebtService.getDebtPayments(debtId);
-    return payments;
-});
+    return await DebtService.getDebtPayments(debtId);
+}, { auth: true });
 
 export const POST = apiHandler(async (req) => {
-    const user = await getCurrentUser();
-    if (!user) throw 'Unauthorized';
-
     const body = await req.json();
 
     // Adapt body for settleDebt if coming from old payment form
@@ -43,6 +38,5 @@ export const POST = apiHandler(async (req) => {
         type: type || 'receivable'
     };
 
-    const result = await FinanceService.settleDebt(data, user.userId);
-    return result;
-});
+    return await FinanceService.settleDebt(data, req.user.userId);
+}, { auth: true });

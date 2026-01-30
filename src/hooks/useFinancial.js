@@ -48,6 +48,17 @@ export function useDebts(params = {}) {
     });
 }
 
+export function useDebtors(params = {}) {
+    return useQuery({
+        queryKey: ['debtors', params],
+        queryFn: async () => {
+            const searchParams = new URLSearchParams(params);
+            const res = await api.get(`/api/financial/debtors?${searchParams}`);
+            return res.data;
+        }
+    });
+}
+
 export function useDebtOverview() {
     return useQuery({
         queryKey: ['debt-overview'],
@@ -132,5 +143,21 @@ export function useUpdateDebt() {
             toast.success('تم تحديث بيانات الدين بنجاح');
         },
         onError: (err) => toast.error(err.message || 'فشل تحديث بيانات الدين')
+    });
+}
+
+export function useCustomerTotalPayment() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ customerId, data }) => api.post(`/api/customers/${customerId}/pay`, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['debts'] });
+            queryClient.invalidateQueries({ queryKey: ['debt-overview'] });
+            queryClient.invalidateQueries({ queryKey: ['customer'] });
+            queryClient.invalidateQueries({ queryKey: ['customer-statement'] });
+            queryClient.invalidateQueries({ queryKey: ['treasury'] });
+            toast.success('تم تحصيل الدفعة بنجاح وتوزيعها على الفواتير');
+        },
+        onError: (err) => toast.error(err.message || 'فشل تحصيل الدفعة')
     });
 }

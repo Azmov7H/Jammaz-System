@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/utils';
 
@@ -17,7 +16,7 @@ export function SidebarGroup({ title, children, isCollapsed, defaultExpanded = t
     }
 
     return (
-        <div className="space-y-1 py-4 first:pt-0 border-t border-white/5 first:border-t-0">
+        <div className="space-y-1 py-4 first:pt-0 border-t border-white/5 first:border-t-0 transition-all duration-300">
             <button
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="flex items-center justify-between w-full px-3 py-2 group hover:bg-muted/30 rounded-lg transition-colors"
@@ -34,19 +33,11 @@ export function SidebarGroup({ title, children, isCollapsed, defaultExpanded = t
                 />
             </button>
 
-            <AnimatePresence initial={false}>
-                {isExpanded && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3, ease: 'circOut' }}
-                        className="overflow-hidden space-y-1"
-                    >
-                        {children}
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {isExpanded && (
+                <div className="overflow-hidden space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                    {children}
+                </div>
+            )}
         </div>
     );
 }

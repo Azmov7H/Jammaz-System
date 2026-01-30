@@ -1,18 +1,27 @@
 'use client';
 
-import { useInvoicesPage } from '@/hooks/useInvoicesPage';
+import { useInvoicesPageManager } from '@/hooks/useInvoices';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/utils';
-import { format } from 'date-fns';
-import { ar } from 'date-fns/locale';
-
+import { LABELS } from '@/constants';
+import { LoadingState } from '@/components/common/LoadingState';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { InvoiceListItem } from '@/components/invoices/InvoiceListItem';
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+    PaginationEllipsis
+} from '@/components/ui/pagination';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Loader2 } from 'lucide-react';
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
     Receipt,
     Plus,
@@ -21,11 +30,27 @@ import {
     TrendingUp,
     FileText,
     Banknote,
-    CreditCard,
-    Loader2
+    CreditCard
 } from 'lucide-react';
 
 export default function InvoicesPage() {
+    const {
+        title,
+        subtitle,
+        newInvoice,
+        searchPlaceholder,
+        loading: loadingLabel,
+        noInvoices,
+        noMatchingInvoices,
+        totalSales: totalSalesLabel,
+        invoiceCount: invoiceCountLabel,
+        cashCollection: cashCollectionLabel,
+        creditSales: creditSalesLabel,
+        filterAll,
+        filterCash,
+        filterCredit
+    } = LABELS.invoices;
+
     const {
         searchTerm,
         filterType, setFilterType,
@@ -33,135 +58,166 @@ export default function InvoicesPage() {
         handleDelete,
         filteredInvoices,
         isLoading,
-        stats
-    } = useInvoicesPage();
+        stats,
+        page,
+        setPage,
+        pagination
+    } = useInvoicesPageManager();
 
     const { totalSales, invoicesCount, cashInvoices, creditInvoices } = stats;
+    const { pages: totalPages } = pagination;
+
+    // Generate page numbers to display
+    const getPageNumbers = () => {
+        const pages = [];
+        const maxVisible = 5;
+        let start = Math.max(1, page - Math.floor(maxVisible / 2));
+        let end = Math.min(totalPages, start + maxVisible - 1);
+        if (end - start + 1 < maxVisible) {
+            start = Math.max(1, end - maxVisible + 1);
+        }
+        for (let i = start; i <= end; i++) {
+            pages.push(i);
+        }
+        return pages;
+    };
 
     return (
-        <div className="space-y-8 animate-fade-in-up" dir="rtl">
-            {/* Header */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-                <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="space-y-1"
-                >
-                    <div className="flex items-center gap-4">
-                        <div className="p-4 bg-primary/10 rounded-2xl shadow-inner border border-primary/20">
-                            <Receipt className="h-8 w-8 text-primary" />
-                        </div>
-                        <div>
-                            <h1 className="text-3xl font-black tracking-tight text-foreground">فواتير المبيعات</h1>
-                            <p className="text-muted-foreground font-medium mt-1">إدارة وتتبع جميع العمليات التجارية والمالية</p>
-                        </div>
-                    </div>
-                </motion.div>
-
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="flex gap-3 w-full lg:w-auto"
-                >
-                    <Link href="/invoices/new" className="w-full lg:w-auto">
-                        <Button className="w-full h-14 px-8 bg-primary hover:bg-primary/90 text-white rounded-2xl font-black shadow-colored hover:scale-105 active:scale-95 transition-all gap-2">
-                            <Plus className="h-5 w-5" />
-                            فاتورة جديدة
-                        </Button>
-                    </Link>
-                </motion.div>
+        <div className="min-h-screen bg-[#0f172a]/20 space-y-8 p-4 md:p-8 rounded-[2rem]" dir="rtl">
+            {/* Ambient Background Effect */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+                <div className="absolute -top-[10%] -right-[10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px] animate-pulse" />
+                <div className="absolute -bottom-[10%] -left-[10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[120px] animate-pulse delay-700" />
             </div>
 
-            {/* Stats Dashboard */}
+            {/* Header Section */}
+            <PageHeader
+                title="أرشيف الفواتير"
+                subtitle="إستعراض وتتبع كافة المعاملات المالية والمبيعات"
+                icon={Receipt}
+                actions={
+                    <>
+                        <div className="hidden xl:flex items-center gap-6 glass-card px-8 py-4 rounded-3xl border border-white/10 shadow-xl ml-4">
+                            <div className="flex flex-col items-end">
+                                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">إجمالي المبيعات</span>
+                                <span className="text-xl font-bold tabular-nums text-emerald-500">{(totalSales || 0).toLocaleString()} ج.م</span>
+                            </div>
+                            <div className="w-px h-10 bg-white/10" />
+                            <div className="flex flex-col items-end">
+                                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">عدد الفواتير</span>
+                                <span className="text-xl font-bold tabular-nums">{invoicesCount}</span>
+                            </div>
+                        </div>
+
+                        <Link href="/invoices/new" className="flex-1 lg:flex-none">
+                            <Button className="h-14 px-8 rounded-2xl font-black text-lg gap-3 shadow-2xl shadow-primary/30 transition-all hover:scale-[1.02] active:scale-95 w-full lg:w-auto bg-primary text-primary-foreground">
+                                <Plus size={24} />
+                                فاتورة جديدة
+                            </Button>
+                        </Link>
+                    </>
+                }
+            />
+
+            {/* Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <KPICard
-                    title="إجمالي المبيعات"
+                    title={totalSalesLabel}
                     value={totalSales.toLocaleString()}
-                    unit=" ج.م"
+                    unit={` ${LABELS.common.currency}`}
                     icon={TrendingUp}
                     variant="primary"
                 />
-
                 <KPICard
-                    title="عدد الفواتير"
+                    title={invoiceCountLabel}
                     value={invoicesCount}
-                    unit=" فاتورة"
+                    unit={` ${LABELS.pagination.invoice}`}
                     icon={FileText}
                     variant="secondary"
                 />
-
                 <KPICard
-                    title="التحصيل النقدي"
-                    value={cashInvoices.length}
-                    unit=" فاتورة"
+                    title={cashCollectionLabel}
+                    value={cashInvoices}
+                    unit={` ${LABELS.pagination.invoice}`}
                     icon={Banknote}
                     variant="success"
                 />
-
                 <KPICard
-                    title="المبيعات الآجلة"
-                    value={creditInvoices.length}
-                    unit=" فاتورة"
+                    title={creditSalesLabel}
+                    value={creditInvoices}
+                    unit={` ${LABELS.pagination.invoice}`}
                     icon={CreditCard}
                     variant="warning"
                 />
             </div>
 
-            {/* Search & Filter Bar */}
-            <div className="bg-card/50 backdrop-blur-xl p-3 border border-white/5 rounded-[2rem] shadow-custom-xl flex flex-col md:flex-row gap-4 sticky top-24 z-20">
-                <div className="relative flex-1 group">
-                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors h-5 w-5" />
+            {/* Control Bar */}
+            <div className="flex flex-col xl:flex-row gap-6 items-stretch xl:items-center justify-between sticky top-[72px] z-50">
+                <div className="relative group flex-1">
+                    <Search className="absolute right-6 top-1/2 -translate-y-1/2 text-primary h-6 w-6 group-focus-within:animate-pulse transition-all" />
                     <Input
-                        type="text"
-                        placeholder="بحث برقم الفاتورة أو اسم العميل..."
-                        className="h-12 pr-12 text-lg bg-background border-white/5 focus-visible:ring-primary/20 rounded-xl transition-all font-bold"
+                        placeholder="ابحث برقم الفاتورة، اسم العميل، أو التاريخ..."
+                        className="h-16 pr-16 pl-8 rounded-[2rem] bg-card/40 border-white/10 focus:bg-card/60 focus:border-primary/50 transition-all font-black text-xl placeholder:text-muted-foreground/30 shadow-2xl backdrop-blur-xl ring-0 focus-visible:ring-0"
                         value={searchTerm}
                         onChange={handleSearch}
                     />
                 </div>
-                <div className="flex bg-muted/30 p-1.5 rounded-2xl backdrop-blur-md">
-                    <button
-                        onClick={() => setFilterType('all')}
-                        className={cn(
-                            "flex-1 md:flex-none px-6 py-2 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2",
-                            filterType === 'all' ? "bg-primary text-white shadow-lg" : "text-muted-foreground hover:bg-white/5"
-                        )}
-                    >
-                        <ShoppingBag className="h-4 w-4" /> الكل
-                    </button>
-                    <button
-                        onClick={() => setFilterType('cash')}
-                        className={cn(
-                            "flex-1 md:flex-none px-6 py-2 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2",
-                            filterType === 'cash' ? "bg-emerald-600 text-white shadow-lg" : "text-muted-foreground hover:bg-white/5"
-                        )}
-                    >
-                        <Banknote className="h-4 w-4" /> نقدي
-                    </button>
-                    <button
-                        onClick={() => setFilterType('credit')}
-                        className={cn(
-                            "flex-1 md:flex-none px-6 py-2 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2",
-                            filterType === 'credit' ? "bg-amber-600 text-white shadow-lg" : "text-muted-foreground hover:bg-white/5"
-                        )}
-                    >
-                        <CreditCard className="h-4 w-4" /> آجل
-                    </button>
+
+                <div className="flex p-2 bg-black/20 backdrop-blur-md rounded-[2rem] border border-white/5 shadow-inner">
+                    {[
+                        { id: 'all', label: filterAll, icon: ShoppingBag },
+                        { id: 'cash', label: filterCash, icon: Banknote },
+                        { id: 'credit', label: filterCredit, icon: CreditCard }
+                    ].map((tab) => {
+                        const Icon = tab.icon;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setFilterType(tab.id)}
+                                className={cn(
+                                    "px-8 py-3 rounded-2xl font-black transition-all text-sm whitespace-nowrap flex items-center gap-3",
+                                    filterType === tab.id
+                                        ? "bg-primary text-primary-foreground shadow-xl scale-105"
+                                        : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                                )}
+                            >
+                                <Icon size={16} />
+                                {tab.label}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
-            {/* Smart List */}
+            {/* Invoices List */}
             {isLoading ? (
-                <div className="flex justify-center py-20"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>
+                <div className="flex flex-col items-center justify-center py-32 gap-6 bg-card/10 rounded-[2.5rem] border border-white/5 shadow-inner">
+                    <Loader2 size={64} className="text-primary animate-spin" />
+                    <p className="text-2xl font-black text-white/30 italic">{loadingLabel}</p>
+                </div>
             ) : filteredInvoices.length === 0 ? (
-                <div className="text-center py-20 opacity-50">
-                    <ShoppingBag className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-xl font-bold">لا توجد فواتير</h3>
-                    <p>لم يتم العثور على فواتير مطابقة للبحث</p>
+                <div className="flex flex-col items-center justify-center py-32 gap-6 bg-card/10 rounded-[2.5rem] border border-dashed border-white/10 shadow-inner group">
+                    <div className="p-8 bg-white/5 rounded-[2.5rem] group-hover:scale-110 transition-transform">
+                        <ShoppingBag className="h-20 w-20 text-muted-foreground/20" />
+                    </div>
+                    <div className="text-center space-y-2">
+                        <h3 className="text-3xl font-black text-white/30">{noInvoices}</h3>
+                        <p className="text-white/10 font-bold uppercase tracking-widest">{noMatchingInvoices}</p>
+                    </div>
                 </div>
             ) : (
-                <div className="grid gap-4">
-                    <AnimatePresence mode="popLayout">
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between px-8 mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-3 h-3 rounded-full bg-primary animate-pulse" />
+                            <span className="text-sm font-black text-white/40 uppercase tracking-widest">تحديثات المبيعات الحالية</span>
+                        </div>
+                        <Badge variant="outline" className="px-4 py-1.5 rounded-full border-primary/20 bg-primary/5 text-primary font-black uppercase tracking-tighter">
+                            {pagination.total} عملية مسجلة
+                        </Badge>
+                    </div>
+
+                    <div className="grid gap-4">
                         {filteredInvoices.map((inv) => (
                             <InvoiceListItem
                                 key={inv._id}
@@ -169,7 +225,77 @@ export default function InvoicesPage() {
                                 onDelete={handleDelete}
                             />
                         ))}
-                    </AnimatePresence>
+                    </div>
+
+                    {/* Elegant Pagination */}
+                    {totalPages > 1 && (
+                        <div className="flex justify-center pt-12" dir="ltr">
+                            <div className="glass-card px-4 py-2 rounded-2xl border border-white/10 shadow-xl">
+                                <Pagination>
+                                    <PaginationContent className="gap-2">
+                                        <PaginationItem>
+                                            <PaginationPrevious
+                                                onClick={() => setPage(Math.max(1, page - 1))}
+                                                className={cn(
+                                                    "h-10 px-4 rounded-xl border-white/5 hover:bg-white/5 transition-all text-sm font-black",
+                                                    page === 1 ? 'pointer-events-none opacity-25' : 'cursor-pointer'
+                                                )}
+                                            />
+                                        </PaginationItem>
+
+                                        {page > 3 && (
+                                            <>
+                                                <PaginationItem>
+                                                    <PaginationLink onClick={() => setPage(1)} className="h-10 w-10 rounded-xl cursor-pointer font-black border-white/5 text-muted-foreground">
+                                                        1
+                                                    </PaginationLink>
+                                                </PaginationItem>
+                                                <PaginationEllipsis className="text-white/10" />
+                                            </>
+                                        )}
+
+                                        {getPageNumbers().map((p) => (
+                                            <PaginationItem key={p}>
+                                                <PaginationLink
+                                                    onClick={() => setPage(p)}
+                                                    isActive={p === page}
+                                                    className={cn(
+                                                        "h-10 w-10 rounded-xl cursor-pointer font-black transition-all",
+                                                        p === page
+                                                            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                                                            : "border-white/5 hover:bg-white/5 text-muted-foreground"
+                                                    )}
+                                                >
+                                                    {p}
+                                                </PaginationLink>
+                                            </PaginationItem>
+                                        ))}
+
+                                        {page < totalPages - 2 && (
+                                            <>
+                                                <PaginationEllipsis className="text-white/10" />
+                                                <PaginationItem>
+                                                    <PaginationLink onClick={() => setPage(totalPages)} className="h-10 w-10 rounded-xl cursor-pointer font-black border-white/5 text-muted-foreground">
+                                                        {totalPages}
+                                                    </PaginationLink>
+                                                </PaginationItem>
+                                            </>
+                                        )}
+
+                                        <PaginationItem>
+                                            <PaginationNext
+                                                onClick={() => setPage(Math.min(totalPages, page + 1))}
+                                                className={cn(
+                                                    "h-10 px-4 rounded-xl border-white/5 hover:bg-white/5 transition-all text-sm font-black",
+                                                    page === totalPages ? 'pointer-events-none opacity-25' : 'cursor-pointer'
+                                                )}
+                                            />
+                                        </PaginationItem>
+                                    </PaginationContent>
+                                </Pagination>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

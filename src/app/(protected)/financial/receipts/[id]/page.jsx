@@ -211,7 +211,7 @@ export default function ReceiptPage() {
 
                         {/* Balance Info */}
                         <div className="bg-rose-50 p-8 rounded-3xl border border-rose-100 flex flex-col justify-center items-center text-center">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-rose-400 block mb-2">المبلغ المتبقي بعد العملية</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-rose-400 block mb-2">إجمالي الرصيد المتبقي للحساب</span>
                             <div className="text-3xl font-black text-rose-600 font-mono">
                                 {(remainingBalance ?? 0).toLocaleString()}
                                 <span className="text-xs font-bold mr-1 italic">ج.م</span>

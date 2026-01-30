@@ -1,7 +1,6 @@
 'use client';
 
 import { useDashboard } from '@/hooks/useDashboard';
-import { motion } from 'framer-motion';
 import {
     TrendingUp, DollarSign, Package,
     AlertTriangle, ShoppingCart, Users,
@@ -9,6 +8,7 @@ import {
     Box, FileText, ArrowDownRight, RefreshCcw,
     LayoutGrid, Zap, PieChart
 } from 'lucide-react';
+import Link from 'next/link';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { RevenueChart } from '@/components/dashboard/RevenueChart';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -36,7 +36,7 @@ export default function DashboardPage() {
     if (isLoading) return <DashboardSkeleton />;
 
     return (
-        <div className="space-y-8 animate-fade-in-up" dir="rtl">
+        <div className="space-y-8 animate-fade-in" dir="rtl">
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
@@ -50,7 +50,7 @@ export default function DashboardPage() {
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="rounded-full w-12 h-12 bg-card/50 border border-border/50 hover:bg-primary/10 hover:text-primary transition-all duration-300"
+                        className="rounded-full w-12 h-12 bg-card border border-border hover:bg-muted transition-all"
                         onClick={() => refetch()}
                     >
                         <RefreshCcw className="w-5 h-5" />
@@ -66,24 +66,22 @@ export default function DashboardPage() {
                     { label: 'سجل المبيعات', icon: FileText, href: '/reports/sales', color: 'secondary' },
                     { label: 'العملاء', icon: Users, href: '/customers', color: 'warning' },
                 ].map((action, i) => (
-                    <motion.a
+                    <Link
                         key={i}
                         href={action.href}
-                        whileHover={{ y: -5, scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="glass-card p-4 rounded-3xl flex flex-col items-center justify-center gap-3 text-center transition-all group border-none hover:shadow-colored cursor-pointer"
+                        className="bg-card hover:bg-accent p-4 rounded-2xl flex flex-col items-center justify-center gap-3 text-center transition-all group border border-border hover:shadow-md cursor-pointer hover:-translate-y-1"
                     >
                         <div className={cn(
-                            "w-12 h-12 rounded-2xl flex items-center justify-center transition-transform duration-500 group-hover:rotate-12",
-                            action.color === 'primary' ? 'bg-primary/20 text-primary' :
-                                action.color === 'success' ? 'bg-emerald-500/20 text-emerald-500' :
-                                    action.color === 'secondary' ? 'bg-blue-500/20 text-blue-500' :
-                                        'bg-amber-500/20 text-amber-500'
+                            "w-12 h-12 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:rotate-12",
+                            action.color === 'primary' ? 'bg-primary/10 text-primary' :
+                                action.color === 'success' ? 'bg-emerald-500/10 text-emerald-500' :
+                                    action.color === 'secondary' ? 'bg-blue-500/10 text-blue-500' :
+                                        'bg-amber-500/10 text-amber-500'
                         )}>
                             <action.icon className="w-6 h-6" />
                         </div>
                         <span className="font-bold text-sm">{action.label}</span>
-                    </motion.a>
+                    </Link>
                 ))}
             </div>
 
@@ -134,8 +132,8 @@ export default function DashboardPage() {
                         </h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {strategy.suggestions.map((s, i) => (
-                                <Card key={i} className="glass-card border-none hover-lift group overflow-hidden">
-                                    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-150 transition-transform duration-700">
+                                <Card key={i} className="bg-card border-border hover:bg-accent/30 transition-all group overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
                                         <TrendingUp className="w-16 h-16 text-primary" />
                                     </div>
                                     <CardHeader className="pb-2">
@@ -158,8 +156,8 @@ export default function DashboardPage() {
                 {/* Right Column: Inventory & Recent Sales */}
                 <div className="space-y-8">
                     {/* Inventory Alerts */}
-                    <Card className="glass-card border-none shadow-custom-xl relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
+                    <Card className="bg-card border-border shadow-md relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-1 h-full bg-amber-500" />
                         <CardHeader>
                             <CardTitle className="text-xl font-black flex items-center gap-2">
                                 <AlertTriangle className="text-amber-500 w-6 h-6" />
@@ -168,14 +166,14 @@ export default function DashboardPage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {lowStockProducts.map((product) => (
-                                <div key={product._id} className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
+                                <div key={product._id} className="flex items-center justify-between p-4 rounded-xl bg-muted/50 border border-border hover:bg-muted transition-colors">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-500">
+                                        <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500">
                                             <Package className="w-5 h-5" />
                                         </div>
                                         <div>
                                             <p className="text-sm font-bold truncate max-w-[120px]">{product.name}</p>
-                                            <p className="text-xs text-amber-500/80 font-bold">المتبقي: {product.stockQty}</p>
+                                            <p className="text-xs text-amber-500 font-bold">المتبقي: {product.stockQty}</p>
                                         </div>
                                     </div>
                                     <Button size="sm" variant="outline" className="h-8 text-xs font-bold border-amber-500/20 hover:bg-amber-500/10 text-amber-500">
@@ -193,7 +191,7 @@ export default function DashboardPage() {
                     </Card>
 
                     {/* Recent Invoices Mini-List */}
-                    <Card className="glass-card border-none shadow-custom-xl">
+                    <Card className="bg-card border-border shadow-md">
                         <CardHeader className="flex flex-row items-center justify-between">
                             <CardTitle className="text-xl font-black">آخر المبيعات</CardTitle>
                         </CardHeader>
@@ -202,7 +200,7 @@ export default function DashboardPage() {
                                 {recentActivity.slice(0, 4).map((invoice, i) => (
                                     <div key={invoice._id} className="flex items-center justify-between group">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary transition-transform">
                                                 <ShoppingCart className="w-4 h-4" />
                                             </div>
                                             <div>
@@ -233,14 +231,14 @@ function DashboardSkeleton() {
         <div className="space-y-8 p-6 animate-pulse" dir="rtl">
             <div className="h-10 w-48 bg-muted rounded-xl mb-4" />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-muted rounded-3xl" />)}
+                {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-muted rounded-xl" />)}
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-10">
                 <div className="lg:col-span-2 space-y-8">
-                    <div className="h-48 bg-muted rounded-3xl" />
-                    <div className="h-96 bg-muted rounded-3xl" />
+                    <div className="h-48 bg-muted rounded-xl" />
+                    <div className="h-96 bg-muted rounded-xl" />
                 </div>
-                <div className="h-96 bg-muted rounded-3xl" />
+                <div className="h-96 bg-muted rounded-xl" />
             </div>
         </div>
     );

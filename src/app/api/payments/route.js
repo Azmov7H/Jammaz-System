@@ -1,30 +1,25 @@
 import { apiHandler } from '@/lib/api-handler';
-import dbConnect from '@/lib/db';
 import Invoice from '@/models/Invoice';
-import { getCurrentUser } from '@/lib/auth';
+import { FinanceService } from '@/services/financeService';
 
 export const POST = apiHandler(async (request) => {
-    await dbConnect();
-    const user = await getCurrentUser();
-    if (!user) throw new Error('Unauthorized');
-
     const body = await request.json();
     const { invoiceId, amount, method = 'cash', note = '' } = body;
 
     // Validation
     if (!invoiceId || !amount || amount <= 0) {
-        throw new Error('بيانات غير صحيحة');
+        throw 'بيانات غير صحيحة';
     }
 
     // Get invoice
     const invoice = await Invoice.findById(invoiceId).populate('customer');
     if (!invoice) {
-        throw new Error('الفاتورة غير موجودة');
+        throw 'الفاتورة غير موجودة';
     }
 
     // Check if already paid
     if (invoice.paymentStatus === 'paid') {
-        throw new Error('الفاتورة مدفوعة بالكامل');
+        throw 'الفاتورة مدفوعة بالكامل';
     }
 
     // Calculate remaining balance
@@ -32,12 +27,11 @@ export const POST = apiHandler(async (request) => {
 
     // Validate payment amount
     if (amount > remainingBalance) {
-        throw new Error(`المبلغ أكبر من المتبقي. المتبقي: ${remainingBalance}`);
+        throw `المبلغ أكبر من المتبقي. المتبقي: ${remainingBalance}`;
     }
 
-    // 5. Execute Business Logic via centralized FinanceService
-    const { FinanceService } = await import('@/services/financeService');
-    const result = await FinanceService.recordCustomerPayment(invoice, amount, method, note, user.userId);
+    // Execute Business Logic
+    const result = await FinanceService.recordCustomerPayment(invoice, amount, method, note, req.user.userId);
 
     return {
         success: true,
@@ -46,10 +40,9 @@ export const POST = apiHandler(async (request) => {
         message: 'تم تسجيل الدفعة بنجاح',
         remainingBalance: result.invoice.total - result.invoice.paidAmount
     };
-});
+}, { auth: true });
 
 export const GET = apiHandler(async (request) => {
-    await dbConnect();
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status'); // pending, partial
     const customerId = searchParams.get('customerId');
@@ -83,4 +76,4 @@ export const GET = apiHandler(async (request) => {
         totalReceivables,
         count: invoices.length
     };
-});
+}, { auth: true });

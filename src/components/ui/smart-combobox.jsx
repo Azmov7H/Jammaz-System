@@ -23,7 +23,7 @@ export function SmartCombobox({ options = [], value, onChange, placeholder = "Se
     const [open, setOpen] = React.useState(false)
     const [searchValue, setSearchValue] = React.useState("")
 
-    const exactMatch = options.find((opt) => opt.value.toLowerCase() === searchValue.toLowerCase())
+    const exactMatch = options.find((opt) => opt.label.toLowerCase() === searchValue.toLowerCase())
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -85,10 +85,10 @@ export function SmartCombobox({ options = [], value, onChange, placeholder = "Se
                                     <button
                                         className="mt-2 flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm bg-primary text-primary-foreground font-black hover:scale-105 transition-transform shadow-lg shadow-primary/20"
                                         onClick={() => {
-                                            onCreate(searchValue);
-                                            onChange(searchValue);
+                                            const nameToCreate = searchValue;
                                             setOpen(false);
                                             setSearchValue("");
+                                            onCreate(nameToCreate);
                                         }}
                                     >
                                         <Plus className="h-4 w-4" />

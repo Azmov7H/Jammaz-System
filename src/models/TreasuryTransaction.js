@@ -22,7 +22,7 @@ const TreasuryTransactionSchema = new mongoose.Schema({
     },
     referenceType: {
         type: String,
-        enum: ['Invoice', 'PurchaseOrder', 'Manual', 'SalesReturn', 'Debt'],
+        enum: ['Invoice', 'PurchaseOrder', 'Manual', 'SalesReturn', 'Debt', 'UnifiedCollection'],
         default: 'Manual'
     },
     referenceId: {
@@ -43,5 +43,11 @@ const TreasuryTransactionSchema = new mongoose.Schema({
         ref: 'User'
     }
 }, { timestamps: true });
+
+// Register a surrogate model for UnifiedCollection if it hasn't been registered yet.
+// This is used as an alias for Customer in TreasuryTransaction refPath.
+if (mongoose.models && !mongoose.models.UnifiedCollection) {
+    mongoose.model('UnifiedCollection', new mongoose.Schema({}, { strict: false }), 'customers');
+}
 
 export default mongoose.models.TreasuryTransaction || mongoose.model('TreasuryTransaction', TreasuryTransactionSchema);

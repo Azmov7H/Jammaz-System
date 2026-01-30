@@ -23,7 +23,6 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/utils';
 import { useNotificationCenter } from '@/context/NotificationContext';
 import { useNotifications } from '@/hooks/useNotifications';
-import { motion } from 'framer-motion';
 
 function NotificationTrigger() {
     const { setIsSidebarOpen } = useNotificationCenter();
@@ -90,27 +89,28 @@ export default function Header() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 md:gap-4">
-                    {/* Theme Toggle */}
                     <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                         className="rounded-xl hover:bg-white/10 transition-all h-10 w-10 relative overflow-hidden group"
                     >
-                        <motion.div
-                            initial={false}
-                            animate={{ opacity: theme === 'dark' ? 0 : 1, scale: theme === 'dark' ? 0.8 : 1 }}
-                            className="absolute inset-0 flex items-center justify-center transition-all duration-200"
+                        <div
+                            className={cn(
+                                "absolute inset-0 flex items-center justify-center transition-all duration-300",
+                                theme === 'dark' ? "opacity-0 scale-75" : "opacity-100 scale-100"
+                            )}
                         >
                             <Sun className="h-5 w-5 text-amber-500" />
-                        </motion.div>
-                        <motion.div
-                            initial={false}
-                            animate={{ opacity: theme === 'dark' ? 1 : 0, scale: theme === 'dark' ? 1 : 0.8 }}
-                            className="absolute inset-0 flex items-center justify-center transition-all duration-200"
+                        </div>
+                        <div
+                            className={cn(
+                                "absolute inset-0 flex items-center justify-center transition-all duration-300",
+                                theme === 'dark' ? "opacity-100 scale-100" : "opacity-0 scale-75"
+                            )}
                         >
                             <Moon className="h-5 w-5 text-primary" />
-                        </motion.div>
+                        </div>
                     </Button>
 
                     {/* Notifications */}

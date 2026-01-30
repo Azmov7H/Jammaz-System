@@ -51,44 +51,33 @@ export const CustomerService = {
             throw 'رقم الهاتف مستخدم بالفعل لعميل آخر';
         }
 
-        // Initialize balance based on opening balance
-        let initialBalance = 0;
+        // Initialize credit balance (pre-paid)
         let initialCreditBalance = 0;
-
-        if (openingBalance && openingBalance > 0) {
-            if (openingBalanceType === 'debit') {
-                initialBalance = parseFloat(openingBalance);
-            } else {
-                initialCreditBalance = parseFloat(openingBalance);
-            }
+        if (openingBalance && openingBalance > 0 && openingBalanceType === 'credit') {
+            initialCreditBalance = parseFloat(openingBalance);
         }
 
         const customer = await Customer.create({
             ...customerData,
-            balance: initialBalance,
+            balance: 0,
             creditBalance: initialCreditBalance
         });
 
         // Handle Opening Balance Effects
         if (openingBalance && openingBalance > 0) {
             const AccountingEntry = (await import('@/models/AccountingEntry')).default;
-            const Debt = (await import('@/models/Debt')).default;
+            const { DebtService } = await import('@/services/financial/debtService');
 
             if (openingBalanceType === 'debit') {
                 // Customer owes us (Debit)
-                // 1. Create Debt Record
-                await Debt.create({
+                // 1. Create Debt Record (Handles Customer Balance Update)
+                await DebtService.createDebt({
                     debtorType: 'Customer',
                     debtorId: customer._id,
-                    originalAmount: initialBalance,
-                    remainingAmount: initialBalance,
-                    status: 'active',
-                    dueDate: new Date(), // Immediate due for opening balance
-                    referenceType: 'Manual', // or specific type? Manual fits best here.
-                    referenceId: customer._id, // Linking to customer itself as text ref? actually refId needs ObjectId. Linking to self might be weird. Ideally we have an "OpeningBalance" refType.
-                    // Let's use Manual and refId as customerId for now, or maybe create a dummy ref? 
-                    // Validator says refType enum: 'Invoice', 'PurchaseOrder', 'Manual'
-                    // Manual is fine.
+                    amount: parseFloat(openingBalance),
+                    dueDate: new Date(),
+                    referenceType: 'Manual',
+                    referenceId: customer._id,
                     description: 'رصيد افتتاحي (مديونية سابقة)'
                 });
 

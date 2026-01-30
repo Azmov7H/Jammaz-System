@@ -1,204 +1,202 @@
-'use client';
+import { DailySalesService } from '@/services/dailySalesService';
+import { DollarSign, ShoppingBag, TrendingUp, FileText, CreditCard, Banknote, Calendar, RefreshCcw, ArrowUpRight, Wallet, History, PieChart, Activity } from 'lucide-react';
+import { SalesChart } from '@/components/reports/SalesChart';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { cn } from '@/utils';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatCard } from '@/components/ui/StatCard';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Bar } from 'react-chartjs-2';
-import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend
-} from 'chart.js';
-import { Loader2, DollarSign, ShoppingBag, TrendingUp, FileText, CreditCard, Banknote } from 'lucide-react';
+export default async function SalesReportPage({ searchParams }) {
+    const params = await searchParams;
+    const startDate = params.startDate ? new Date(params.startDate) : new Date(new Date().setDate(new Date().getDate() - 30));
+    const endDate = params.endDate ? new Date(params.endDate) : new Date();
 
-// Register Chart.js components
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+    const stats = await DailySalesService.getSalesSummary(startDate, endDate);
 
-export default function SalesReportPage() {
-    const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState({
-        totalRevenue: 0,
-        totalProfit: 0,
-        totalInvoices: 0,
-        totalItems: 0,
-        dailyBreakdown: []
-    });
-
-    useEffect(() => {
-        async function loadData() {
-            try {
-                // Default last 30 days
-                const end = new Date();
-                const start = new Date();
-                start.setDate(start.getDate() - 30);
-
-                const query = `startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
-                const res = await fetch(`/api/reports/sales?${query}`);
-                const json = await res.json();
-
-                if (json.success) {
-                    setStats(json.data);
-                }
-            } catch (e) {
-                console.error(e);
-            } finally {
-                setLoading(false);
-            }
-        }
-        loadData();
-    }, []);
-
-    if (loading) {
-        return (
-            <div className="flex justify-center py-20">
-                <Loader2 className="animate-spin text-primary" size={40} />
-            </div>
-        );
-    }
-
-    const formatCurrency = (val) => Number(val || 0).toLocaleString() + ' ج.م';
+    const formatCurrency = (val) => Number(val || 0).toLocaleString();
 
     // Calculate aggregated cash/credit from breakdown
     const totalCash = stats?.dailyBreakdown?.reduce((sum, day) => sum + (day.cashReceived || 0), 0) || 0;
     const totalCredit = stats?.dailyBreakdown?.reduce((sum, day) => sum + (day.creditSales || 0), 0) || 0;
 
-    // Prepare chart data
-    const chartData = {
-        labels: (stats?.dailyBreakdown || []).map(d =>
-            new Date(d.date).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' })
-        ).reverse(),
-        datasets: [
-            {
-                label: 'المبيعات',
-                data: (stats?.dailyBreakdown || []).map(d => d.totalRevenue || 0).reverse(),
-                backgroundColor: 'hsl(var(--primary))',
-                borderRadius: 4,
-            },
-            {
-                label: 'الأرباح',
-                data: (stats?.dailyBreakdown || []).map(d => d.grossProfit || 0).reverse(),
-                backgroundColor: '#16a34a',
-                borderRadius: 4,
-            }
-        ]
-    };
-
-    const chartOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'top',
-                rtl: true,
-            },
-            tooltip: {
-                rtl: true,
-                callbacks: {
-                    label: function (context) {
-                        return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
-                    }
-                }
-            }
-        },
-        scales: {
-            x: {
-                grid: {
-                    display: false
-                }
-            },
-            y: {
-                grid: {
-                    color: 'hsl(var(--border))',
-                }
-            }
-        }
-    };
-
     return (
-        <div className="space-y-6">
-            <div className="flex items-center gap-3">
-                <FileText className="w-6 h-6 md:w-8 md:h-8 text-primary" />
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-foreground">تقارير المبيعات</h1>
-                    <p className="text-sm text-muted-foreground">تحليل الأداء المالي والأرباح</p>
+        <div className="min-h-screen bg-[#0f172a]/20 space-y-8 p-4 md:p-8 rounded-[2rem]" dir="rtl">
+            {/* Ambient Background Effect */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+                <div className="absolute -top-[10%] -right-[10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px] animate-pulse" />
+                <div className="absolute -bottom-[10%] -left-[10%] w-[40%] h-[40%] bg-emerald-500/10 rounded-full blur-[120px] animate-pulse delay-700" />
+            </div>
+
+            {/* Header Section */}
+            <PageHeader
+                title="تقارير المبيعات"
+                subtitle="تحليل الأداء المالي والأرباح للفترة المحددة"
+                icon={FileText}
+                actions={
+                    <>
+                        <div className="hidden xl:flex items-center gap-6 glass-card px-8 py-4 rounded-3xl border border-white/10 shadow-xl ml-4">
+                            <div className="flex flex-col items-end">
+                                <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-1">الفترة الحالية</span>
+                                <div className="flex items-center gap-3 text-sm font-black">
+                                    <Calendar size={14} className="text-primary" />
+                                    <span>{startDate.toLocaleDateString('ar-EG')}</span>
+                                    <span className="opacity-20 mx-1">→</span>
+                                    <span>{endDate.toLocaleDateString('ar-EG')}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <Link href="/reports/sales">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="w-14 h-14 rounded-2xl glass-card border-white/10 hover:border-primary/50 transition-all shadow-lg"
+                            >
+                                <RefreshCcw className="w-6 h-6 text-muted-foreground" />
+                            </Button>
+                        </Link>
+                    </>
+                }
+            />
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <StatCard
+                    title="إجمالي المبيعات"
+                    value={formatCurrency(stats.totalRevenue)}
+                    unit="ج.م"
+                    icon={DollarSign}
+                    variant="primary"
+                    subtitle="إجمالي مبيعات الفترة"
+                />
+                <StatCard
+                    title="إجمالي الأرباح"
+                    value={formatCurrency(stats.totalProfit)}
+                    unit="ج.م"
+                    icon={TrendingUp}
+                    variant="success"
+                    subtitle={`هامش ربح ${stats.totalRevenue ? Math.round((stats.totalProfit / stats.totalRevenue) * 100) : 0}%`}
+                />
+                <StatCard
+                    title="عدد الفواتير"
+                    value={stats.totalInvoices}
+                    unit="فاتورة"
+                    icon={ShoppingBag}
+                    variant="info"
+                    subtitle={`متوسط ${stats.totalInvoices ? Math.round(stats.totalRevenue / stats.totalInvoices).toLocaleString() : 0} ج.م`}
+                />
+                <div className="glass-card p-6 rounded-[2.5rem] border border-white/10 overflow-hidden relative group transition-all duration-500 bg-gradient-to-br from-slate-500/5 to-transparent shadow-2xl">
+                    <div className="flex justify-between items-start mb-6">
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">طريقة التحصيل</p>
+                            <p className="text-sm font-bold opacity-30">توزيع المدفوعات</p>
+                        </div>
+                        <div className="p-3 bg-white/5 rounded-2xl border border-white/10 shadow-inner group-hover:bg-primary/10 transition-colors">
+                            <Banknote size={24} className="text-slate-400 group-hover:text-primary transition-colors" />
+                        </div>
+                    </div>
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-center group/item p-2 rounded-xl transition-colors hover:bg-white/5">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-emerald-500/10 rounded-lg">
+                                    <Wallet size={14} className="text-emerald-500" />
+                                </div>
+                                <span className="text-xs font-black opacity-60">نقدي</span>
+                            </div>
+                            <span className="text-lg font-black tracking-tighter tabular-nums">{formatCurrency(totalCash)}</span>
+                        </div>
+                        <div className="flex justify-between items-center group/item p-2 rounded-xl transition-colors hover:bg-white/5">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-blue-500/10 rounded-lg">
+                                    <CreditCard size={14} className="text-blue-500" />
+                                </div>
+                                <span className="text-xs font-black opacity-60">آجل</span>
+                            </div>
+                            <span className="text-lg font-black tracking-tighter tabular-nums">{formatCurrency(totalCredit)}</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-white/5 rounded-full mt-4 overflow-hidden flex">
+                            <div
+                                className="h-full bg-emerald-500 transition-all duration-[1500ms]"
+                                style={{ width: `${stats.totalRevenue ? (totalCash / stats.totalRevenue) * 100 : 0}%` }}
+                            />
+                            <div
+                                className="h-full bg-blue-500 transition-all duration-[1500ms]"
+                                style={{ width: `${stats.totalRevenue ? (totalCredit / stats.totalRevenue) * 100 : 0}%` }}
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                <Card className="border shadow-sm">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">إجمالي المبيعات</CardTitle>
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-primary">
-                            {formatCurrency(stats.totalRevenue)}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border shadow-sm">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">إجمالي الأرباح</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-green-600" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-600">
-                            {formatCurrency(stats.totalProfit)}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            هامش الربح: {stats.totalRevenue ? Math.round((stats.totalProfit / stats.totalRevenue) * 100) : 0}%
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card className="border shadow-sm">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">عدد الفواتير</CardTitle>
-                        <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.totalInvoices}</div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            متوسط: {stats.totalInvoices ? Math.round(stats.totalRevenue / stats.totalInvoices) : 0} ج.م / فاتورة
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card className="border shadow-sm bg-slate-50">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">التحصيل</CardTitle>
-                        <Banknote className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-sm space-y-1">
-                            <div className="flex justify-between">
-                                <span className="flex items-center gap-1 text-muted-foreground"><DollarSign size={12} /> نقدي</span>
-                                <span className="font-bold">{formatCurrency(totalCash)}</span>
+            {/* Analytics Grid */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                <div className="xl:col-span-2 glass-card shadow-[0_40px_80px_rgba(0,0,0,0.3)] border border-white/10 rounded-[3rem] overflow-hidden group">
+                    <div className="p-8 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20 group-hover:scale-110 transition-transform duration-500">
+                                <Activity className="text-primary" />
                             </div>
-                            <div className="flex justify-between">
-                                <span className="flex items-center gap-1 text-muted-foreground"><CreditCard size={12} /> آجل</span>
-                                <span className="font-bold">{formatCurrency(totalCredit)}</span>
+                            <div>
+                                <h2 className="text-2xl font-black">حركة المبيعات والنمو</h2>
+                                <p className="text-xs font-bold text-muted-foreground opacity-50 uppercase tracking-widest">مقارنة الإيرادات بالأرباح يومياً</p>
                             </div>
                         </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            <Card className="border shadow-sm">
-                <CardHeader className="border-b">
-                    <CardTitle className="text-lg md:text-xl">حركة المبيعات اليومية</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 md:p-6">
-                    <div className="h-[300px] md:h-[400px]">
-                        <Bar data={chartData} options={chartOptions} />
+                        <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="px-4 py-1.5 rounded-full border-primary/20 bg-primary/5 text-primary font-black uppercase tracking-widest text-[8px]">
+                                الرسم البياني للفترة
+                            </Badge>
+                        </div>
                     </div>
-                </CardContent>
-            </Card>
+
+                    <div className="p-8 h-[450px]">
+                        <SalesChart dailyBreakdown={stats.dailyBreakdown} />
+                    </div>
+                </div>
+
+                <div className="glass-card shadow-[0_40px_80px_rgba(0,0,0,0.3)] border border-white/10 rounded-[3rem] overflow-hidden">
+                    <div className="p-8 border-b border-white/10 bg-white/[0.02]">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-info/10 rounded-2xl border border-info/20">
+                                <PieChart className="text-info" />
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-black">تحليل الحركة</h2>
+                                <p className="text-xs font-bold text-muted-foreground opacity-50 uppercase tracking-widest">تحديثات الأداء اللحظي</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-8 space-y-6">
+                        {/* Legend / Stats breakdown */}
+                        <div className="space-y-4">
+                            <div className="p-6 bg-white/5 rounded-[2rem] border border-white/5 space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-black opacity-40 uppercase tracking-widest">متوسط الفاتورة</span>
+                                    <span className="text-sm font-black tabular-nums">{stats.totalInvoices ? Math.round(stats.totalRevenue / stats.totalInvoices).toLocaleString() : 0} ج.م</span>
+                                </div>
+                                <div className="h-px bg-white/5 w-full" />
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-black opacity-40 uppercase tracking-widest">أعلى مبيعات يومية</span>
+                                    <span className="text-sm font-black tabular-nums border-b-2 border-primary pb-0.5">
+                                        {formatCurrency(Math.max(...(stats.dailyBreakdown?.map(d => d.totalRevenue) || [0])))} ج.م
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-8 bg-gradient-to-br from-primary/20 to-transparent rounded-[2.5rem] border border-primary/20 flex flex-col items-center justify-center text-center gap-4 group hover:scale-[1.02] transition-all duration-500 shadow-2xl">
+                            <TrendingUp className="w-12 h-12 text-primary animate-bounce mt-2" />
+                            <div className="space-y-1">
+                                <p className="text-2xl font-black text-foreground">بياتات دقيقة</p>
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">تحليل أداء الفترة</p>
+                            </div>
+                            <p className="text-xs font-bold text-muted-foreground leading-relaxed px-4">
+                                تعتمد هذه الأرقام على كافة الفواتير المسجلة بالنظام للفترة المختارة
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }
