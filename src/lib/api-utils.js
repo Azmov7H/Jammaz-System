@@ -40,8 +40,17 @@ export async function fetcher(url, options = {}) {
         fetchOptions.credentials = 'include';
     }
 
+    // Base URL for API
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+
+    // Construct final URL
+    let finalUrl = url;
+    if (baseUrl && url.startsWith('/') && !url.startsWith('//')) {
+        finalUrl = `${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}${url}`;
+    }
+
     // Generate request key for deduplication
-    const requestKey = getRequestKey(url, fetchOptions);
+    const requestKey = getRequestKey(finalUrl, fetchOptions);
 
     // Check if this request is already pending (only for POST, PUT, DELETE, PATCH)
     const mutationMethods = ['POST', 'PUT', 'DELETE', 'PATCH'];
@@ -79,7 +88,8 @@ export async function fetcher(url, options = {}) {
     // Create the fetch promise
     const fetchPromise = (async () => {
         try {
-            const res = await fetch(url, config);
+            console.log(`[API] ${fetchOptions.method || 'GET'} ${finalUrl}`);
+            const res = await fetch(finalUrl, config);
             if (!res.ok) {
                 const errorBody = await res.json().catch(() => ({}));
                 const error = new Error(errorBody.message || errorBody.error || 'API Request Failed');
