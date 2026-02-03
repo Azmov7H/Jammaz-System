@@ -1,117 +1,57 @@
-import PurchaseOrder from '@/models/PurchaseOrder';
-import Supplier from '@/models/Supplier';
-import InvoiceSettings from '@/models/InvoiceSettings';
-import { FinanceService } from '@/services/financeService';
-import dbConnect from '@/lib/db';
-
+/**
+ * Purchase Order Service (Client-Side)
+ * Connects to Backend API
+ */
 export const PurchaseOrderService = {
-    async create(data, userId) {
-        await dbConnect();
-
-        const { supplierId, items, notes, paymentType = 'cash' } = data;
-        let { expectedDate } = data;
-
-        if (!expectedDate) {
-            let terms = 15; // default
-            if (supplierId) {
-                const sup = await Supplier.findById(supplierId);
-                if (sup && sup.supplyTerms > 0) terms = sup.supplyTerms;
-            }
-            // Could fetch settings fallback too
-            const date = new Date();
-            date.setDate(date.getDate() + terms);
-            expectedDate = date;
-        }
-
-        let totalCost = 0;
-        items.forEach(item => {
-            totalCost += item.quantity * item.costPrice;
-        });
-
-        const po = await PurchaseOrder.create({
-            poNumber: `PO-${Date.now()}`,
-            supplier: supplierId,
-            items,
-            totalCost,
-            expectedDate,
-            notes,
-            paymentType,
-            createdBy: userId
-        });
-
-        return po;
-    },
-
-    async receive(id, paymentType, userId) {
-        await dbConnect();
-        const po = await PurchaseOrder.findById(id).populate('items.productId');
-        if (!po) throw 'PO not found';
-        if (po.status === 'RECEIVED') throw 'Already received';
-
-        // Finance & Stock Update (handled deep inside FinanceService based on previous route logic?)
-        // The previous route called `FinanceService.recordPurchaseReceive(po, userId, paymentType)`.
-        // This likely updates stock inside FinanceService OR StockService call. 
-        // Based on `StockService.increaseStockForPurchase` seen earlier, FinanceService probably calls that.
-
-        await FinanceService.recordPurchaseReceive(po, userId, paymentType);
-
-        return await PurchaseOrder.findById(id); // Return updated PO
-    },
-
-    async getAll({ limit = 20, query = {} }) {
-        await dbConnect();
-        return await PurchaseOrder.find(query)
-            .populate('supplier', 'name')
-            .populate('items.productId', 'name code')
-            .populate('createdBy', 'name')
-            .sort({ createdAt: -1 })
-            .limit(limit)
-            .lean();
+    async getAll(params = {}) {
+        const query = new URLSearchParams(params).toString();
+        const res = await fetch(`/api/purchases?${query}`);
+        if (!res.ok) throw new Error('Failed to fetch purchase orders');
+        return res.json();
     },
 
     async getById(id) {
-        await dbConnect();
-        return PurchaseOrder.findById(id)
-            .populate('supplier', 'name phone address')
-            .populate('items.productId', 'name code')
-            .lean();
+        const res = await fetch(`/api/purchases/${id}`);
+        if (!res.ok) throw new Error('Failed to fetch purchase order');
+        return res.json();
     },
 
-    async updateStatus(id, { status, paymentType }, userId) {
-        await dbConnect();
-        const purchaseOrder = await PurchaseOrder.findById(id).populate('items.productId');
-
-        if (!purchaseOrder) throw 'أمر الشراء غير موجود';
-
-        const finalPaymentType = paymentType || purchaseOrder.paymentType || 'cash';
-
-        // If marking as RECEIVED, execute finance business logic
-        if (status === 'RECEIVED' && purchaseOrder.status !== 'RECEIVED') {
-            // Use the already imported FinanceService
-            await FinanceService.recordPurchaseReceive(purchaseOrder, userId, finalPaymentType);
-
-            // Update the PO status after successful finance operation
-            purchaseOrder.status = 'RECEIVED';
-            purchaseOrder.paymentType = finalPaymentType;
-            await purchaseOrder.save();
-
-            return await this.getById(id);
+    async create(data) {
+        const res = await fetch('/api/purchases', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) {
+            const result = await res.json();
+            throw new Error(result.message || 'Failed to create purchase order');
         }
-
-        // Other status updates (e.g., CANCELED, PENDING)
-        purchaseOrder.status = status;
-        await purchaseOrder.save();
-
-        return await this.getById(id);
+        return res.json();
     },
 
-    async delete(id) {
-        await dbConnect();
-        const po = await PurchaseOrder.findById(id);
-        if (!po) throw 'أمر الشراء غير موجود';
-        if (po.status === 'RECEIVED') throw 'لا يمكن حذف أمر شراء مستلم';
+    async updateStatus(id, status, notes) {
+        const res = await fetch(`/api/purchases/${id}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status, notes })
+        });
+        if (!res.ok) {
+            const result = await res.json();
+            throw new Error(result.message || 'Failed to update status');
+        }
+        return res.json();
+    },
 
-        await PurchaseOrder.findByIdAndDelete(id);
-        return { success: true };
+    async receive(id, receivedData) {
+        const res = await fetch(`/api/purchases/${id}/receive`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(receivedData)
+        });
+        if (!res.ok) {
+            const result = await res.json();
+            throw new Error(result.message || 'Failed to receive purchase order');
+        }
+        return res.json();
     }
 };

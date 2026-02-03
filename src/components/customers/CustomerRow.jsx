@@ -13,6 +13,7 @@ import {
     Wallet,
     Trash2,
     FileEdit,
+    History,
     GripHorizontal
 } from 'lucide-react';
 import Link from 'next/link';
@@ -24,6 +25,7 @@ export const CustomerRow = React.memo(({
     onEdit,
     onDelete,
     onRowClick,
+    onHistory,
     router
 }) => {
     // Calculate inactivity
@@ -166,8 +168,18 @@ export const CustomerRow = React.memo(({
                         size="icon"
                         className="h-10 w-10 rounded-xl bg-white/5 hover:bg-blue-500/20 hover:text-blue-400 text-white/20 border border-white/5 transition-all"
                         onClick={(e) => { e.stopPropagation(); router.push(`/receivables?customerId=${customer._id}`); }}
+                        title="المستحقات"
                     >
                         <Wallet size={16} />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-10 w-10 rounded-xl bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-500 text-white/20 border border-white/5 transition-all"
+                        onClick={(e) => { e.stopPropagation(); onHistory && onHistory(customer); }}
+                        title="سجل المعاملات"
+                    >
+                        <History size={16} />
                     </Button>
                     <Button
                         variant="ghost"

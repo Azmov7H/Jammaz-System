@@ -9,19 +9,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowUpCircle, ArrowDownCircle, Wallet, Plus, Minus, Loader2, Trash2, Info, User, Clock, Tag, ExternalLink } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Wallet, Plus, Minus, Loader2, Trash2, Info, User, Clock, Tag, ExternalLink, Eye, ReceiptCent } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from "next/link"
 import { ar } from 'date-fns/locale';
+import { useSuppliers } from '@/hooks/useSuppliers';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { api } from '@/lib/api-utils';
+import { useQueryClient } from '@tanstack/react-query';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TrendingUp, AlertTriangle } from 'lucide-react';
 
 export default function FinancialPage() {
     const [period, setPeriod] = useState('TODAY'); // TODAY, MONTH, YEAR, CUSTOM
-    const [typeFilter, setTypeFilter] = useState('ALL'); // ALL, INCOME, EXPENSE
+    const [typeFilter, setTypeFilter] = useState('ALL'); // ALL, INCOME, EXPENSE, EXPENSES (Manual), SUPPLIER_PAYMENTS
     const [customDates, setCustomDates] = useState({
         startDate: new Date().toISOString().split('T')[0],
         endDate: new Date().toISOString().split('T')[0]
     });
 
+    const queryClient = useQueryClient();
     const { data: treasuryData, isLoading } = useTreasury(getDateRange());
     const { mutate: addTransaction, isPending } = useAddTransaction();
     const { mutate: deleteTransaction, isPending: isDeleting } = useDeleteTransaction();
@@ -29,7 +36,19 @@ export default function FinancialPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedTx, setSelectedTx] = useState(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-    const [formData, setFormData] = useState({ amount: '', description: '', type: 'INCOME' });
+    const [isDailyOpen, setIsDailyOpen] = useState(false);
+    const [dailyData, setDailyData] = useState(null);
+    const [isDailyLoading, setIsDailyLoading] = useState(false);
+
+    const [formData, setFormData] = useState({
+        amount: '',
+        description: '',
+        type: 'INCOME',
+        category: 'other',
+        supplierId: ''
+    });
+
+    const { data: suppliers } = useSuppliers({ limit: 100 });
 
     // Calculate actual dates based on period
     function getDateRange() {
@@ -57,12 +76,39 @@ export default function FinancialPage() {
         };
     }
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!formData.amount || !formData.description) return;
+
+        // If it's an expense and category is 'supplier', we use the generic payments API
+        if (formData.type === 'EXPENSE' && formData.category === 'supplier') {
+            if (!formData.supplierId) {
+                alert('يرجى اختيار مورد');
+                return;
+            }
+
+            const paymentData = {
+                supplierId: formData.supplierId,
+                amount: parseFloat(formData.amount),
+                method: 'cash',
+                note: formData.description
+            };
+
+            // We use the useAddPayment hook for this
+            api.post('/api/financial/payments', paymentData).then(() => {
+                queryClient.invalidateQueries({ queryKey: ['treasury'] });
+                setIsDialogOpen(false);
+                setFormData({ amount: '', description: '', type: 'INCOME', category: 'other', supplierId: '' });
+            }).catch(err => {
+                console.error(err);
+                alert('فشل تسجيل الدفعة للمورد');
+            });
+            return;
+        }
+
         addTransaction(formData, {
             onSuccess: () => {
                 setIsDialogOpen(false);
-                setFormData({ amount: '', description: '', type: 'INCOME' });
+                setFormData({ amount: '', description: '', type: 'INCOME', category: 'other', supplierId: '' });
             }
         });
     };
@@ -70,6 +116,21 @@ export default function FinancialPage() {
     const handleDelete = (id) => {
         if (window.confirm('هل أنت متأكد من التراجع عن هذه المعاملة؟')) {
             deleteTransaction(id);
+        }
+    };
+
+    const fetchDailyDetails = async (date) => {
+        setIsDailyLoading(true);
+        setIsDailyOpen(true);
+        try {
+            const dateStr = format(new Date(date), 'yyyy-MM-dd');
+            const res = await fetch(`/api/financial/daily?date=${dateStr}`);
+            const json = await res.json();
+            setDailyData(json.data);
+        } catch (error) {
+            console.error('Failed to fetch daily details', error);
+        } finally {
+            setIsDailyLoading(false);
         }
     };
 
@@ -82,21 +143,39 @@ export default function FinancialPage() {
     }
 
     const balance = treasuryData?.balance || 0;
-    const allTransactions = treasuryData?.transactions || [];
 
     const handleTxClick = (tx) => {
         setSelectedTx(tx);
         setIsDetailsOpen(true);
     };
 
-    // Client-side filtering
-    const filteredTransactions = allTransactions.filter(tx =>
-        typeFilter === 'ALL' || tx.type === typeFilter
-    );
+    // Client-side filtering and stats calculation
+    const allTransactions = treasuryData?.transactions || [];
+
+    const supplierPaymentsAmt = allTransactions
+        .filter(tx => tx.type === 'EXPENSE' && (tx.referenceType === 'PurchaseOrder' || (tx.referenceType === 'Debt' && tx.referenceId?.debtorType === 'Supplier')))
+        .reduce((sum, tx) => sum + tx.amount, 0);
+
+    const shopExpensesAmt = allTransactions
+        .filter(tx => tx.type === 'EXPENSE' && (tx.referenceType === 'Manual' || tx.referenceType === 'SalesReturn'))
+        .reduce((sum, tx) => sum + tx.amount, 0);
+
+    const filteredTransactions = allTransactions.filter(tx => {
+        if (typeFilter === 'ALL') return true;
+        if (typeFilter === 'INCOME') return tx.type === 'INCOME';
+        if (typeFilter === 'EXPENSE') return tx.type === 'EXPENSE';
+        if (typeFilter === 'SHOP_EXPENSES') return tx.type === 'EXPENSE' && (tx.referenceType === 'Manual' || tx.referenceType === 'SalesReturn');
+        if (typeFilter === 'SUPPLIER_PAYMENTS') return tx.type === 'EXPENSE' && (tx.referenceType === 'PurchaseOrder' || (tx.referenceType === 'Debt' && tx.referenceId?.debtorType === 'Supplier'));
+        return true;
+    });
 
     const periodStats = {
         income: treasuryData?.totalIncome || 0,
         expense: treasuryData?.totalExpense || 0,
+        supplierPayments: supplierPaymentsAmt,
+        shopExpenses: shopExpensesAmt,
+        salesProfit: treasuryData?.salesProfit || 0,
+        totalDebt: treasuryData?.totalOutstandingDebt || 0,
         net: treasuryData?.periodBalance || 0
     };
 
@@ -116,6 +195,18 @@ export default function FinancialPage() {
                         onClick={() => setPeriod('TODAY')}
                         className="text-xs h-8"
                     >اليوم</Button>
+                    <div className="flex items-center gap-1 glass-card px-2 h-8 rounded-md bg-white/5 border border-white/10">
+                        <Label className="text-[10px] text-muted-foreground mr-1">تاريخ محدد:</Label>
+                        <Input
+                            type="date"
+                            className="h-6 w-32 text-[10px] bg-transparent border-none p-0 focus-visible:ring-0"
+                            value={customDates.startDate}
+                            onChange={e => {
+                                setCustomDates({ startDate: e.target.value, endDate: e.target.value });
+                                setPeriod('CUSTOM');
+                            }}
+                        />
+                    </div>
                     <Button
                         variant={period === 'MONTH' ? 'default' : 'ghost'}
                         size="sm"
@@ -164,53 +255,132 @@ export default function FinancialPage() {
             )}
 
             {/* Balance and Period Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {/* Total Balance Card */}
-                <Card className="bg-primary text-primary-foreground border-none shadow-md">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm opacity-90">الرصيد الكلي</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{balance.toLocaleString()} ج.م</div>
-                    </CardContent>
-                </Card>
+            <TooltipProvider>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+                    {/* Total Balance Card */}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Card className="bg-primary text-primary-foreground border-none shadow-md cursor-help">
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm opacity-90">الرصيد الكلي</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">{balance.toLocaleString()} ج.م</div>
+                                </CardContent>
+                            </Card>
+                        </TooltipTrigger>
+                        <TooltipContent>المبلغ المتوفر حالياً في الصندوق والبنك</TooltipContent>
+                    </Tooltip>
 
-                {/* Period Income */}
-                <Card className="border-none shadow-sm bg-green-50 dark:bg-green-950/20">
-                    <CardHeader className="pb-1 pt-4 px-4">
-                        <CardTitle className="text-xs text-green-600 dark:text-green-400">إيرادات الفترة</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-4">
-                        <div className="text-xl font-bold text-green-700 dark:text-green-400">
-                            +{periodStats.income.toLocaleString()}
-                        </div>
-                    </CardContent>
-                </Card>
+                    {/* Sales Profit Card */}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Card className="border-none shadow-sm bg-indigo-50 dark:bg-indigo-950/20 cursor-help">
+                                <CardHeader className="pb-1 pt-4 px-4">
+                                    <CardTitle className="text-xs text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                                        <TrendingUp size={12} />
+                                        أرباح المبيعات
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="px-4 pb-4">
+                                    <div className="text-xl font-bold text-indigo-700 dark:text-indigo-400">
+                                        {periodStats.salesProfit.toLocaleString()}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TooltipTrigger>
+                        <TooltipContent>إجمالي الربح من الفواتير خلال الفترة المختارة</TooltipContent>
+                    </Tooltip>
 
-                {/* Period Expense */}
-                <Card className="border-none shadow-sm bg-red-50 dark:bg-red-950/20">
-                    <CardHeader className="pb-1 pt-4 px-4">
-                        <CardTitle className="text-xs text-red-600 dark:text-red-400">مصروفات الفترة</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-4">
-                        <div className="text-xl font-bold text-red-700 dark:text-red-400">
-                            -{periodStats.expense.toLocaleString()}
-                        </div>
-                    </CardContent>
-                </Card>
+                    {/* Total Outstanding Debt */}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Card className="border-none shadow-sm bg-amber-50 dark:bg-amber-950/20 cursor-help">
+                                <CardHeader className="pb-1 pt-4 px-4">
+                                    <CardTitle className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                        <AlertTriangle size={12} />
+                                        إجمالي المديونيات
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="px-4 pb-4">
+                                    <div className="text-xl font-bold text-amber-700 dark:text-amber-400">
+                                        {periodStats.totalDebt.toLocaleString()}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TooltipTrigger>
+                        <TooltipContent>إجمالي المستحقات المتبقية عند العملاء (ديون نشطة)</TooltipContent>
+                    </Tooltip>
 
-                {/* Period Net */}
-                <Card className="border-none shadow-sm bg-blue-50 dark:bg-blue-950/20">
-                    <CardHeader className="pb-1 pt-4 px-4">
-                        <CardTitle className="text-xs text-blue-600 dark:text-blue-400">صافي الفترة</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-4">
-                        <div className={`text-xl font-bold ${periodStats.net >= 0 ? 'text-blue-700 dark:text-blue-400' : 'text-red-700 dark:text-red-400'}`}>
-                            {periodStats.net.toLocaleString()}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+                    {/* Period Income */}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Card className="border-none shadow-sm bg-green-50 dark:bg-green-950/20 cursor-help">
+                                <CardHeader className="pb-1 pt-4 px-4">
+                                    <CardTitle className="text-xs text-green-600 dark:text-green-400">إجمالي الإيرادات</CardTitle>
+                                </CardHeader>
+                                <CardContent className="px-4 pb-4">
+                                    <div className="text-xl font-bold text-green-700 dark:text-green-400">
+                                        +{periodStats.income.toLocaleString()}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TooltipTrigger>
+                        <TooltipContent>إجمالي المداخيل المالية خلال الفترة</TooltipContent>
+                    </Tooltip>
+
+                    {/* Supplier Payments */}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Card className="border-none shadow-sm bg-orange-50 dark:bg-orange-950/20 cursor-help">
+                                <CardHeader className="pb-1 pt-4 px-4">
+                                    <CardTitle className="text-xs text-orange-600 dark:text-orange-400">دفعات موردين</CardTitle>
+                                </CardHeader>
+                                <CardContent className="px-4 pb-4">
+                                    <div className="text-xl font-bold text-orange-700 dark:text-orange-400">
+                                        -{periodStats.supplierPayments.toLocaleString()}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TooltipTrigger>
+                        <TooltipContent>إجمالي المبالغ المدفوعة للموردين</TooltipContent>
+                    </Tooltip>
+
+                    {/* Period Shop Expense */}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Card className="border-none shadow-sm bg-red-50 dark:bg-red-950/20 cursor-help">
+                                <CardHeader className="pb-1 pt-4 px-4">
+                                    <CardTitle className="text-xs text-red-600 dark:text-red-400">مصروفات عامة</CardTitle>
+                                </CardHeader>
+                                <CardContent className="px-4 pb-4">
+                                    <div className="text-xl font-bold text-red-700 dark:text-red-400">
+                                        -{periodStats.shopExpenses.toLocaleString()}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TooltipTrigger>
+                        <TooltipContent>إجمالي المصاريف التشغيلية والرواتب وغيرها</TooltipContent>
+                    </Tooltip>
+
+                    {/* Period Net */}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Card className="border-none shadow-sm bg-blue-50 dark:bg-blue-950/20 cursor-help">
+                                <CardHeader className="pb-1 pt-4 px-4">
+                                    <CardTitle className="text-xs text-blue-600 dark:text-blue-400">صافي الفترة</CardTitle>
+                                </CardHeader>
+                                <CardContent className="px-4 pb-4">
+                                    <div className={`text-xl font-bold ${periodStats.net >= 0 ? 'text-blue-700 dark:text-blue-400' : 'text-red-700 dark:text-red-400'}`}>
+                                        {periodStats.net.toLocaleString()}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TooltipTrigger>
+                        <TooltipContent>صافي السيولة النقدية المحققة خلال الفترة</TooltipContent>
+                    </Tooltip>
+                </div>
+            </TooltipProvider>
 
             {/* Action Buttons and Table */}
             <div className="grid grid-cols-1 gap-6">
@@ -258,6 +428,48 @@ export default function FinancialPage() {
                                         placeholder={formData.type === 'INCOME' ? 'مثال: رأس مال إضافي' : 'مثال: فاتورة كهرباء'}
                                     />
                                 </div>
+
+                                {formData.type === 'EXPENSE' && (
+                                    <>
+                                        <div>
+                                            <Label>تصنيف المصروف</Label>
+                                            <Select
+                                                value={formData.category}
+                                                onValueChange={v => setFormData({ ...formData, category: v })}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="اختر التصنيف" />
+                                                </SelectTrigger>
+                                                <SelectContent dir="rtl">
+                                                    <SelectItem value="other">مصروفات عامة</SelectItem>
+                                                    <SelectItem value="supplier">دفعة لمورد (دين / مقدم)</SelectItem>
+                                                    <SelectItem value="rent">إيجار</SelectItem>
+                                                    <SelectItem value="utilities">مرافق (كهرباء/ماء)</SelectItem>
+                                                    <SelectItem value="salaries">رواتب</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        {formData.category === 'supplier' && (
+                                            <div>
+                                                <Label>المورد</Label>
+                                                <Select
+                                                    value={formData.supplierId}
+                                                    onValueChange={v => setFormData({ ...formData, supplierId: v })}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="اختر المورد" />
+                                                    </SelectTrigger>
+                                                    <SelectContent dir="rtl">
+                                                        {suppliers?.suppliers?.map(s => (
+                                                            <SelectItem key={s._id} value={s._id}>{s.name}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                             </div>
                             <DialogFooter>
                                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>إلغاء</Button>
@@ -278,7 +490,7 @@ export default function FinancialPage() {
                         <CardTitle className="text-lg md:text-xl">سجل المعاملات ({filteredTransactions.length})</CardTitle>
 
                         {/* Type Filter */}
-                        <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
+                        <div className="flex flex-wrap items-center gap-2 bg-muted p-1 rounded-lg">
                             <Button
                                 variant={typeFilter === 'ALL' ? 'secondary' : 'ghost'}
                                 size="sm"
@@ -290,13 +502,19 @@ export default function FinancialPage() {
                                 size="sm"
                                 onClick={() => setTypeFilter('INCOME')}
                                 className="text-xs h-7 px-3 text-green-600"
-                            >وارد</Button>
+                            >إيرادات</Button>
                             <Button
-                                variant={typeFilter === 'EXPENSE' ? 'secondary' : 'ghost'}
+                                variant={typeFilter === 'SUPPLIER_PAYMENTS' ? 'secondary' : 'ghost'}
                                 size="sm"
-                                onClick={() => setTypeFilter('EXPENSE')}
+                                onClick={() => setTypeFilter('SUPPLIER_PAYMENTS')}
+                                className="text-xs h-7 px-3 text-orange-600"
+                            >دفعات موردين</Button>
+                            <Button
+                                variant={typeFilter === 'SHOP_EXPENSES' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setTypeFilter('SHOP_EXPENSES')}
                                 className="text-xs h-7 px-3 text-red-600"
-                            >صادر</Button>
+                            >مصروفات</Button>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -380,10 +598,11 @@ export default function FinancialPage() {
                                                     <div className="flex flex-col">
                                                         <span>{tx.description}</span>
                                                         <Badge variant="outline" className="text-[10px] w-fit mt-1 opacity-70">
-                                                            {tx.referenceType === 'Manual' ? 'يدوي' :
-                                                                tx.referenceType === 'Invoice' ? 'فاتورة' :
-                                                                    tx.referenceType === 'PurchaseOrder' ? 'أمر شراء' :
-                                                                        tx.referenceType === 'Debt' ? 'دين / مديونية' : tx.referenceType}
+                                                            {tx.type === 'INCOME' ?
+                                                                (tx.referenceType === 'Invoice' ? 'مبيعات' : 'إيداع إضافي') :
+                                                                (tx.referenceType === 'PurchaseOrder' || (tx.referenceType === 'Debt' && tx.referenceId?.debtorType === 'Supplier') ? 'دفعة مورد' :
+                                                                    tx.referenceType === 'SalesReturn' ? 'مرتجع مبيعات' : 'مصاريف عامة')
+                                                            }
                                                         </Badge>
                                                     </div>
                                                 </TableCell>
@@ -400,6 +619,30 @@ export default function FinancialPage() {
                                                         >
                                                             <Info size={16} />
                                                         </Button>
+
+                                                        {/* Quick Access Buttons */}
+                                                        {tx.referenceType === 'Invoice' && tx.referenceId?._id && (
+                                                            <Link href={`/invoices/${tx.referenceId._id}`} onClick={(e) => e.stopPropagation()}>
+                                                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-blue-500 h-8 w-8">
+                                                                    <Eye size={16} />
+                                                                </Button>
+                                                            </Link>
+                                                        )}
+                                                        {tx.referenceType === 'PurchaseOrder' && tx.referenceId?._id && (
+                                                            <Link href={`/purchase-orders/${tx.referenceId._id}`} onClick={(e) => e.stopPropagation()}>
+                                                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-orange-500 h-8 w-8">
+                                                                    <Eye size={16} />
+                                                                </Button>
+                                                            </Link>
+                                                        )}
+                                                        {(tx.type === 'INCOME' || tx.referenceType === 'UnifiedCollection') && (
+                                                            <Link href={`/financial/receipts/${tx._id}`} onClick={(e) => e.stopPropagation()}>
+                                                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-green-500 h-8 w-8">
+                                                                    <ReceiptCent size={16} />
+                                                                </Button>
+                                                            </Link>
+                                                        )}
+
                                                         {tx.referenceType === 'Manual' && (
                                                             <Button
                                                                 variant="ghost"
@@ -522,12 +765,38 @@ export default function FinancialPage() {
                                     </div>
                                     <div className="space-y-1">
                                         <p className="text-sm font-medium text-muted-foreground">مرجع النظام</p>
-                                        <Badge variant="outline" className="capitalize">
-                                            {selectedTx.referenceType === 'Manual' ? 'إدخال يدوي' :
-                                                selectedTx.referenceType === 'Invoice' ? 'نظام المبيعات' :
-                                                    selectedTx.referenceType === 'PurchaseOrder' ? 'نظام المشتريات' :
-                                                        selectedTx.referenceType === 'Debt' ? 'نظام الديون والمديونيات' : selectedTx.referenceType}
-                                        </Badge>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Badge variant="outline" className="capitalize">
+                                                {selectedTx.referenceType === 'Manual' ? 'إدخال يدوي' :
+                                                    selectedTx.referenceType === 'Invoice' ? 'نظام المبيعات' :
+                                                        selectedTx.referenceType === 'PurchaseOrder' ? 'نظام المشتريات' :
+                                                            selectedTx.referenceType === 'Debt' ? 'نظام الديون والمديونيات' :
+                                                                selectedTx.referenceType === 'UnifiedCollection' ? 'تحصيل مجمع' : selectedTx.referenceType}
+                                            </Badge>
+
+                                            {/* Action Links in Dialog */}
+                                            {selectedTx.referenceType === 'Invoice' && selectedTx.referenceId?._id && (
+                                                <Link href={`/invoices/${selectedTx.referenceId._id}`} className="w-full sm:w-auto">
+                                                    <Button size="sm" variant="outline" className="w-full gap-2 border-primary/20 text-primary hover:bg-primary/10">
+                                                        <Eye size={14} /> فـاتحة الفاتورة
+                                                    </Button>
+                                                </Link>
+                                            )}
+                                            {selectedTx.referenceType === 'PurchaseOrder' && selectedTx.referenceId?._id && (
+                                                <Link href={`/purchase-orders/${selectedTx.referenceId._id}`} className="w-full sm:w-auto">
+                                                    <Button size="sm" variant="outline" className="w-full gap-2 border-orange-500/20 text-orange-600 hover:bg-orange-50">
+                                                        <Eye size={14} /> فتح أمر الشراء
+                                                    </Button>
+                                                </Link>
+                                            )}
+                                            {(selectedTx.type === 'INCOME' || selectedTx.referenceType === 'UnifiedCollection') && (
+                                                <Link href={`/financial/receipts/${selectedTx._id}`} className="w-full sm:w-auto">
+                                                    <Button size="sm" variant="outline" className="w-full gap-2 border-green-600/20 text-green-600 hover:bg-green-50">
+                                                        <ReceiptCent size={14} /> عرض سند التحصيل
+                                                    </Button>
+                                                </Link>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>

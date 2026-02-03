@@ -96,6 +96,7 @@ export default function StockPage() {
   const movements = useMemo(() => {
     if (!movementsData) return [];
     if (Array.isArray(movementsData)) return movementsData;
+    if (movementsData.data && Array.isArray(movementsData.data)) return movementsData.data;
     if (movementsData.movements && Array.isArray(movementsData.movements)) return movementsData.movements;
     return [];
   }, [movementsData]);

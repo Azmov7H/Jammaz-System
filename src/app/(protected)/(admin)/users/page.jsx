@@ -12,11 +12,13 @@ import { useUsers } from '@/hooks/useUsers';
 import { UserFormDialog } from '@/components/users/UserFormDialog';
 
 export default function UsersPage() {
-    const { role } = useUserRole();
+    const { role, loading: isRoleLoading } = useUserRole();
     const canManage = role === 'owner' || role === 'manager';
     const canDelete = role === 'owner';
 
-    const { users, isLoading, createUser, updateUser, deleteUser } = useUsers();
+    const { users, isLoading: isUsersLoading, createUser, updateUser, deleteUser } = useUsers();
+
+    const isLoading = isRoleLoading || isUsersLoading;
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);

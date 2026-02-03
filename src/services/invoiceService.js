@@ -1,137 +1,50 @@
-import Invoice from '@/models/Invoice';
-import Product from '@/models/Product';
-import Customer from '@/models/Customer';
-import { StockService } from '@/services/stockService';
-import dbConnect from '@/lib/db';
-import { revalidateTag } from 'next/cache';
-import { CACHE_TAGS } from '@/lib/cache';
-
+/**
+ * Invoice Service (Client-Side)
+ * Connects to Backend API
+ */
 export const InvoiceService = {
-    async getAll({ page = 1, limit = 50, search, customerId, status }) {
-        await dbConnect();
-        const query = {};
-        if (search) {
-            query.$or = [
-                { number: { $regex: search, $options: 'i' } },
-                { customerName: { $regex: search, $options: 'i' } }
-            ];
-        }
-        if (customerId) query.customer = customerId;
-        if (status) query.paymentStatus = status;
-
-        const skip = (Number(page) - 1) * Number(limit);
-        const [invoices, total] = await Promise.all([
-            Invoice.find(query)
-                .populate('customer', 'name phone')
-                .populate('createdBy', 'name')
-                .sort({ date: -1 })
-                .skip(skip)
-                .limit(Number(limit))
-                .lean(),
-            Invoice.countDocuments(query)
-        ]);
-
-        return {
-            invoices,
-            pagination: {
-                total,
-                pages: Math.ceil(total / Number(limit)),
-                page: Number(page),
-                limit: Number(limit)
+    async getAll(params = {}) {
+        const query = new URLSearchParams();
+        Object.keys(params).forEach(key => {
+            if (params[key] !== undefined && params[key] !== null) {
+                query.append(key, params[key]);
             }
-        };
-    },
-
-    async create(data, userId) {
-        await dbConnect();
-        const { items, customerId, customerName, customerPhone, paymentType, tax = 0, dueDate } = data;
-
-        // Validation logic... (simplified for restoration)
-        let subtotal = 0;
-        let totalCost = 0;
-        const processedItems = [];
-
-        for (const item of items) {
-            let productName = item.name;
-            let costPrice = item.buyPrice || 0;
-            const isService = !!item.isService || !item.productId;
-
-            if (item.productId && !item.isService) {
-                const product = await Product.findById(item.productId);
-                if (!product) throw `المنتج غير موجود: ${item.productId}`;
-                productName = product.name;
-                costPrice = product.buyPrice || 0;
-            }
-
-            const itemTotal = item.qty * item.unitPrice;
-            const lineCost = item.qty * costPrice;
-            const lineProfit = itemTotal - lineCost;
-
-            subtotal += itemTotal;
-            totalCost += lineCost;
-
-            processedItems.push({
-                ...item,
-                productName,
-                costPrice,
-                isService,
-                profit: lineProfit,
-                total: itemTotal
-            });
-        }
-
-        const total = subtotal + Number(tax);
-        const profit = total - totalCost;
-
-        // Get customer name if customerId is provided
-        let finalCustomerName = customerName;
-        let finalCustomerPhone = customerPhone;
-
-        if (customerId) {
-            const customer = await Customer.findById(customerId);
-            if (customer) {
-                finalCustomerName = customer.name;
-                finalCustomerPhone = customer.phone;
-            }
-        }
-
-        const invoice = await Invoice.create({
-            number: `INV-${Date.now()}`,
-            items: processedItems,
-            subtotal,
-            tax,
-            total,
-            paymentType,
-            dueDate,
-            totalCost,
-            profit,
-            customer: customerId,
-            customerName: finalCustomerName, // Add customer name for display
-            customerPhone: finalCustomerPhone, // Add customer phone for display
-            createdBy: userId,
-            paymentStatus: paymentType === 'cash' ? 'paid' : 'pending',
-            paidAmount: paymentType === 'cash' ? total : 0
         });
 
-        // Delegate to FinanceService for orchestration (Stock, Accounting, Debt, Treasury)
-        const { FinanceService } = await import('@/services/financeService');
-        await FinanceService.recordSale(invoice, userId);
+        const res = await fetch(`/api/invoices?${query.toString()}`);
+        if (!res.ok) throw new Error('Failed to fetch invoices');
+        return res.json();
+    },
 
-        revalidateTag(CACHE_TAGS.INVOICES);
-        revalidateTag(CACHE_TAGS.PRODUCTS);
-        return invoice;
-    },
     async getById(id) {
-        await dbConnect();
-        const invoice = await Invoice.findById(id)
-            .populate('customer', 'name phone address')
-            .populate('createdBy', 'name')
-            .populate('items.productId', 'name code') // Populate product details in items
-            .lean();
-        return invoice;
+        const res = await fetch(`/api/invoices/${id}`);
+        if (!res.ok) throw new Error('Failed to fetch invoice');
+        return res.json();
     },
-    async deleteInvoice(id, userId) {
-        const { FinanceService } = await import('@/services/financeService');
-        return await FinanceService.reverseSale(id, userId);
+
+    async create(data) {
+        const res = await fetch('/api/invoices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        const result = await res.json();
+        if (!res.ok) {
+            throw new Error(result.message || 'Failed to create invoice');
+        }
+        return result;
+    },
+
+    async deleteInvoice(id) {
+        const res = await fetch(`/api/invoices/${id}`, {
+            method: 'DELETE'
+        });
+
+        const result = await res.json();
+        if (!res.ok) {
+            throw new Error(result.message || 'Failed to delete invoice');
+        }
+        return result;
     }
 };

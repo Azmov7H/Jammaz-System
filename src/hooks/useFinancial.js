@@ -161,3 +161,14 @@ export function useCustomerTotalPayment() {
         onError: (err) => toast.error(err.message || 'فشل تحصيل الدفعة')
     });
 }
+export function usePartnerTransactions(partnerId, params = {}) {
+    return useQuery({
+        queryKey: ['partner-transactions', partnerId, params],
+        queryFn: async () => {
+            const searchParams = new URLSearchParams(params);
+            const res = await api.get(`/api/financial/partner/${partnerId}/transactions?${searchParams}`);
+            return res.data;
+        },
+        enabled: !!partnerId
+    });
+}
