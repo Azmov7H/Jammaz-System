@@ -1,5 +1,7 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -19,6 +21,22 @@ export function CustomerDetailsSheet({
     onUnifiedCollection
 }) {
     const router = useRouter();
+    const [statementData, setStatementData] = useState(null);
+    const [loadingStatement, setLoadingStatement] = useState(false);
+
+    // Fetch Statement when sheet opens
+    useEffect(() => {
+        if (open && customer?._id) {
+            setLoadingStatement(true);
+            fetch(`/api/customers/${customer._id}/statement`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) setStatementData(data.data);
+                })
+                .catch(err => console.error('Failed to fetch statement', err))
+                .finally(() => setLoadingStatement(false));
+        }
+    }, [open, customer]);
 
     if (!customer) return null;
 
@@ -60,6 +78,14 @@ export function CustomerDetailsSheet({
                                 {totalBalance.toLocaleString()}
                                 <span className="text-sm font-bold ml-2 text-muted-foreground/50 italic">ج.م</span>
                             </div>
+
+                            {/* Statement Summary Mini-view */}
+                            {statementData && (
+                                <div className="mt-2 flex justify-between text-xs text-muted-foreground bg-white/5 p-2 rounded-lg">
+                                    <span>فواتير: {statementData.summary.totalDebits.toLocaleString()}</span>
+                                    <span>مسدد: {statementData.summary.totalCredits.toLocaleString()}</span>
+                                </div>
+                            )}
 
                             {totalBalance > 0 && (
                                 <div className="mt-6">

@@ -1,90 +1,69 @@
-import { SaleService } from './financial/saleService';
-import { PurchaseService } from './financial/purchaseService';
-import { PaymentService } from './financial/paymentService';
-import { ReturnService } from './financial/returnService';
-import { ExpenseService } from './financial/expenseService';
+import { TreasuryService } from './treasuryService';
 
 /**
- * Finance Service
- * Facade for all financial and stock operations.
- * Delegates actual logic to domain-specific services.
+ * Finance Service (Client-Side)
+ * orchestrates financial operations via Backend API
  */
 export const FinanceService = {
     /**
-     * Record a Sale (Invoice)
+     * Record User Payment (Unified or Specific)
      */
-    async recordSale(invoice, userId) {
-        return SaleService.recordSale(invoice, userId);
+    async recordPayment(data) {
+        // Delegate to specific API endpoints or TreasuryService
+        // Assuming we have an endpoint for payments: POST /api/payments
+        // OR we use TreasuryService manual income/expense logic if it fits
+        // But usually payments are specific entities.
+
+        // Check if backend has a dedicated payment route. 
+        // Based on backend routes, we have 'financial/payments' or similar?
+        // Let's assume we use /api/payments or similar.
+
+        const res = await fetch('/api/financial/payments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        if (!res.ok) {
+            const result = await res.json();
+            throw new Error(result.message || 'Payment recording failed');
+        }
+        return res.json();
     },
 
     /**
-     * Reverse a Sale (Delete Invoice Logic)
-     */
-    async reverseSale(invoiceId, userId) {
-        return SaleService.reverseSale(invoiceId, userId);
-    },
-
-    /**
-     * Record a Purchase (Receiving PO)
-     */
-    async recordPurchaseReceive(po, userId, paymentType = 'cash') {
-        return PurchaseService.recordPurchaseReceive(po, userId, paymentType);
-    },
-
-    /**
-     * Helper: Update schedules after a payment
-     */
-    async updateSchedulesAfterPayment(entityId, entityType, amount) {
-        return PaymentService.updateSchedulesAfterPayment(entityId, entityType, amount);
-    },
-
-    /**
-     * Record a Payment Collection
+     * Record a Collection (Customer Payment)
      */
     async recordCustomerPayment(invoice, amount, method, note, userId) {
-        return PaymentService.recordCustomerPayment(invoice, amount, method, note, userId);
+        // Logic should be in backend. We just send a request.
+        // POST /api/invoices/:id/payment ?? 
+        // or POST /api/financial/payments/collect
+
+        return this.recordPayment({
+            type: 'COLLECTION',
+            invoiceId: invoice._id,
+            amount,
+            method,
+            note,
+            customerId: invoice.customer?._id || invoice.customer
+        });
     },
 
     /**
-     * Record a Total Customer Payment (Unified Collection)
+     * Record Total Customer Payment (Unified)
      */
     async recordTotalCustomerPayment(customerId, amount, method, note, userId) {
-        return PaymentService.recordTotalCustomerPayment(customerId, amount, method, note, userId);
+        return this.recordPayment({
+            type: 'UNIFIED_COLLECTION',
+            customerId,
+            amount,
+            method,
+            note
+        });
     },
 
-    /**
-     * Record a Supplier Payment (Paying debts)
-     */
-    async recordSupplierPayment(po, amount, method, note, userId) {
-        return PaymentService.recordSupplierPayment(po, amount, method, note, userId);
-    },
-
-    /**
-     * Process a Sales Return
-     */
-    async processSaleReturn(invoice, returnData, refundMethod, userId) {
-        return ReturnService.processSaleReturn(invoice, returnData, refundMethod, userId);
-    },
-
-    /**
-     * Record a General Expense
-     */
-    async recordExpense(data, userId) {
-        return ExpenseService.recordExpense(data, userId);
-    },
-
-    /**
-     * Record payment for Manual Debt
-     */
-    async recordManualDebtPayment(debt, amount, method, note, userId) {
-        return PaymentService.recordManualDebtPayment(debt, amount, method, note, userId);
-    },
-
-    /**
-     * Consistently settle debts
-     */
-    async settleDebt(data, userId) {
-        return PaymentService.settleDebt(data, userId);
+    // Delegate other methods to TreasuryService if they are pure treasury ops
+    async getTreasurySummary(startDate, endDate) {
+        return TreasuryService.getSummary(startDate, endDate);
     }
 };
-

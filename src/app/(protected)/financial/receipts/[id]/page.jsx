@@ -52,7 +52,16 @@ export default function ReceiptPage() {
         );
     }
 
-    const { transaction, partner, settings, remainingBalance } = receiptData;
+    const { transaction, partner, remainingBalance } = receiptData;
+    // Provide default settings if not returned from API
+    const settings = receiptData.settings || {
+        companyName: 'شركتكم',
+        showLogo: false,
+        companyLogo: null,
+        phone: '',
+        email: '',
+        address: ''
+    };
 
     return (
         <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up pb-20" dir="rtl">

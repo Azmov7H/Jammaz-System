@@ -37,7 +37,6 @@ import { UnifiedPaymentDialog } from '@/components/financial/UnifiedPaymentDialo
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { cn } from '@/utils';
-
 export default function CustomerClient({ id }) {
     const queryClient = useQueryClient();
     const [isAddPriceOpen, setIsAddPriceOpen] = useState(false);
@@ -266,6 +265,59 @@ export default function CustomerClient({ id }) {
                     </Card>
                 </TabsContent>
 
+                <TabsContent value="history">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>سجل الفواتير</CardTitle>
+                            <CardDescription>قائمة بكافة الفواتير الصادرة لهذا العميل</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="border rounded-md">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>رقم الفاتورة</TableHead>
+                                            <TableHead>التاريخ</TableHead>
+                                            <TableHead>الإجمالي</TableHead>
+                                            <TableHead>حالة الدفع</TableHead>
+                                            <TableHead>إجراءات</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {(historyData?.invoices || historyData)?.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">لا توجد فواتير مسجلة</TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            (historyData?.invoices || historyData)?.map((invoice) => (
+                                                <TableRow key={invoice._id}>
+                                                    <TableCell className="font-bold underline text-primary">
+                                                        <Link href={`/invoices/${invoice._id}`}>
+                                                            {invoice.number}
+                                                        </Link>
+                                                    </TableCell>
+                                                    <TableCell>{new Date(invoice.date).toLocaleDateString('ar-EG')}</TableCell>
+                                                    <TableCell>{invoice.total?.toLocaleString()} ج.م</TableCell>
+                                                    <TableCell>
+                                                        <Badge variant={invoice.paymentStatus === 'paid' ? 'success' : invoice.paymentStatus === 'partial' ? 'warning' : 'destructive'}>
+                                                            {invoice.paymentStatus === 'paid' ? 'مدفوعة' : invoice.paymentStatus === 'partial' ? 'مدفوعة جزئياً' : 'غير مدفوعة'}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Button variant="ghost" size="sm" asChild>
+                                                            <Link href={`/invoices/${invoice._id}`}>عرض</Link>
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
                 <TabsContent value="statement">
                     <Card className="border-none shadow-2xl bg-card/30 backdrop-blur-md rounded-[2.5rem] overflow-hidden">
                         <CardHeader className="p-8 border-b border-white/5 bg-gradient-to-r from-primary/5 to-transparent">
@@ -300,7 +352,7 @@ export default function CustomerClient({ id }) {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {statementData?.statement?.length === 0 ? (
+                                            {(statementData?.transactions || statementData?.statement)?.length === 0 ? (
                                                 <TableRow>
                                                     <TableCell colSpan={5} className="text-center h-64 text-muted-foreground font-bold italic opacity-50">
                                                         <div className="flex flex-col items-center gap-4">
@@ -310,7 +362,7 @@ export default function CustomerClient({ id }) {
                                                     </TableCell>
                                                 </TableRow>
                                             ) : (
-                                                statementData?.statement?.map((entry, idx) => (
+                                                (statementData?.transactions || statementData?.statement)?.map((entry, idx) => (
                                                     <TableRow
                                                         key={idx}
                                                         className={cn(

@@ -30,6 +30,7 @@ import { UnifiedPaymentDialog } from '@/components/financial/UnifiedPaymentDialo
 import { CustomerDetailsSheet } from '@/components/customers/CustomerDetailsSheet';
 import { CustomerRow } from '@/components/customers/CustomerRow';
 import { DebtOverviewCards, CustomerStatsCards } from '@/components/customers/CustomerStats';
+import { PartnerTransactionDialog } from '@/components/financial/PartnerTransactionDialog';
 import {
     Pagination,
     PaginationContent,
@@ -59,6 +60,7 @@ export default function CustomersPage() {
     const [isInvoicePaymentOpen, setIsInvoicePaymentOpen] = useState(false);
     const [isInstallmentOpen, setIsInstallmentOpen] = useState(false);
     const [isUnifiedOpen, setIsUnifiedOpen] = useState(false);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [unifiedPaymentData, setUnifiedPaymentData] = useState(null);
 
     // Reset page on search change
@@ -313,6 +315,10 @@ export default function CustomersPage() {
                                         onEdit={handleEditClick}
                                         onDelete={handleDelete}
                                         onRowClick={handleRowClick}
+                                        onHistory={(customer) => {
+                                            setDetailCustomer(customer);
+                                            setIsHistoryOpen(true);
+                                        }}
                                         router={router}
                                     />
                                 ))
@@ -458,6 +464,12 @@ export default function CustomersPage() {
                 customerId={unifiedPaymentData?.id}
                 customerName={unifiedPaymentData?.name}
                 totalBalance={unifiedPaymentData?.balance}
+            />
+
+            <PartnerTransactionDialog
+                open={isHistoryOpen}
+                onOpenChange={setIsHistoryOpen}
+                partner={detailCustomer}
             />
         </div>
     );

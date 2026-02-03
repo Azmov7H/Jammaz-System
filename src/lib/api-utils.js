@@ -35,6 +35,11 @@ export async function fetcher(url, options = {}) {
         ...fetchOptions
     } = options;
 
+    // Ensure credentials are sent by default for API requests
+    if (!fetchOptions.credentials) {
+        fetchOptions.credentials = 'include';
+    }
+
     // Generate request key for deduplication
     const requestKey = getRequestKey(url, fetchOptions);
 

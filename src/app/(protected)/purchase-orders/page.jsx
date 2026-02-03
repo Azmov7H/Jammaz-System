@@ -25,7 +25,8 @@ export default function PurchaseOrdersPage() {
     const debouncedProductSearch = useDebounce(productSearch, 500);
 
     const { data: posData, isLoading: posLoading } = usePurchaseOrders(filterSupplierId ? { supplierId: filterSupplierId } : {});
-    const pos = posData?.purchaseOrders || [];
+    // Backend returns array directly, not wrapped in { purchaseOrders: [...] }
+    const pos = Array.isArray(posData) ? posData : (posData?.purchaseOrders || []);
     const { data: suppliersData } = useSuppliers();
     const suppliers = suppliersData?.suppliers || [];
     const { data: productsData } = useProducts({

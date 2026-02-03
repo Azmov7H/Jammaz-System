@@ -37,22 +37,50 @@ export default function InvoiceViewPage({ params }) {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [invRes, setRes, retRes] = await Promise.all([
+                // Use Promise.allSettled to allow partial success (e.g. if settings fail, still show invoice)
+                const results = await Promise.allSettled([
                     fetch(`/api/invoices/${id}`),
                     fetch(`/api/settings/invoice-design`),
                     fetch(`/api/invoices/${id}/returns`)
                 ]);
 
-                const invData = await invRes.json();
-                const setData = await setRes.json();
-                const retData = await retRes.json();
+                const [invRes, setRes, retRes] = results;
 
-                setInvoice(invData.data?.invoice || invData.invoice);
-                setSettings(setData.data || setData);
-                setReturns(retData.data?.returns || retData.returns || []);
+                // Process Invoice
+                if (invRes.status === 'fulfilled' && invRes.value.ok) {
+                    const invData = await invRes.value.json();
+                    // The backend returns { success: true, data: { ...invoice } }
+                    // So invData.data is the invoice object itself.
+                    setInvoice(invData.data || invData);
+                } else {
+                    console.error('Failed to load invoice', invRes);
+                    toast.error('تعذر تحميل بيانات الفاتورة');
+                }
+
+                // Process Settings (Optional)
+                if (setRes.status === 'fulfilled' && setRes.value.ok) {
+                    try {
+                        const setData = await setRes.value.json();
+                        setSettings(setData.data || setData);
+                    } catch (e) {
+                        console.error('Settings parse error', e);
+                    }
+                }
+
+                // Process Returns (Optional)
+                if (retRes.status === 'fulfilled' && retRes.value.ok) {
+                    try {
+                        const retData = await retRes.value.json();
+                        setReturns(retData.data?.returns || retData.returns || []);
+                    } catch (e) {
+                        console.error('Returns parse error', e);
+                    }
+                }
+
                 setLoading(false);
             } catch (err) {
                 console.error(err);
+                toast.error('خطأ غير متوقع');
                 setLoading(false);
             }
         };

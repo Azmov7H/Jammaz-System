@@ -1,113 +1,55 @@
-import Supplier from '@/models/Supplier';
-import dbConnect from '@/lib/db';
-
+/**
+ * Supplier Service (Client-Side)
+ * Connects to Backend API
+ */
 export const SupplierService = {
-    async getAll({ page = 1, limit = 20, search }) {
-        await dbConnect();
-
-        const query = {};
-        if (search) {
-            query.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { contactName: { $regex: search, $options: 'i' } },
-                { phone: { $regex: search, $options: 'i' } }
-            ];
-        }
-
-        const skip = (page - 1) * limit;
-        const [suppliers, total] = await Promise.all([
-            Supplier.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-            Supplier.countDocuments(query)
-        ]);
-
-        return {
-            suppliers,
-            pagination: {
-                total,
-                pages: Math.ceil(total / limit),
-                page: Number(page),
-                limit: Number(limit)
-            }
-        };
+    async getAll(params = {}) {
+        const query = new URLSearchParams(params).toString();
+        const res = await fetch(`/api/suppliers?${query}`);
+        if (!res.ok) throw new Error('Failed to fetch suppliers');
+        return res.json();
     },
 
     async getById(id) {
-        await dbConnect();
-        const supplier = await Supplier.findById(id).lean();
-        if (!supplier) throw 'Supplier not found';
-        return supplier;
+        const res = await fetch(`/api/suppliers/${id}`);
+        if (!res.ok) throw new Error('Failed to fetch supplier');
+        return res.json();
     },
 
     async create(data) {
-        await dbConnect();
-
-        const { openingBalance, openingBalanceType, ...supplierData } = data;
-
-        const existing = await Supplier.findOne({ name: supplierData.name });
-        if (existing) {
-            throw 'اسم المورد موجود بالفعل';
-        }
-
-        const supplier = await Supplier.create({
-            ...supplierData,
-            balance: 0
+        const res = await fetch('/api/suppliers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
         });
-
-        if (openingBalance && openingBalance > 0) {
-            const AccountingEntry = (await import('@/models/AccountingEntry')).default;
-            const { DebtService } = await import('@/services/financial/debtService');
-
-            if (openingBalanceType === 'credit') {
-                // We owe supplier (Credit AP)
-                await AccountingEntry.createEntry({
-                    type: 'ADJUSTMENT',
-                    debitAccount: 'Opening Balance Equity',
-                    creditAccount: 'Accounts Payable',
-                    amount: parseFloat(openingBalance),
-                    description: `رصيد افتتاحي للمورد: ${supplier.name}`,
-                    refType: 'Manual',
-                    refId: supplier._id
-                });
-
-                // Create Debt Record for granular tracking
-                await DebtService.createDebt({
-                    debtorType: 'Supplier',
-                    debtorId: supplier._id,
-                    amount: parseFloat(openingBalance),
-                    dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Default 30 days
-                    referenceType: 'Manual',
-                    referenceId: supplier._id,
-                    description: `رصيد افتتاحي (مديونية سابقة)`,
-                    createdBy: null // Service will handle or we can pass if added to params
-                });
-            } else {
-                // Supplier owes us (Debit AP)
-                await AccountingEntry.createEntry({
-                    type: 'ADJUSTMENT',
-                    debitAccount: 'Accounts Payable',
-                    creditAccount: 'Opening Balance Equity',
-                    amount: parseFloat(openingBalance),
-                    description: `رصيد افتتاحي مدين (لنا) عند المورد: ${supplier.name}`,
-                    refType: 'Manual',
-                    refId: supplier._id
-                });
-            }
+        if (!res.ok) {
+            const result = await res.json();
+            throw new Error(result.message || 'Failed to create supplier');
         }
-
-        return supplier;
+        return res.json();
     },
 
     async update(id, data) {
-        await dbConnect();
-        const supplier = await Supplier.findByIdAndUpdate(id, data, { new: true });
-        if (!supplier) throw 'Supplier not found';
-        return supplier;
+        const res = await fetch(`/api/suppliers/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) {
+            const result = await res.json();
+            throw new Error(result.message || 'Failed to update supplier');
+        }
+        return res.json();
     },
 
     async delete(id) {
-        await dbConnect();
-        const supplier = await Supplier.findByIdAndDelete(id);
-        if (!supplier) throw 'Supplier not found';
-        return { message: 'Supplier deleted' };
+        const res = await fetch(`/api/suppliers/${id}`, {
+            method: 'DELETE'
+        });
+        if (!res.ok) {
+            const result = await res.json();
+            throw new Error(result.message || 'Failed to delete supplier');
+        }
+        return res.json();
     }
 };

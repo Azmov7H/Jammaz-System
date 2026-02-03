@@ -40,10 +40,22 @@ export function useSidebarLogic() {
     }, [isOpen, isMobile]);
 
     const filteredNavigation = useMemo(() => {
+        // If loading, returning empty array hides sidebar. 
+        // Better to return the config but marked as loading, or just return it and let UI handle skeleton.
+        // For now, if loading we return the full config but maybe disable links? 
+        // Or just let it be empty?
+        // Actually, returning [] causes "Sidebar content missing". 
+        // Let's return the full config if role is not yet determined but don't filter strictly yet?
+        // No, security first. 
+        // If loading is true, we should probably return a skeleton structure or Wait.
+        // But the previous issue was `role` being undefined FOREVER. 
+
         if (loading) return [];
+        if (!role) return []; // If loaded but no role (not logged in), return empty.
+
         return navigationConfig.map(group => ({
             ...group,
-            items: group.items.filter(isAllowed)
+            items: group.items.filter(item => isAllowed(item, role))
         })).filter(group => group.items.length > 0);
     }, [navigationConfig, role, loading]);
 

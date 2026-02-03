@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { SupplierDebtManager } from '@/components/suppliers/SupplierDebtManager';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { PartnerTransactionDialog } from '@/components/financial/PartnerTransactionDialog';
 
 export default function SuppliersPage() {
     const router = useRouter();
@@ -29,6 +30,7 @@ export default function SuppliersPage() {
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDebtOpen, setIsDebtOpen] = useState(false);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [selectedSupplier, setSelectedSupplier] = useState(null);
 
     const { data: queryData, isLoading, addMutation, updateMutation, deleteMutation } = useSuppliers({ search });
@@ -190,7 +192,7 @@ export default function SuppliersPage() {
                                                 </Avatar>
                                                 <div className="flex flex-col">
                                                     <span
-                                                        onClick={() => router.push(`/purchase-orders?supplierId=${supplier._id}`)}
+                                                        onClick={() => { setSelectedSupplier(supplier); setIsHistoryOpen(true); }}
                                                         className="font-black text-foreground text-sm group-hover:text-primary transition-colors cursor-pointer hover:underline"
                                                     >
                                                         {supplier.name}
@@ -310,6 +312,11 @@ export default function SuppliersPage() {
                 open={isDebtOpen}
                 supplier={selectedSupplier}
                 onOpenChange={setIsDebtOpen}
+            />
+            <PartnerTransactionDialog
+                open={isHistoryOpen}
+                partner={selectedSupplier}
+                onOpenChange={setIsHistoryOpen}
             />
         </div>
     );

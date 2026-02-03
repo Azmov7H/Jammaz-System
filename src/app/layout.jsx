@@ -7,6 +7,7 @@ const cairo = Cairo({
   subsets: ['arabic'],
   variable: '--font-cairo',
   display: 'swap',
+  preload: false,
 });
 
 const tajawal = Tajawal({
@@ -14,6 +15,7 @@ const tajawal = Tajawal({
   weight: ['300', '400', '500', '700', '800', '900'],
   variable: '--font-tajawal',
   display: 'swap',
+  preload: false,
 });
 
 export const metadata = {

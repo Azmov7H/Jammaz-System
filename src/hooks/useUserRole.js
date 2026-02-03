@@ -11,7 +11,10 @@ export function useUserRole() {
         retry: 1
     });
 
-    const user = data?.data?.user || null;
+    // The API returns { success: true, data: { ...user }, ... }
+    // So 'data' from useQuery is the full response object.
+    // 'data.data' is the user object itself.
+    const user = data?.data || null;
     const role = user?.role || null;
 
     return { role, user, loading: isLoading, refetch };

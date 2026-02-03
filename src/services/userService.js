@@ -1,71 +1,54 @@
-import User from '@/models/User';
-import dbConnect from '@/lib/db';
-import bcrypt from 'bcryptjs';
-
+/**
+ * User Service (Client-Side)
+ * Connects to Backend API
+ */
 export const UserService = {
     async getAll() {
-        await dbConnect();
-        return await User.find({}, '-password').sort({ createdAt: -1 });
+        const res = await fetch('/api/users');
+        if (!res.ok) throw new Error('Failed to fetch users');
+        return res.json();
     },
 
     async getById(id) {
-        await dbConnect();
-        const user = await User.findById(id).select('-password');
-        if (!user) {
-            throw 'User not found';
-        }
-        return user;
+        const res = await fetch(`/api/users/${id}`);
+        if (!res.ok) throw new Error('Failed to fetch user');
+        return res.json();
     },
 
     async create(data) {
-        await dbConnect();
-
-        const existing = await User.findOne({ email: data.email });
-        if (existing) {
-            throw 'البريد الإلكتروني مستخدم بالفعل';
-        }
-
-        const hashedPassword = await bcrypt.hash(data.password, 10);
-        const newUser = await User.create({
-            ...data,
-            password: hashedPassword
+        const res = await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
         });
-
-        const { password, ...userWithoutPass } = newUser.toObject();
-        return userWithoutPass;
+        if (!res.ok) {
+            const result = await res.json();
+            throw new Error(result.message || 'Failed to create user');
+        }
+        return res.json();
     },
 
     async update(id, data) {
-        await dbConnect();
-
-        // Check if email is taken by another user
-        if (data.email) {
-            const existing = await User.findOne({ email: data.email, _id: { $ne: id } });
-            if (existing) {
-                throw 'البريد الإلكتروني مستخدم بالفعل';
-            }
+        const res = await fetch(`/api/users/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) {
+            const result = await res.json();
+            throw new Error(result.message || 'Failed to update user');
         }
-
-        const updateData = { ...data };
-        if (data.password) {
-            updateData.password = await bcrypt.hash(data.password, 10);
-        } else {
-            delete updateData.password;
-        }
-
-        const updatedUser = await User.findByIdAndUpdate(id, updateData, { new: true }).select('-password');
-        if (!updatedUser) {
-            throw 'User not found';
-        }
-        return updatedUser;
+        return res.json();
     },
 
     async delete(id) {
-        await dbConnect();
-        const deletedUser = await User.findByIdAndDelete(id);
-        if (!deletedUser) {
-            throw 'User not found';
+        const res = await fetch(`/api/users/${id}`, {
+            method: 'DELETE'
+        });
+        if (!res.ok) {
+            const result = await res.json();
+            throw new Error(result.message || 'Failed to delete user');
         }
-        return { message: 'Use deleted successfully' };
+        return res.json();
     }
 };

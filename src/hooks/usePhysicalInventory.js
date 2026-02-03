@@ -18,7 +18,9 @@ export function usePhysicalInventory(id = null) {
             queryKey: ['physical-inventory', filters],
             queryFn: async () => {
                 const res = await ApiClient.get(`/api/physical-inventory?${params.toString()}`);
-                return res.data.counts;
+                // The backend returns an array directly wrapped by routeHandler
+                // So res (from api-utils) is { success, data: [...] }
+                return res.data || [];
             }
         });
     };
@@ -29,7 +31,8 @@ export function usePhysicalInventory(id = null) {
             queryKey: ['physical-inventory', countId],
             queryFn: async () => {
                 const res = await ApiClient.get(`/api/physical-inventory/${countId}`);
-                return res.data.count;
+                // The backend returns the count object directly
+                return res.data || null;
             },
             enabled: !!countId
         });
