@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const JWT_SECRET_STR = process.env.JWT_SECRET || 'development_secret_123_change_me';
-const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STR);
+const JWT_SECRET_STR = process.env.JWT_SECRET;
+if (!JWT_SECRET_STR) {
+    console.error('CRITICAL: JWT_SECRET environment variable is missing!');
+}
+const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STR || 'placeholder_for_missing_secret');
 
 export async function middleware(request) {
     const { pathname } = request.nextUrl;
@@ -17,14 +20,16 @@ export async function middleware(request) {
     }
 
     const token = request.cookies.get('token')?.value;
+    console.log(`[Middleware] Path: ${pathname}, HasToken: ${!!token}`);
 
     let payload = null;
     if (token) {
         try {
             const { payload: decoded } = await jwtVerify(token, JWT_SECRET);
             payload = decoded;
+            console.log(`[Middleware] Token Verified: UserID=${payload.userId}, Role=${payload.role}`);
         } catch (err) {
-            console.warn('Middleware: Token verification failed:', err.message);
+            console.warn(`[Middleware] Token verification failed: ${err.message}`);
         }
     }
 

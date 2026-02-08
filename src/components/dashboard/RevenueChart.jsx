@@ -1,25 +1,24 @@
 'use client';
 
-import {
-    AreaChart,
-    Area,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
-    defs,
-    linearGradient,
-    stop
-} from 'recharts';
+import dynamic from 'next/dynamic';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { useTheme } from 'next-themes';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/utils';
 
-export function RevenueChart({ data, className }) {
-    const { theme } = useTheme();
-    const isDark = theme === 'dark';
+// Lazy load recharts (~200KB) - loads after initial paint
+const RevenueChartContent = dynamic(
+    () => import('./RevenueChartContent').then(mod => mod.RevenueChartContent),
+    {
+        ssr: false,
+        loading: () => (
+            <div className="h-full w-full flex items-center justify-center">
+                <Skeleton className="h-full w-full rounded-xl animate-pulse" />
+            </div>
+        )
+    }
+);
 
+export function RevenueChart({ data, className }) {
     return (
         <Card className={cn("glass-card border-none shadow-custom-xl overflow-hidden", className)}>
             <CardHeader className="pb-2">
@@ -29,55 +28,7 @@ export function RevenueChart({ data, className }) {
                 </CardTitle>
             </CardHeader>
             <CardContent className="h-[300px] w-full pt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
-                        data={data}
-                        margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                    >
-                        <defs>
-                            <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid
-                            strokeDasharray="3 3"
-                            vertical={false}
-                            stroke={isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}
-                        />
-                        <XAxis
-                            dataKey="name"
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 600 }}
-                            dy={10}
-                        />
-                        <YAxis
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 600 }}
-                        />
-                        <Tooltip
-                            contentStyle={{
-                                backgroundColor: isDark ? 'rgba(15, 15, 20, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-                                borderRadius: '12px',
-                                border: '1px solid hsla(var(--primary) / 0.2)',
-                                backdropFilter: 'blur(8px)',
-                                boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
-                                fontWeight: 'bold'
-                            }}
-                            itemStyle={{ color: 'hsl(var(--primary))' }}
-                        />
-                        <Area
-                            type="monotone"
-                            dataKey="sales"
-                            stroke="hsl(var(--primary))"
-                            strokeWidth={3}
-                            fillOpacity={1}
-                            fill="url(#colorSales)"
-                        />
-                    </AreaChart>
-                </ResponsiveContainer>
+                <RevenueChartContent data={data} />
             </CardContent>
         </Card>
     );

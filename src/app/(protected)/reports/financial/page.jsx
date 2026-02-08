@@ -9,27 +9,24 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Calendar, Download, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import { ReportService } from '@/services/reportService';
 
 export default function FinancialReportPage() {
     const [startDate, setStartDate] = useState(format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd'));
     const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
-    const { data, isLoading, refetch } = useQuery({
+    const { data: response = {}, isLoading, refetch } = useQuery({
         queryKey: ['financial-report', startDate, endDate],
-        queryFn: async () => {
-            const res = await fetch(`/api/reports/financial?startDate=${startDate}&endDate=${endDate}`);
-            if (!res.ok) throw new Error('Failed to fetch report');
-            return res.json();
-        }
+        queryFn: () => ReportService.getFinancialReport(startDate, endDate)
     });
+
+    const financials = response?.financials || {};
 
     const handlePrint = () => {
         window.print();
     };
 
     if (isLoading) return <div className="flex justify-center p-20"><Loader2 className="w-10 h-10 animate-spin" /></div>;
-
-    const { financials } = data || {};
 
     return (
         <div className="space-y-6 max-w-4xl mx-auto print:max-w-none">
@@ -68,12 +65,12 @@ export default function FinancialReportPage() {
                             {Object.entries(financials?.revenue?.breakdown || {}).map(([name, val]) => (
                                 <div key={name} className="flex justify-between text-gray-600">
                                     <span>{name}</span>
-                                    <span>{val.toLocaleString()} ج.م</span>
+                                    <span>{Number(val || 0).toLocaleString()} ج.م</span>
                                 </div>
                             ))}
                             <div className="flex justify-between font-bold text-black text-lg pt-2 mt-2 border-t border-dashed">
                                 <span>إجمالي الإيرادات</span>
-                                <span>{financials?.revenue?.total.toLocaleString()} ج.م</span>
+                                <span>{Number(financials?.revenue?.total || 0).toLocaleString()} ج.م</span>
                             </div>
                         </div>
                     </section>
@@ -82,11 +79,11 @@ export default function FinancialReportPage() {
                     <section>
                         <div className="flex justify-between text-red-600 mb-2">
                             <span>تكلفة البضاعة المباعة</span>
-                            <span>({financials?.cogs.toLocaleString()}) ج.م</span>
+                            <span>({Number(financials?.cogs || 0).toLocaleString()}) ج.م</span>
                         </div>
                         <div className="flex justify-between font-bold text-xl bg-gray-50 p-4 rounded-lg mt-4 border">
                             <span>مجمل الربح (Gross Profit)</span>
-                            <span>{financials?.grossProfit.toLocaleString()} ج.م</span>
+                            <span>{Number(financials?.grossProfit || 0).toLocaleString()} ج.م</span>
                         </div>
                     </section>
 
@@ -97,12 +94,12 @@ export default function FinancialReportPage() {
                             {Object.entries(financials?.operatingExpenses?.breakdown || {}).map(([name, val]) => (
                                 <div key={name} className="flex justify-between text-gray-600">
                                     <span>{name}</span>
-                                    <span>({val.toLocaleString()}) ج.م</span>
+                                    <span>({Number(val || 0).toLocaleString()}) ج.م</span>
                                 </div>
                             ))}
                             <div className="flex justify-between font-bold text-black pt-2 mt-2 border-t border-dashed">
                                 <span>إجمالي المصروفات</span>
-                                <span className="text-red-600">({financials?.operatingExpenses?.total.toLocaleString()}) ج.م</span>
+                                <span className="text-red-600">({Number(financials?.operatingExpenses?.total || 0).toLocaleString()}) ج.م</span>
                             </div>
                         </div>
                     </section>
@@ -112,7 +109,7 @@ export default function FinancialReportPage() {
                         <div className="flex justify-between items-center">
                             <span className="text-2xl font-bold">صافي الربح (Net Profit)</span>
                             <span className={`text-3xl font-bold ${financials?.netProfit >= 0 ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'} px-6 py-2 rounded-xl`}>
-                                {financials?.netProfit.toLocaleString()} ج.م
+                                {Number(financials?.netProfit || 0).toLocaleString()} ج.م
                             </span>
                         </div>
                     </section>

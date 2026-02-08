@@ -373,8 +373,9 @@ export function SupplierDebtManager({ supplier, open, onOpenChange }) {
                                         onChange={(e) => setPaymentMethod(e.target.value)}
                                     >
                                         <option value="cash">نقداً (الخزينة)</option>
-                                        <option value="cash_wallet">محفظة كاش</option>
-                                        <option value="bank_transfer">تحويل بنكي</option>
+                                        <option value="wallet">محفظة كاش</option>
+                                        <option value="bank">تحويل بنكي</option>
+                                        <option value="check">شيك مصرفي</option>
                                     </select>
                                 </div>
 

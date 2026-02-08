@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { api } from '@/lib/api-utils';
 import {
     Loader2, Calendar, FileText, BarChart3, List, Layers,
     TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
@@ -147,58 +147,51 @@ const FiltersBar = ({ filters, setFilters, onReset, onExport, totalEntries }) =>
             </div>
 
             {/* Advanced Filters */}
-            <AnimatePresence>
-                {showFilters && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="glass-card p-4 rounded-xl border border-white/10 bg-white/5"
-                    >
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {/* Entry Type Filter */}
-                            <div>
-                                <label className="text-xs font-bold text-muted-foreground mb-2 block">نوع القيد</label>
-                                <Select value={filters.type} onValueChange={(val) => setFilters({ ...filters, type: val })}>
-                                    <SelectTrigger className="h-10 bg-white/5 border-white/10">
-                                        <SelectValue placeholder="جميع الأنواع" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">جميع الأنواع</SelectItem>
-                                        <SelectItem value="SALE">مبيعات</SelectItem>
-                                        <SelectItem value="PURCHASE">مشتريات</SelectItem>
-                                        <SelectItem value="PAYMENT">دفع</SelectItem>
-                                        <SelectItem value="ADJUSTMENT">تسوية</SelectItem>
-                                        <SelectItem value="EXPENSE">مصروف</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            {/* Date From */}
-                            <div>
-                                <label className="text-xs font-bold text-muted-foreground mb-2 block">من تاريخ</label>
-                                <Input
-                                    type="date"
-                                    value={filters.dateFrom}
-                                    onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-                                    className="h-10 bg-white/5 border-white/10"
-                                />
-                            </div>
-
-                            {/* Date To */}
-                            <div>
-                                <label className="text-xs font-bold text-muted-foreground mb-2 block">إلى تاريخ</label>
-                                <Input
-                                    type="date"
-                                    value={filters.dateTo}
-                                    onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-                                    className="h-10 bg-white/5 border-white/10"
-                                />
-                            </div>
+            {showFilters && (
+                <div className="glass-card p-4 rounded-xl border border-white/10 bg-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Entry Type Filter */}
+                        <div>
+                            <label className="text-xs font-bold text-muted-foreground mb-2 block">نوع القيد</label>
+                            <Select value={filters.type} onValueChange={(val) => setFilters({ ...filters, type: val })}>
+                                <SelectTrigger className="h-10 bg-white/5 border-white/10">
+                                    <SelectValue placeholder="جميع الأنواع" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">جميع الأنواع</SelectItem>
+                                    <SelectItem value="SALE">مبيعات</SelectItem>
+                                    <SelectItem value="PURCHASE">مشتريات</SelectItem>
+                                    <SelectItem value="PAYMENT">دفع</SelectItem>
+                                    <SelectItem value="ADJUSTMENT">تسوية</SelectItem>
+                                    <SelectItem value="EXPENSE">مصروف</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+
+                        {/* Date From */}
+                        <div>
+                            <label className="text-xs font-bold text-muted-foreground mb-2 block">من تاريخ</label>
+                            <Input
+                                type="date"
+                                value={filters.dateFrom}
+                                onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                                className="h-10 bg-white/5 border-white/10"
+                            />
+                        </div>
+
+                        {/* Date To */}
+                        <div>
+                            <label className="text-xs font-bold text-muted-foreground mb-2 block">إلى تاريخ</label>
+                            <Input
+                                type="date"
+                                value={filters.dateTo}
+                                onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                                className="h-10 bg-white/5 border-white/10"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -211,9 +204,8 @@ const JournalEntriesTab = ({ filters }) => {
     const { data, isLoading } = useQuery({
         queryKey: ['accounting-entries', filters],
         queryFn: async () => {
-            const res = await fetch('/api/accounting/entries?limit=500');
-            const json = await res.json();
-            return { entries: json.data || [] };
+            const res = await api.get('/api/accounting/entries?limit=500');
+            return { entries: res.data || [] };
         }
     });
 
@@ -390,9 +382,8 @@ const LedgerTab = ({ chartOfAccounts }) => {
         queryKey: ['ledger', selectedAccount],
         queryFn: async () => {
             if (!selectedAccount) return null;
-            const res = await fetch(`/api/accounting/ledger?account=${encodeURIComponent(selectedAccount)}`);
-            const json = await res.json();
-            return { ledger: json.data };
+            const res = await api.get(`/api/accounting/ledger?account=${encodeURIComponent(selectedAccount)}`);
+            return { ledger: res.data };
         },
         enabled: !!selectedAccount
     });
@@ -438,12 +429,9 @@ const LedgerTab = ({ chartOfAccounts }) => {
 
                     <div className="space-y-2">
                         {ledger.ledger.entries.map((item, i) => (
-                            <motion.div
+                            <div
                                 key={item._id}
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: i * 0.02 }}
-                                className="glass-card p-4 rounded-[1.25rem] border border-white/5 hover:bg-white/5 flex items-center justify-between group"
+                                className="glass-card p-4 rounded-[1.25rem] border border-white/5 hover:bg-white/5 flex items-center justify-between group animate-in fade-in slide-in-from-right-2 duration-300"
                             >
                                 <div className="flex items-center gap-4">
                                     <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-white/5 border border-white/5 shrink-0">
@@ -462,7 +450,7 @@ const LedgerTab = ({ chartOfAccounts }) => {
                                     <p className="text-xs font-bold text-muted-foreground uppercase opacity-50 mb-0.5">الرصيد</p>
                                     <p className="font-mono font-bold text-lg">{item.balance.toLocaleString()}</p>
                                 </div>
-                            </motion.div>
+                            </div>
                         ))}
                     </div>
                 </div>
@@ -480,9 +468,8 @@ const TrialBalanceTab = () => {
     const { data: trialBalance, isLoading } = useQuery({
         queryKey: ['trial-balance'],
         queryFn: async () => {
-            const res = await fetch('/api/accounting/trial-balance');
-            const json = await res.json();
-            return { trialBalance: json.data };
+            const res = await api.get('/api/accounting/trial-balance');
+            return { trialBalance: res.data };
         }
     });
 
@@ -578,13 +565,11 @@ export default function AccountingPage() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [filters]);
 
-    // Get all entries for statistics
     const { data: allEntriesData } = useQuery({
         queryKey: ['accounting-entries-stats'],
         queryFn: async () => {
-            const res = await fetch('/api/accounting/entries?limit=500');
-            const json = await res.json();
-            return { entries: json.data || [] };
+            const res = await api.get('/api/accounting/entries?limit=500');
+            return { entries: res.data || [] };
         }
     });
 
@@ -592,9 +577,8 @@ export default function AccountingPage() {
     const { data: chartData } = useQuery({
         queryKey: ['chart-of-accounts'],
         queryFn: async () => {
-            const res = await fetch('/api/accounting/entries?limit=500');
-            const json = await res.json();
-            const entries = json.data || [];
+            const res = await api.get('/api/accounting/entries?limit=500');
+            const entries = res.data || [];
             const accounts = new Set();
             entries.forEach(e => {
                 if (e.debitAccount) accounts.add(e.debitAccount);
@@ -670,36 +654,27 @@ export default function AccountingPage() {
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={cn(
-                            "relative flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all flex-1 md:flex-none",
-                            activeTab === tab.id ? "text-white" : "text-muted-foreground hover:text-white/80"
+                            "relative px-6 py-3 rounded-xl font-black text-sm transition-all duration-300",
+                            activeTab === tab.id ? "text-white" : "text-muted-foreground hover:text-white"
                         )}
                     >
-                        {activeTab === tab.id && (
-                            <motion.div
-                                layoutId="activeTab"
-                                className="absolute inset-0 bg-primary shadow-lg shadow-primary/25 rounded-xl"
-                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                            />
-                        )}
                         <span className="relative z-10 flex items-center gap-2">
                             <tab.icon className="w-4 h-4" />
                             {tab.label}
                         </span>
+                        {activeTab === tab.id && (
+                            <div className="absolute inset-0 bg-primary shadow-lg shadow-primary/25 rounded-xl -z-10" />
+                        )}
                     </button>
                 ))}
             </div>
 
             {/* Content Area */}
-            <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4 }}
-            >
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
                 {activeTab === 'entries' && <JournalEntriesTab filters={filters} />}
                 {activeTab === 'ledger' && <LedgerTab chartOfAccounts={chartData?.chartOfAccounts || []} />}
                 {activeTab === 'trial-balance' && <TrialBalanceTab />}
-            </motion.div>
-        </div>
+            </div>
+        </div >
     );
 }

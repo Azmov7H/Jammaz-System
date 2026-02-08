@@ -1,83 +1,92 @@
-import { NextResponse } from 'next/server';
+/**
+ * Custom Error class for Jammaz API interactions
+ */
+export class JammazApiError extends Error {
+    constructor(message, status, data = null) {
+        super(message);
+        this.name = 'JammazApiError';
+        this.status = status;
+        this.data = data;
+    }
+
+    get isValidationError() {
+        return this.status === 400;
+    }
+
+    get isUnauthorized() {
+        return this.status === 401 || this.status === 403;
+    }
+}
 
 // Request deduplication map
 const pendingRequests = new Map();
 
-/**
- * Generate a unique key for a request
- */
 function getRequestKey(url, options = {}) {
     const method = options.method || 'GET';
     const body = options.body || '';
     return `${method}:${url}:${body}`;
 }
 
-/**
- * Clean up old pending requests (older than 30 seconds)
- */
-function cleanupOldRequests() {
-    const now = Date.now();
-    const timeout = 30000; // 30 seconds
-
-    for (const [key, { timestamp }] of pendingRequests.entries()) {
-        if (now - timestamp > timeout) {
-            pendingRequests.delete(key);
-        }
-    }
-}
-
 export async function fetcher(url, options = {}) {
     const {
+        params, // New: Support for query parameters as object
         cache = 'default',
         revalidate = undefined,
         tags = [],
-        skipDeduplication = false, // Option to skip deduplication if needed
+        skipDeduplication = false,
         ...fetchOptions
     } = options;
 
-    // Ensure credentials are sent by default for API requests
-    if (!fetchOptions.credentials) {
-        fetchOptions.credentials = 'include';
-    }
-
-    // Base URL for API
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
-
-    // Construct final URL
     let finalUrl = url;
-    if (baseUrl && url.startsWith('/') && !url.startsWith('//')) {
-        finalUrl = `${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}${url}`;
+
+    // 1. Handle Query Parameters
+    if (params) {
+        const query = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && value !== '') {
+                query.append(key, value);
+            }
+        });
+        const queryString = query.toString();
+        if (queryString) {
+            finalUrl += (finalUrl.includes('?') ? '&' : '?') + queryString;
+        }
     }
 
-    // Generate request key for deduplication
-    const requestKey = getRequestKey(finalUrl, fetchOptions);
+    // 2. Base URL & Environment Handling
+    let baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+    if (process.env.NODE_ENV !== 'production' && baseUrl.includes(':5050')) {
+        baseUrl = '';
+    }
 
-    // Check if this request is already pending (only for POST, PUT, DELETE, PATCH)
+    if (baseUrl && url.startsWith('/') && !url.startsWith('//')) {
+        finalUrl = `${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}${finalUrl}`;
+    }
+
+    // 3. Request Deduplication
+    const requestKey = getRequestKey(finalUrl, fetchOptions);
     const mutationMethods = ['POST', 'PUT', 'DELETE', 'PATCH'];
     const shouldDeduplicate = !skipDeduplication && mutationMethods.includes(fetchOptions.method);
 
     if (shouldDeduplicate && pendingRequests.has(requestKey)) {
-        console.warn(`[API] Duplicate request detected: ${requestKey}`);
-        // Return the existing pending promise
         return pendingRequests.get(requestKey).promise;
     }
 
-    const defaultHeaders = {
+    // 4. Headers & Config
+    const headers = {
         'Content-Type': 'application/json',
+        ...(options.headers || {}),
     };
 
-    // If cache is explicitly disabled, set headers accordingly
     if (cache === 'no-store' || revalidate === 0) {
-        defaultHeaders['Cache-Control'] = 'no-store, no-cache, must-revalidate';
-        defaultHeaders['Pragma'] = 'no-cache';
+        headers['Cache-Control'] = 'no-store, no-cache, must-revalidate';
     }
-
-    const headers = { ...defaultHeaders, ...(options.headers || {}) };
 
     const config = {
         ...fetchOptions,
         headers,
         cache,
+        credentials: fetchOptions.credentials || 'include',
         next: {
             revalidate,
             tags,
@@ -85,47 +94,58 @@ export async function fetcher(url, options = {}) {
         }
     };
 
-    // Create the fetch promise
+    // 5. Execution
     const fetchPromise = (async () => {
         try {
-            console.log(`[API] ${fetchOptions.method || 'GET'} ${finalUrl}`);
             const res = await fetch(finalUrl, config);
+
+            // Handle Global Auth Failure (401/403)
+            if (res.status === 401 || res.status === 403) {
+                if (typeof window !== 'undefined') {
+                    // Force refresh or redirect to login if session expired
+                    // Uncomment when routing is ready: window.location.href = '/login?expired=true';
+                }
+            }
+
+            let response;
+            try {
+                response = await res.json();
+            } catch (e) {
+                response = { success: false, message: 'Invalid JSON response from server' };
+            }
+
             if (!res.ok) {
-                const errorBody = await res.json().catch(() => ({}));
-                const error = new Error(errorBody.message || errorBody.error || 'API Request Failed');
-                error.status = res.status;
-                throw error;
+                throw new JammazApiError(
+                    response.message || response.error || 'خطأ في الاتصال بالخادم',
+                    res.status,
+                    response.data
+                );
             }
-            const data = await res.json();
-            return data;
+
+            // Standardize Response Unwrapping
+            if (response && typeof response === 'object' && 'success' in response) {
+                if (response.success) {
+                    return response.data;
+                } else {
+                    throw new JammazApiError(response.message || 'API Error', res.status, response.data);
+                }
+            }
+
+            return response;
         } finally {
-            // Remove from pending requests when done
-            if (shouldDeduplicate) {
-                pendingRequests.delete(requestKey);
-            }
+            if (shouldDeduplicate) pendingRequests.delete(requestKey);
         }
     })();
 
-    // Store the pending request
     if (shouldDeduplicate) {
-        pendingRequests.set(requestKey, {
-            promise: fetchPromise,
-            timestamp: Date.now()
-        });
-    }
-
-    // Cleanup old requests periodically
-    if (Math.random() < 0.1) { // 10% chance to cleanup
-        cleanupOldRequests();
+        pendingRequests.set(requestKey, { promise: fetchPromise, timestamp: Date.now() });
     }
 
     return fetchPromise;
 }
 
-
-
 export const api = {
-    get: (url, options = {}) => fetcher(url, { ...options, method: 'GET' }),
+    get: (url, params, options = {}) => fetcher(url, { ...options, method: 'GET', params }),
     post: (url, body, options = {}) => fetcher(url, {
         ...options,
         method: 'POST',
@@ -143,4 +163,5 @@ export const api = {
         body: JSON.stringify(body),
     }),
 };
+
 

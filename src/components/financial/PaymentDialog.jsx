@@ -150,9 +150,9 @@ export function PaymentDialog({ open, onOpenChange, debt, targetInstallmentId })
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="cash">نقدي (Cash)</SelectItem>
-                                <SelectItem value="bank_transfer">تحويل بنكي</SelectItem>
+                                <SelectItem value="bank">تحويل بنكي</SelectItem>
                                 <SelectItem value="check">شيك</SelectItem>
-                                <SelectItem value="cash_wallet">محفظة كاش</SelectItem>
+                                <SelectItem value="wallet">محفظة كاش</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

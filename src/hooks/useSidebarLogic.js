@@ -4,6 +4,7 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { hasPermission } from '@/lib/permissions';
 import { useSidebar } from '@/providers/SidebarProvider';
 import { navigationConfig } from '@/config/navigation';
+import { api } from '@/lib/api-utils';
 
 export function useSidebarLogic() {
     const pathname = usePathname();
@@ -30,8 +31,13 @@ export function useSidebarLogic() {
     };
 
     const handleLogout = async () => {
-        await fetch('/api/auth/logout', { method: 'POST' });
-        window.location.href = '/login';
+        try {
+            await api.post('/api/auth/logout');
+            window.location.href = '/login';
+        } catch (err) {
+            console.error('Logout failed:', err);
+            window.location.href = '/login';
+        }
     };
 
     const sidebarWidth = useMemo(() => {

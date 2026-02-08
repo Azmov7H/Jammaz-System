@@ -15,26 +15,29 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
-import { Loader2, DollarSign, CreditCard, TrendingUp, Calendar, ShoppingBag, Package } from 'lucide-react';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
 import { cn } from '@/utils';
+import { api } from '@/lib/api-utils';
+import {
+    Loader2, DollarSign, CreditCard,
+    TrendingUp, Calendar, ShoppingBag,
+    Package
+} from 'lucide-react';
+import { DailySalesService } from '@/services/dailySalesService';
 
 export default function DailySalesPage() {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
-    const { data: dailySales, isLoading } = useQuery({
+    const { data: summary = {}, isLoading } = useQuery({
         queryKey: ['daily-sales', date],
-        queryFn: async () => {
-            const res = await fetch(`/api/daily-sales?date=${date}`);
-            return res.json();
-        }
+        queryFn: ({ queryKey }) => DailySalesService.getDailySales(queryKey[1])
     });
 
-    const summary = dailySales?.revenue || {};
-    const invoices = dailySales?.invoices || [];
+    const invoices = summary.invoices || [];
+    const topProducts = summary.topProducts || [];
 
     return (
         <div className="min-h-screen bg-[#0f172a]/20 space-y-8 p-4 md:p-8 rounded-[2rem]" dir="rtl">

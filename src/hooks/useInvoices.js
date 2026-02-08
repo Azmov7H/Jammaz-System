@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-utils';
 import { toast } from 'sonner';
-import { useDebounce } from './useDebounce';
+import { useFilters } from './useFilters';
 
 /**
  * Base hook to fetch invoices with optional filters
@@ -10,11 +10,7 @@ import { useDebounce } from './useDebounce';
 export function useInvoices(params = {}) {
     return useQuery({
         queryKey: ['invoices', params],
-        queryFn: async () => {
-            const searchParams = new URLSearchParams(params);
-            const res = await api.get(`/api/invoices?${searchParams.toString()}`);
-            return res.data;
-        }
+        queryFn: () => api.get('/api/invoices', params)
     });
 }
 
@@ -25,8 +21,7 @@ export function useCreateInvoice() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (data) => {
-            const response = await api.post('/api/invoices', data);
-            return response.data;
+            return await api.post('/api/invoices', data);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['invoices'] });
@@ -63,23 +58,17 @@ export function useDeleteInvoice() {
  * Integrated hook for the Invoices Page (Consolidated from useInvoicesPage.js)
  */
 export function useInvoicesPageManager() {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filterType, setFilterType] = useState('all'); // all, cash, credit
-    const [page, setPage] = useState(1);
-    const limit = 15;
-
-    const debouncedSearch = useDebounce(searchTerm, 500);
-
-    const handleSearch = (e) => {
-        setSearchTerm(e.target.value);
-        setPage(1); // Reset to first page on search
-    };
-
-    const { data: invoicesData, isLoading } = useInvoices({
-        page,
+    const {
+        search, setSearch,
+        filter, setFilter,
+        page, setPage,
         limit,
-        ...(debouncedSearch ? { search: debouncedSearch } : {})
-    });
+        queryContext,
+        handleSearch
+    } = useFilters(15);
+
+    const { data: invoicesData, isLoading, isError, refetch } = useInvoices(queryContext);
+
     const invoices = invoicesData?.invoices || [];
     const pagination = invoicesData?.pagination || { total: 0, pages: 1, page: 1, limit };
     const deleteMutation = useDeleteInvoice();
@@ -91,35 +80,36 @@ export function useInvoicesPageManager() {
 
     const filteredInvoices = useMemo(() => {
         return invoices.filter(inv => {
-            if (filterType === 'all') return true;
+            if (filter === 'all') return true;
             const type = inv.paymentType || 'cash';
-            if (filterType === 'cash') return type === 'cash';
-            if (filterType === 'credit') return type === 'credit' || type === 'bank';
+            if (filter === 'cash') return ['cash', 'bank', 'wallet', 'check'].includes(type);
+            if (filter === 'credit') return type === 'credit';
             return true;
         });
-    }, [invoices, filterType]);
+    }, [invoices, filter]);
 
     const stats = useMemo(() => {
         const totalSales = filteredInvoices.reduce((sum, inv) => sum + inv.total, 0);
         const invoicesCount = filteredInvoices.length;
-        const cashInvoices = filteredInvoices.filter(inv => (inv.paymentType || 'cash') === 'cash').length;
-        const creditInvoices = filteredInvoices.filter(inv => (inv.paymentType || 'cash') !== 'cash').length;
+        const immediatePayments = ['cash', 'bank', 'wallet', 'check'];
+        const cashInvoices = filteredInvoices.filter(inv => immediatePayments.includes(inv.paymentType || 'cash')).length;
+        const creditInvoices = filteredInvoices.filter(inv => (inv.paymentType || 'cash') === 'credit').length;
 
         return { totalSales, invoicesCount, cashInvoices, creditInvoices };
     }, [filteredInvoices]);
 
     return {
-        searchTerm,
-        filterType, setFilterType,
+        searchTerm: search, // Keep name for compatibility
+        filterType: filter, setFilterType: setFilter,
         handleSearch,
         handleDelete,
         filteredInvoices,
         isLoading,
+        isError,
+        refetch,
         stats,
-        // Pagination
         page,
         setPage,
         pagination
     };
 }
-

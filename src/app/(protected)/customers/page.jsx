@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useDeferredValue } from 'react';
+import { useState } from 'react';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useDebtOverview, useDebts, useReceivables } from '@/hooks/useFinancial';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import { Search, Plus, Users, Activity, RefreshCcw } from 'lucide-react';
 import { cn } from '@/utils';
 import { LABELS } from '@/constants';
 import { LoadingState, TableLoadingState } from '@/components/common/LoadingState';
+import { ErrorState, TableErrorState } from '@/components/common/ErrorState';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -44,10 +45,24 @@ import { PageHeader } from '@/components/ui/PageHeader';
 
 export default function CustomersPage() {
     const router = useRouter();
-    const [search, setSearch] = useState('');
-    const [page, setPage] = useState(1);
-    const limit = 15;
-    const deferredSearch = useDeferredValue(search);
+
+    // Data Fetching & Filter State
+    const {
+        data: queryData,
+        isLoading,
+        addMutation,
+        updateMutation,
+        deleteMutation,
+        refetch,
+        search,
+        handleSearch,
+        page,
+        setPage
+    } = useCustomers();
+
+    const customers = queryData?.customers || [];
+    const pagination = queryData?.pagination || { total: 0, pages: 1, page: 1, limit: 15 };
+    const totalPages = pagination.pages;
 
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -62,22 +77,6 @@ export default function CustomersPage() {
     const [isUnifiedOpen, setIsUnifiedOpen] = useState(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [unifiedPaymentData, setUnifiedPaymentData] = useState(null);
-
-    // Reset page on search change
-    const handleSearchChange = (e) => {
-        setSearch(e.target.value);
-        setPage(1);
-    };
-
-    // Data Fetching
-    const { data: queryData, isLoading, addMutation, updateMutation, deleteMutation, refetch } = useCustomers({
-        search: deferredSearch,
-        page,
-        limit
-    });
-    const customers = queryData?.customers || [];
-    const pagination = queryData?.pagination || { total: 0, pages: 1, page: 1, limit };
-    const totalPages = pagination.pages;
 
     // Generate page numbers to display
     const getPageNumbers = () => {
@@ -260,7 +259,7 @@ export default function CustomersPage() {
                         placeholder={searchPlaceholder}
                         className="h-16 pr-16 pl-8 rounded-[2rem] bg-card/40 border-white/10 focus:bg-card/60 focus:border-primary/50 transition-all font-black text-xl placeholder:text-muted-foreground/30 shadow-2xl backdrop-blur-xl ring-0 focus-visible:ring-0"
                         value={search}
-                        onChange={handleSearchChange}
+                        onChange={handleSearch}
                     />
                 </div>
             </div>
@@ -292,6 +291,8 @@ export default function CustomersPage() {
                         <TableBody>
                             {isLoading ? (
                                 <TableLoadingState colSpan={6} message={loadingLabel} />
+                            ) : queryData?.isError ? (
+                                <TableErrorState colSpan={6} onRetry={refetch} />
                             ) : customers.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={6} className="h-96 text-center border-none">

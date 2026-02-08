@@ -13,8 +13,7 @@ export function useSuppliers(params = {}) {
             if (params.page) searchParams.append('page', params.page);
             if (params.limit) searchParams.append('limit', params.limit);
 
-            const res = await api.get(`/api/suppliers?${searchParams.toString()}`);
-            return res.data;
+            return await api.get(`/api/suppliers?${searchParams.toString()}`);
         }
     });
 
@@ -58,7 +57,7 @@ export function useSupplier(id) {
         queryKey: ['suppliers', id],
         queryFn: async () => {
             const res = await api.get(`/api/suppliers/${id}`);
-            return res.data.supplier;
+            return res.supplier;
         },
         enabled: !!id
     });

@@ -10,10 +10,10 @@ export function useNotifications() {
     const { data: listData, isLoading, refetch } = useQuery({
         queryKey: ['notifications', 'list'],
         queryFn: async () => {
-            const res = await api.get('/api/notifications?limit=20');
-            return res.data;
+            return await api.get('/api/notifications?limit=20');
         },
-        refetchInterval: 30000
+        refetchInterval: 30000,
+        refetchIntervalInBackground: false // Stop polling when tab is hidden
     });
 
     const notifications = listData?.notifications || [];

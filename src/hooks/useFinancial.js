@@ -8,8 +8,7 @@ export function useTreasury(params = {}) {
         queryKey: ['treasury', params],
         queryFn: async () => {
             const searchParams = new URLSearchParams(params);
-            const res = await api.get(`/api/financial/treasury?${searchParams}`);
-            return res.data;
+            return await api.get(`/api/financial/treasury?${searchParams}`);
         }
     });
 }
@@ -42,8 +41,7 @@ export function useDebts(params = {}) {
         queryKey: ['debts', params],
         queryFn: async () => {
             const searchParams = new URLSearchParams(params);
-            const res = await api.get(`/api/financial/debts?${searchParams}`);
-            return res.data;
+            return await api.get(`/api/financial/debts?${searchParams}`);
         }
     });
 }
@@ -53,8 +51,7 @@ export function useDebtors(params = {}) {
         queryKey: ['debtors', params],
         queryFn: async () => {
             const searchParams = new URLSearchParams(params);
-            const res = await api.get(`/api/financial/debtors?${searchParams}`);
-            return res.data;
+            return await api.get(`/api/financial/debtors?${searchParams}`);
         }
     });
 }
@@ -63,8 +60,7 @@ export function useDebtOverview() {
     return useQuery({
         queryKey: ['debt-overview'],
         queryFn: async () => {
-            const res = await api.get('/api/financial/debt-overview');
-            return res.data;
+            return await api.get('/api/financial/debt-overview');
         }
     });
 }
@@ -86,8 +82,7 @@ export function useDebtInstallments(debtId) {
     return useQuery({
         queryKey: ['debt-installments', debtId],
         queryFn: async () => {
-            const res = await api.get(`/api/financial/debts/${debtId}/installments`);
-            return res.data;
+            return await api.get(`/api/financial/debts/${debtId}/installments`);
         },
         enabled: !!debtId
     });
@@ -111,8 +106,7 @@ export function useReceivables(params = {}) {
         queryKey: ['receivables', params],
         queryFn: async () => {
             const searchParams = new URLSearchParams(params);
-            const res = await api.get(`/api/payments?${searchParams}`);
-            return res.data;
+            return await api.get(`/api/payments?${searchParams}`);
         }
     });
 }
@@ -121,8 +115,7 @@ export function useSyncDebts() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (data) => {
-            const res = await api.post('/api/financial/debts/sync', data);
-            return res.data;
+            return await api.post('/api/financial/debts/sync', data);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['debts'] });
@@ -166,8 +159,7 @@ export function usePartnerTransactions(partnerId, params = {}) {
         queryKey: ['partner-transactions', partnerId, params],
         queryFn: async () => {
             const searchParams = new URLSearchParams(params);
-            const res = await api.get(`/api/financial/partner/${partnerId}/transactions?${searchParams}`);
-            return res.data;
+            return await api.get(`/api/financial/partner/${partnerId}/transactions?${searchParams}`);
         },
         enabled: !!partnerId
     });

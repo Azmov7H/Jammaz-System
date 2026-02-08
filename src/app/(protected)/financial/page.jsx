@@ -45,7 +45,8 @@ export default function FinancialPage() {
         description: '',
         type: 'INCOME',
         category: 'other',
-        supplierId: ''
+        supplierId: '',
+        method: 'cash'
     });
 
     const { data: suppliers } = useSuppliers({ limit: 100 });
@@ -89,7 +90,7 @@ export default function FinancialPage() {
             const paymentData = {
                 supplierId: formData.supplierId,
                 amount: parseFloat(formData.amount),
-                method: 'cash',
+                method: formData.method,
                 note: formData.description
             };
 
@@ -97,7 +98,7 @@ export default function FinancialPage() {
             api.post('/api/financial/payments', paymentData).then(() => {
                 queryClient.invalidateQueries({ queryKey: ['treasury'] });
                 setIsDialogOpen(false);
-                setFormData({ amount: '', description: '', type: 'INCOME', category: 'other', supplierId: '' });
+                setFormData({ amount: '', description: '', type: 'INCOME', category: 'other', supplierId: '', method: 'cash' });
             }).catch(err => {
                 console.error(err);
                 alert('فشل تسجيل الدفعة للمورد');
@@ -108,7 +109,7 @@ export default function FinancialPage() {
         addTransaction(formData, {
             onSuccess: () => {
                 setIsDialogOpen(false);
-                setFormData({ amount: '', description: '', type: 'INCOME', category: 'other', supplierId: '' });
+                setFormData({ amount: '', description: '', type: 'INCOME', category: 'other', supplierId: '', method: 'cash' });
             }
         });
     };
@@ -266,10 +267,24 @@ export default function FinancialPage() {
                                 </CardHeader>
                                 <CardContent>
                                     <div className="text-2xl font-bold">{balance.toLocaleString()} ج.م</div>
+                                    <div className="flex flex-col gap-0.5 mt-2 opacity-80 text-[10px]">
+                                        <div className="flex justify-between">
+                                            <span>كاش:</span>
+                                            <span>{(treasuryData?.breakdown?.cash || 0).toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span>بنك:</span>
+                                            <span>{(treasuryData?.breakdown?.bank || 0).toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span>محفظة:</span>
+                                            <span>{(treasuryData?.breakdown?.wallet || 0).toLocaleString()}</span>
+                                        </div>
+                                    </div>
                                 </CardContent>
                             </Card>
                         </TooltipTrigger>
-                        <TooltipContent>المبلغ المتوفر حالياً في الصندوق والبنك</TooltipContent>
+                        <TooltipContent>المبلغ المتوفر حالياً في الصندوق والبنك والمحافظ</TooltipContent>
                     </Tooltip>
 
                     {/* Sales Profit Card */}
@@ -428,6 +443,23 @@ export default function FinancialPage() {
                                         placeholder={formData.type === 'INCOME' ? 'مثال: رأس مال إضافي' : 'مثال: فاتورة كهرباء'}
                                     />
                                 </div>
+                                <div>
+                                    <Label>وسيلة الدفع / الاستلام</Label>
+                                    <Select
+                                        value={formData.method}
+                                        onValueChange={v => setFormData({ ...formData, method: v })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="اختر الوسيلة" />
+                                        </SelectTrigger>
+                                        <SelectContent dir="rtl">
+                                            <SelectItem value="cash">نقداً (كاش)</SelectItem>
+                                            <SelectItem value="bank">تحويل بنكي</SelectItem>
+                                            <SelectItem value="wallet">محفظة إلكترونية</SelectItem>
+                                            <SelectItem value="check">شيك</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
 
                                 {formData.type === 'EXPENSE' && (
                                     <>
@@ -525,6 +557,7 @@ export default function FinancialPage() {
                                         <TableHead className="text-right">نوع المعاملة</TableHead>
                                         <TableHead className="text-right">الجهة / الطرف</TableHead>
                                         <TableHead className="text-right">المبلغ</TableHead>
+                                        <TableHead className="text-right">الوسيلة</TableHead>
                                         <TableHead className="text-right hidden md:table-cell">الوصف</TableHead>
                                         <TableHead className="text-right hidden lg:table-cell">التاريخ</TableHead>
                                         <TableHead className="text-right">إجراءات</TableHead>
@@ -593,6 +626,11 @@ export default function FinancialPage() {
                                                 </TableCell>
                                                 <TableCell className={`font-bold text-base ${tx.type === 'INCOME' ? 'text-green-600' : 'text-red-600'}`}>
                                                     {tx.amount.toLocaleString()} ج.م
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline" className="text-[10px] bg-muted/30">
+                                                        {tx.method === 'bank' ? 'بنك' : tx.method === 'wallet' ? 'محفظة' : 'نقدي'}
+                                                    </Badge>
                                                 </TableCell>
                                                 <TableCell className="hidden md:table-cell">
                                                     <div className="flex flex-col">
@@ -718,6 +756,19 @@ export default function FinancialPage() {
                                     <div className="space-y-1">
                                         <p className="text-sm font-medium text-muted-foreground">وقت وتاريخ العملية</p>
                                         <p className="text-base">{format(new Date(selectedTx.date || selectedTx.createdAt), 'PPPP p', { locale: ar })}</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-3">
+                                    <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                                        <Wallet size={18} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-medium text-muted-foreground">وسيلة المعاملة</p>
+                                        <p className="text-base">
+                                            {selectedTx.method === 'bank' ? 'تحويل بنكي' :
+                                                selectedTx.method === 'wallet' ? 'محفظة إلكترونية' : 'نقداً (كاش)'}
+                                        </p>
                                     </div>
                                 </div>
 

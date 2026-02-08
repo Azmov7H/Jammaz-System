@@ -72,7 +72,13 @@ export default function SettingsPage() {
                 const res = await fetch('/api/settings/invoice-design');
                 if (res.ok) {
                     const data = await res.json();
-                    setInvoiceSettings(data);
+                    // API returns { status: 'success', data: { ...settings } }
+                    if (data.status === 'success' && data.data) {
+                        setInvoiceSettings(data.data);
+                    } else if (!data.status) {
+                        // Fallback for direct data if status is missing
+                        setInvoiceSettings(data);
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching invoice settings:', error);
@@ -85,11 +91,15 @@ export default function SettingsPage() {
         setLoading(true);
         try {
             const res = await fetch('/api/settings/invoice-design', {
-                method: 'POST',
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(invoiceSettings)
             });
             if (res.ok) {
+                const data = await res.json();
+                if (data.status === 'success' && data.data) {
+                    setInvoiceSettings(data.data);
+                }
                 toast.success('تم حفظ الإعدادات بنجاح');
             } else {
                 toast.error('فشل في حفظ الإعدادات');

@@ -15,20 +15,15 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Search, History, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { format } from 'date-fns';
-import { ar } from 'date-fns/locale';
+import { ReportService } from '@/services/reportService';
 
 export default function PriceHistoryPage() {
     const [search, setSearch] = useState('');
 
-    const { data, isLoading } = useQuery({
+    const { data: history = [], isLoading } = useQuery({
         queryKey: ['price-history'],
-        queryFn: async () => {
-            const res = await fetch('/api/reports/price-history?limit=100');
-            return res.json();
-        }
+        queryFn: () => ReportService.getAllPriceHistory()
     });
-
-    const history = data?.data?.history || [];
 
     // Client-side filtering
     const filteredHistory = history.filter(item =>

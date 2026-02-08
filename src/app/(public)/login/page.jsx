@@ -10,8 +10,12 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { LoginBackground } from '@/components/auth/LoginBackground';
 
+import { api } from '@/lib/api-utils';
+import { useQueryClient } from '@tanstack/react-query';
+
 export default function LoginPage() {
     const router = useRouter();
+    const queryClient = useQueryClient();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -23,25 +27,18 @@ export default function LoginPage() {
         setError('');
 
         try {
-            const res = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
+            const data = await api.post('/api/auth/login', formData);
+            console.log('[Login] Success Response:', data);
+            await queryClient.invalidateQueries({ queryKey: ['user-session'] });
 
-            const data = await res.json();
-
-            if (res.ok) {
-                toast.success('تم تسجيل الدخول بنجاح');
-                router.push('/');
-                router.refresh();
-            } else {
-                setError(data.error);
-                toast.error(data.error || 'فشل تسجيل الدخول');
-            }
+            toast.success('تم تسجيل الدخول بنجاح');
+            // Use window.location.href for a hard redirect to ensure cookies are picked up and session is fresh
+            window.location.href = '/';
         } catch (err) {
-            setError('حدث خطأ بالاتصال');
-            toast.error('خطأ في الاتصال بالخادم');
+            console.error('[Login] Failed:', err);
+            const errorMessage = err.message || 'فشل تسجيل الدخول';
+            setError(errorMessage);
+            toast.error(errorMessage);
         } finally {
             setLoading(false);
         }
