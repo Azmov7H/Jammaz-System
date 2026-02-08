@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Save, Printer, AlertTriangle, Loader2, Receipt, Banknote, Wallet, CreditCard, Calendar as CalendarIcon, Store, Warehouse } from 'lucide-react';
+import { Save, Printer, AlertTriangle, Loader2, Receipt, Banknote, Wallet, CreditCard, Calendar as CalendarIcon, Store, Warehouse, Landmark } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { cn } from '@/utils';
@@ -285,7 +285,7 @@ export default function NewInvoicePage() {
 
                         <div className="space-y-4">
                             <Label className="font-black text-xs uppercase tracking-widest text-muted-foreground/60 mr-1">طريقة السداد</Label>
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                                 <Button
                                     variant={paymentType === 'cash' ? 'default' : 'outline'}
                                     onClick={() => setPaymentType('cash')}
@@ -311,8 +311,36 @@ export default function NewInvoicePage() {
                                             : "bg-white/5 border-white/5 hover:bg-white/10"
                                     )}
                                 >
-                                    <Wallet className="ml-2 h-5 w-5" />
+                                    <Landmark className="ml-2 h-5 w-5" />
                                     بنكي
+                                </Button>
+                                <Button
+                                    variant={paymentType === 'wallet' ? 'default' : 'outline'}
+                                    onClick={() => setPaymentType('wallet')}
+                                    disabled={createInvoiceMutation.isPending}
+                                    className={cn(
+                                        "h-14 rounded-2xl font-black transition-all border-2",
+                                        paymentType === 'wallet'
+                                            ? "bg-purple-600 hover:bg-purple-700 shadow-lg shadow-purple-500/20 border-purple-500/50"
+                                            : "bg-white/5 border-white/5 hover:bg-white/10"
+                                    )}
+                                >
+                                    <Wallet className="ml-2 h-5 w-5" />
+                                    محفظة
+                                </Button>
+                                <Button
+                                    variant={paymentType === 'check' ? 'default' : 'outline'}
+                                    onClick={() => setPaymentType('check')}
+                                    disabled={createInvoiceMutation.isPending}
+                                    className={cn(
+                                        "h-14 rounded-2xl font-black transition-all border-2",
+                                        paymentType === 'check'
+                                            ? "bg-slate-600 hover:bg-slate-700 shadow-lg shadow-slate-500/20 border-slate-500/50"
+                                            : "bg-white/5 border-white/5 hover:bg-white/10"
+                                    )}
+                                >
+                                    <Receipt className="ml-2 h-5 w-5" />
+                                    شيك
                                 </Button>
                                 <Button
                                     variant={paymentType === 'credit' ? 'default' : 'outline'}

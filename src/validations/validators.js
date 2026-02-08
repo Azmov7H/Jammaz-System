@@ -105,7 +105,7 @@ export const invoiceSchema = z.object({
     customerName: z.string().optional(),
     customerPhone: z.string().optional(),
     tax: z.coerce.number().default(0),
-    paymentType: z.enum(['cash', 'credit', 'bank']).default('cash'),
+    paymentType: z.enum(['cash', 'credit', 'bank', 'wallet', 'check']).default('cash'),
     dueDate: z.string().optional().nullable() // Date string
 }).refine(data => data.customerId || (data.customerName && data.customerPhone) || (data.paymentType === 'cash'), {
     message: "يجب تحديد عميل للمبيعات الآجلة أو إدخال اسم ورقم هاتف للعملاء الجدد"
@@ -120,13 +120,13 @@ export const purchaseOrderSchema = z.object({
     })).min(1, 'قائمة الأصناف فارغة'),
     notes: z.string().optional(),
     expectedDate: z.string().optional().nullable(),
-    paymentType: z.enum(['cash', 'bank', 'bank_transfer', 'credit', 'wallet', 'cash_wallet']).default('cash')
+    paymentType: z.enum(['cash', 'bank', 'credit', 'wallet', 'check']).default('cash')
 });
 
 export const poReceiveSchema = z.object({
     id: z.string(),
     status: z.literal('RECEIVED'),
-    paymentType: z.enum(['cash', 'bank', 'bank_transfer', 'credit', 'wallet', 'cash_wallet']).default('cash')
+    paymentType: z.enum(['cash', 'bank', 'credit', 'wallet', 'check']).default('cash')
 });
 
 export const expenseSchema = z.object({

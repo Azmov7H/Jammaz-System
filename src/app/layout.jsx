@@ -1,22 +1,17 @@
 import './globals.css';
 import QueryProvider from '@/providers/QueryProvider';
-import { Cairo, Tajawal } from 'next/font/google';
+import { Cairo } from 'next/font/google';
 import { LazyNotificationCenter } from '@/components/notifications/LazyNotificationCenter';
 
 const cairo = Cairo({
   subsets: ['arabic'],
   variable: '--font-cairo',
   display: 'swap',
-  preload: false,
+  preload: true,
+  fallback: ['system-ui', 'Arial', 'sans-serif'],
 });
 
-const tajawal = Tajawal({
-  subsets: ['arabic'],
-  weight: ['300', '400', '500', '700', '800', '900'],
-  variable: '--font-tajawal',
-  display: 'swap',
-  preload: false,
-});
+
 
 export const metadata = {
   title: 'مخازن الجماز',
@@ -30,7 +25,7 @@ import { NotificationProvider } from "@/context/NotificationContext";
 export default function RootLayout({ children }) {
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
-      <body className={`${cairo.variable} ${tajawal.variable} font-sans antialiased bg-background text-foreground transition-colors duration-300`}>
+      <body className={`${cairo.className} font-sans antialiased bg-background text-foreground transition-colors duration-300`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

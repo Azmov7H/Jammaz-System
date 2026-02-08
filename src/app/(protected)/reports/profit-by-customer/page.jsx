@@ -15,25 +15,18 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, TrendingUp, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { ReportService } from '@/services/reportService';
+
 export default function CustomerProfitReportPage() {
     const [dateRange, setDateRange] = useState({
         start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
         end: new Date().toISOString().split('T')[0]
     });
 
-    const { data, isLoading } = useQuery({
+    const { data: report = [], isLoading } = useQuery({
         queryKey: ['customer-profit', dateRange],
-        queryFn: async () => {
-            const params = new URLSearchParams({
-                startDate: dateRange.start,
-                endDate: dateRange.end
-            });
-            const res = await fetch(`/api/reports/customer-profit?${params.toString()}`);
-            return res.json();
-        }
+        queryFn: () => ReportService.getCustomerProfit(dateRange.start, dateRange.end)
     });
-
-    const report = data?.data?.report || [];
 
     const totalRevenue = report.reduce((acc, curr) => acc + curr.totalRevenue, 0);
     const totalProfit = report.reduce((acc, curr) => acc + curr.totalProfit, 0);

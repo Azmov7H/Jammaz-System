@@ -7,8 +7,7 @@ export function usePurchaseOrders(params = {}) {
         queryKey: ['purchase-orders', params],
         queryFn: async () => {
             const searchParams = new URLSearchParams(params);
-            const res = await api.get(`/api/purchase-orders?${searchParams.toString()}`);
-            return res.data;
+            return await api.get(`/api/purchase-orders?${searchParams.toString()}`);
         }
     });
 }
@@ -17,8 +16,7 @@ export function usePurchaseOrder(id) {
     return useQuery({
         queryKey: ['purchase-orders', id],
         queryFn: async () => {
-            const res = await api.get(`/api/purchase-orders/${id}`);
-            return res.data;
+            return await api.get(`/api/purchase-orders/${id}`);
         },
         enabled: !!id
     });

@@ -1,22 +1,37 @@
-import { ReportingService } from '@/services/reportingService';
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'next/navigation';
+import { ReportService } from '@/services/reportService';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, CheckCircle, Clock, FileWarning, RefreshCcw, Package, User, Calendar, ExternalLink } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, FileWarning, RefreshCcw, Package, User, Calendar, ExternalLink, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/utils';
 import { PageHeader } from '@/components/ui/PageHeader';
 
-export default async function ShortageReportsPage({ searchParams }) {
-    const filter = (await searchParams).status || 'ALL';
-    const statusParam = filter === 'ALL' ? null : filter;
+export default function ShortageReportsPage() {
+    const searchParams = useSearchParams();
+    const filter = searchParams.get('status') || 'ALL';
 
-    const reports = await ReportingService.getShortageReports(statusParam);
+    const { data: reports = [], isLoading, refetch } = useQuery({
+        queryKey: ['shortage-reports', filter],
+        queryFn: () => ReportService.getShortageReports(filter)
+    });
 
     const filterOptions = [
         { label: 'الكل', value: 'ALL', color: 'primary' },
         { label: 'قيد الانتظار', value: 'PENDING', color: 'warning' },
         { label: 'مكتمل', value: 'RESOLVED', color: 'success' },
     ];
+
+    if (isLoading) {
+        return (
+            <div className="min-h-[400px] flex items-center justify-center">
+                <Loader2 className="w-12 h-12 animate-spin text-primary opacity-20" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#0f172a]/20 space-y-8 p-4 md:p-8 rounded-[2rem]" dir="rtl">
@@ -51,15 +66,14 @@ export default async function ShortageReportsPage({ searchParams }) {
                                 </Link>
                             ))}
                         </div>
-                        <Link href="/reports/shortage">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="w-12 h-12 rounded-2xl glass-card border-white/10 hover:border-primary/50 transition-all shadow-lg"
-                            >
-                                <RefreshCcw className="w-5 h-5 text-muted-foreground" />
-                            </Button>
-                        </Link>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => refetch()}
+                            className="w-12 h-12 rounded-2xl glass-card border-white/10 hover:border-primary/50 transition-all shadow-lg"
+                        >
+                            <RefreshCcw className="w-5 h-5 text-muted-foreground" />
+                        </Button>
                     </>
                 }
             />

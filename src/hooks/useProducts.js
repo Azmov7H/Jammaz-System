@@ -9,8 +9,7 @@ export function useProducts(params = {}, options = {}) {
             // Filter out internal options from query params
             const queryData = { ...params };
             const searchParams = new URLSearchParams(queryData);
-            const res = await api.get(`/api/products?${searchParams.toString()}`);
-            return res.data;
+            return await api.get(`/api/products?${searchParams.toString()}`);
         },
         placeholderData: (previousData) => previousData,
         ...options
@@ -57,8 +56,7 @@ export function useProductMetadata() {
     return useQuery({
         queryKey: ['products-metadata'],
         queryFn: async () => {
-            const res = await api.get('/api/products/metadata');
-            return res.data;
+            return await api.get('/api/products/metadata');
         },
         staleTime: 1000 * 60 * 30, // 30 minutes
     });

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { useSidebar } from '@/providers/SidebarProvider';
 import { useUserRole } from '@/hooks/useUserRole';
+import { api } from '@/lib/api-utils';
 
 export function useHeader() {
     const { theme, setTheme } = useTheme();
@@ -18,8 +19,14 @@ export function useHeader() {
     }, []);
 
     const handleLogout = async () => {
-        await fetch('/api/auth/logout', { method: 'POST' });
-        window.location.href = '/login';
+        try {
+            await api.post('/api/auth/logout');
+            window.location.href = '/login';
+        } catch (err) {
+            console.error('Logout failed:', err);
+            // Fallback redirect
+            window.location.href = '/login';
+        }
     };
 
     return {

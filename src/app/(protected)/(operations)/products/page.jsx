@@ -12,6 +12,7 @@ import {
     TableHeader,
     TableRow
 } from '@/components/ui/table';
+import { cn } from '@/utils';
 import {
     Plus,
     Search,
@@ -31,7 +32,8 @@ import {
     PaginationPrevious
 } from '@/components/ui/pagination';
 import { useProductPage } from '@/hooks/useProductPage';
-import { cn } from '@/utils';
+import { LoadingState } from '@/components/common/LoadingState';
+import { ErrorState } from '@/components/common/ErrorState';
 
 // Standard Components
 import { ProductRow } from '@/components/products/ProductRow';
@@ -204,12 +206,13 @@ export default function ProductsPage() {
                             {isLoading ? (
                                 <TableRow>
                                     <TableCell colSpan={6} className="h-96 text-center border-none">
-                                        <div className="flex flex-col items-center gap-6">
-                                            <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 shadow-inner">
-                                                <Loader2 size={64} className="text-primary animate-spin" />
-                                            </div>
-                                            <p className="text-2xl font-black text-white/30 italic">برجاء الانتظار، جاري المزامنة...</p>
-                                        </div>
+                                        <LoadingState message="برجاء الانتظار، جاري المزامنة..." size="lg" />
+                                    </TableCell>
+                                </TableRow>
+                            ) : deleteMutation.isError || addMutation.isError || updateMutation.isError ? (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="h-96 text-center border-none">
+                                        <ErrorState onRetry={refetch} />
                                     </TableCell>
                                 </TableRow>
                             ) : filteredProducts.length === 0 ? (

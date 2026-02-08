@@ -1,6 +1,7 @@
 'use client';
 
-import { Calendar, User, Trash2, Receipt, Banknote, CreditCard, ArrowLeft, ArrowRightLeft } from 'lucide-react';
+import { memo, useCallback } from 'react';
+import { Calendar, User, Trash2, Receipt, Banknote, CreditCard, ArrowLeft, ArrowRightLeft, Landmark, Wallet, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/utils';
@@ -9,15 +10,59 @@ import { ar } from 'date-fns/locale';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-export function InvoiceListItem({ invoice, onDelete }) {
+export const InvoiceListItem = memo(function InvoiceListItem({ invoice, onDelete }) {
     const router = useRouter();
     const paymentType = invoice.paymentType || 'cash';
     const isCash = paymentType === 'cash';
 
-    const handleCardClick = (e) => {
+    const handleCardClick = useCallback((e) => {
         if (e.target.closest('a') || e.target.closest('button')) return;
         router.push(`/invoices/${invoice._id}`);
+    }, [router, invoice._id]);
+
+    const getPaymentDisplay = () => {
+        switch (paymentType) {
+            case 'bank':
+                return {
+                    label: 'دفع بنكي',
+                    icon: Landmark,
+                    color: "bg-blue-500/5 text-blue-500 border-blue-500/20 shadow-blue-500/5",
+                    accent: "bg-blue-500"
+                };
+            case 'wallet':
+                return {
+                    label: 'محفظة',
+                    icon: Wallet,
+                    color: "bg-purple-500/5 text-purple-500 border-purple-500/20 shadow-purple-500/5",
+                    accent: "bg-purple-500"
+                };
+            case 'check':
+                return {
+                    label: 'شيك',
+                    icon: Ticket,
+                    color: "bg-indigo-500/5 text-indigo-500 border-indigo-500/20 shadow-indigo-500/5",
+                    accent: "bg-indigo-500"
+                };
+            case 'credit':
+                return {
+                    label: 'دفع آجل',
+                    icon: CreditCard,
+                    color: "bg-amber-500/5 text-amber-500 border-amber-500/20 shadow-amber-500/5",
+                    accent: "bg-amber-500"
+                };
+            case 'cash':
+            default:
+                return {
+                    label: 'دفع نقدي',
+                    icon: Banknote,
+                    color: "bg-emerald-500/5 text-emerald-500 border-emerald-500/20 shadow-emerald-500/5",
+                    accent: "bg-emerald-500"
+                };
+        }
     };
+
+    const display = getPaymentDisplay();
+    const PaymentIcon = display.icon;
 
     return (
         <div
@@ -27,16 +72,14 @@ export function InvoiceListItem({ invoice, onDelete }) {
             {/* Ambient Accent Glow */}
             <div className={cn(
                 "absolute -right-20 -top-20 w-40 h-40 rounded-full blur-[80px] opacity-10 transition-opacity group-hover:opacity-20",
-                isCash ? "bg-emerald-500" : "bg-amber-500"
+                display.accent
             )} />
 
             {/* ID & Date Section */}
             <div className="flex items-center gap-6 min-w-[220px]">
                 <div className={cn(
                     "h-16 w-16 rounded-2xl flex items-center justify-center font-black text-xl border transition-all duration-500 shadow-inner group-hover:rotate-6",
-                    isCash
-                        ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-emerald-500/5 group-hover:bg-emerald-500/20"
-                        : "bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-amber-500/5 group-hover:bg-amber-500/20"
+                    display.color.replace('bg-', 'bg-').replace('text-', 'text-').replace('border-', 'border-')
                 )}>
                     <span className="opacity-40 text-xs ml-0.5">#</span>{invoice.number}
                 </div>
@@ -50,15 +93,9 @@ export function InvoiceListItem({ invoice, onDelete }) {
                     <div className="flex items-center gap-3">
                         <Badge variant="outline" className={cn(
                             "px-4 py-1 rounded-full font-black text-[10px] uppercase tracking-widest border transition-all",
-                            isCash
-                                ? "bg-emerald-500/5 text-emerald-500 border-emerald-500/20 shadow-lg shadow-emerald-500/5"
-                                : "bg-amber-500/5 text-amber-500 border-amber-500/20 shadow-lg shadow-amber-500/5"
+                            display.color
                         )}>
-                            {isCash ? (
-                                <span className="flex items-center gap-2"><Banknote size={12} /> دفع نقدي</span>
-                            ) : (
-                                <span className="flex items-center gap-2"><CreditCard size={12} /> دفع آجل</span>
-                            )}
+                            <span className="flex items-center gap-2"><PaymentIcon size={12} /> {display.label}</span>
                         </Badge>
                         {invoice.hasReturns && (
                             <Badge variant="outline" className="px-4 py-1 rounded-full font-black text-[10px] uppercase tracking-widest bg-rose-500/5 text-rose-500 border-rose-500/20 shadow-lg shadow-rose-500/5">
@@ -128,4 +165,7 @@ export function InvoiceListItem({ invoice, onDelete }) {
             </div>
         </div>
     );
-}
+});
+
+InvoiceListItem.displayName = 'InvoiceListItem';
+

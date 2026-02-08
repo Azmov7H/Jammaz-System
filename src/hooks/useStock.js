@@ -7,8 +7,7 @@ export function useStockMovements(params = {}) {
         queryKey: ['stock-movements', params],
         queryFn: async () => {
             const searchParams = new URLSearchParams(params);
-            const res = await api.get(`/api/stock/movements?${searchParams.toString()}`);
-            return res.data;
+            return await api.get(`/api/stock/movements?${searchParams.toString()}`);
         }
     });
 }
@@ -18,8 +17,7 @@ export function useStockStatus(params = {}) {
         queryKey: ['stock-status', params],
         queryFn: async () => {
             const searchParams = new URLSearchParams(params);
-            const res = await api.get(`/api/stock?${searchParams.toString()}`);
-            return res.data;
+            return await api.get(`/api/stock?${searchParams.toString()}`);
         }
     });
 }

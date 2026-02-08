@@ -1,9 +1,10 @@
 
 
+import { memo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/utils';
 
-export function KPICard({ title, value, unit, icon: Icon, subtitle, variant = 'default' }) {
+export const KPICard = memo(function KPICard({ title, value, unit, icon: Icon, subtitle, variant = 'default' }) {
     const variants = {
         primary: 'border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent hover:from-primary/15 shadow-sm hover:shadow-primary/20',
         success: 'border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent hover:from-emerald-500/15 shadow-sm hover:shadow-emerald-500/20',
@@ -53,4 +54,7 @@ export function KPICard({ title, value, unit, icon: Icon, subtitle, variant = 'd
             </CardContent>
         </Card>
     );
-}
+});
+
+KPICard.displayName = 'KPICard';
+

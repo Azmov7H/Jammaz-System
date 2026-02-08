@@ -4,7 +4,8 @@ import { useInvoicesPageManager } from '@/hooks/useInvoices';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/utils';
 import { LABELS } from '@/constants';
-import { LoadingState } from '@/components/common/LoadingState';
+import { LoadingState, PageLoadingState } from '@/components/common/LoadingState';
+import { ErrorState } from '@/components/common/ErrorState';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { InvoiceListItem } from '@/components/invoices/InvoiceListItem';
 import {
@@ -17,7 +18,7 @@ import {
     PaginationEllipsis
 } from '@/components/ui/pagination';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -58,6 +59,8 @@ export default function InvoicesPage() {
         handleDelete,
         filteredInvoices,
         isLoading,
+        isError,
+        refetch,
         stats,
         page,
         setPage,
@@ -189,11 +192,14 @@ export default function InvoicesPage() {
                 </div>
             </div>
 
-            {/* Invoices List */}
+            {/* Invoices List Content */}
             {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-32 gap-6 bg-card/10 rounded-[2.5rem] border border-white/5 shadow-inner">
-                    <Loader2 size={64} className="text-primary animate-spin" />
-                    <p className="text-2xl font-black text-white/30 italic">{loadingLabel}</p>
+                <div className="py-20 bg-card/10 rounded-[2.5rem] border border-white/5 shadow-inner">
+                    <LoadingState message={loadingLabel} size="lg" />
+                </div>
+            ) : isError ? (
+                <div className="py-20 bg-card/10 rounded-[2.5rem] border border-white/5 shadow-inner">
+                    <ErrorState onRetry={refetch} />
                 </div>
             ) : filteredInvoices.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-32 gap-6 bg-card/10 rounded-[2.5rem] border border-dashed border-white/10 shadow-inner group">

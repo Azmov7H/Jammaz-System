@@ -1,24 +1,59 @@
+'use client';
+
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useSearchParams, useRouter } from 'next/navigation';
+import {
+    DollarSign, ShoppingBag, TrendingUp, FileText, CreditCard,
+    Banknote, Calendar, RefreshCcw, ArrowUpRight, Wallet,
+    History, PieChart, Activity, Loader2
+} from 'lucide-react';
 import { DailySalesService } from '@/services/dailySalesService';
-import { DollarSign, ShoppingBag, TrendingUp, FileText, CreditCard, Banknote, Calendar, RefreshCcw, ArrowUpRight, Wallet, History, PieChart, Activity } from 'lucide-react';
 import { SalesChart } from '@/components/reports/SalesChart';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { cn } from '@/utils';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
+import { format } from 'date-fns';
+import { ar } from 'date-fns/locale';
 
-export default async function SalesReportPage({ searchParams }) {
-    const params = await searchParams;
-    const startDate = params.startDate ? new Date(params.startDate) : new Date(new Date().setDate(new Date().getDate() - 30));
-    const endDate = params.endDate ? new Date(params.endDate) : new Date();
+export default function SalesReportPage() {
+    const searchParams = useSearchParams();
+    const router = useRouter();
 
-    const stats = await DailySalesService.getSalesSummary(startDate, endDate);
+    const startDateParam = searchParams.get('startDate') || format(new Date(new Date().setDate(new Date().getDate() - 30)), 'yyyy-MM-dd');
+    const endDateParam = searchParams.get('endDate') || format(new Date(), 'yyyy-MM-dd');
+
+    const [startDate, setStartDate] = useState(startDateParam);
+    const [endDate, setEndDate] = useState(endDateParam);
+
+    const { data: stats = {}, isLoading, refetch } = useQuery({
+        queryKey: ['sales-report', startDateParam, endDateParam],
+        queryFn: () => DailySalesService.getSalesSummary(startDateParam, endDateParam)
+    });
+
+    const handleFilter = () => {
+        const params = new URLSearchParams();
+        params.set('startDate', startDate);
+        params.set('endDate', endDate);
+        router.push(`/reports/sales?${params.toString()}`);
+    };
 
     const formatCurrency = (val) => Number(val || 0).toLocaleString();
 
     // Calculate aggregated cash/credit from breakdown
     const totalCash = stats?.dailyBreakdown?.reduce((sum, day) => sum + (day.cashReceived || 0), 0) || 0;
     const totalCredit = stats?.dailyBreakdown?.reduce((sum, day) => sum + (day.creditSales || 0), 0) || 0;
+
+    if (isLoading) {
+        return (
+            <div className="min-h-[400px] flex items-center justify-center">
+                <Loader2 className="w-12 h-12 animate-spin text-primary opacity-20" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#0f172a]/20 space-y-8 p-4 md:p-8 rounded-[2rem]" dir="rtl">
@@ -34,28 +69,32 @@ export default async function SalesReportPage({ searchParams }) {
                 subtitle="تحليل الأداء المالي والأرباح للفترة المحددة"
                 icon={FileText}
                 actions={
-                    <>
-                        <div className="hidden xl:flex items-center gap-6 glass-card px-8 py-4 rounded-3xl border border-white/10 shadow-xl ml-4">
-                            <div className="flex flex-col items-end">
-                                <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-1">الفترة الحالية</span>
-                                <div className="flex items-center gap-3 text-sm font-black">
-                                    <Calendar size={14} className="text-primary" />
-                                    <span>{startDate.toLocaleDateString('ar-EG')}</span>
-                                    <span className="opacity-20 mx-1">→</span>
-                                    <span>{endDate.toLocaleDateString('ar-EG')}</span>
-                                </div>
-                            </div>
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 glass-card p-2 rounded-2xl border border-white/10">
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="bg-transparent border-none text-xs font-bold focus:ring-0"
+                            />
+                            <span className="text-white/20">→</span>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="bg-transparent border-none text-xs font-bold focus:ring-0"
+                            />
+                            <Button onClick={handleFilter} size="sm" className="rounded-xl h-8 px-4">تحديث</Button>
                         </div>
-                        <Link href="/reports/sales">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="w-14 h-14 rounded-2xl glass-card border-white/10 hover:border-primary/50 transition-all shadow-lg"
-                            >
-                                <RefreshCcw className="w-6 h-6 text-muted-foreground" />
-                            </Button>
-                        </Link>
-                    </>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => refetch()}
+                            className="w-14 h-14 rounded-2xl glass-card border-white/10 hover:border-primary/50 transition-all shadow-lg"
+                        >
+                            <RefreshCcw className="w-6 h-6 text-muted-foreground" />
+                        </Button>
+                    </div>
                 }
             />
 

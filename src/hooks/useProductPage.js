@@ -1,13 +1,18 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useProducts, useProductMetadata, useAddProduct, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts';
 import { useUserRole } from '@/hooks/useUserRole';
-import { useDebounce } from './useDebounce';
+import { useFilters } from './useFilters';
 
 export function useProductPage() {
-    const [search, setSearch] = useState('');
-    const [filter, setFilter] = useState('all');
-    const [page, setPage] = useState(1);
-    const [limit, setLimit] = useState(50);
+    const {
+        search, setSearch,
+        filter, setFilter,
+        page, setPage,
+        limit, setLimit,
+        queryContext,
+        handleSearch
+    } = useFilters(50);
+
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -21,15 +26,8 @@ export function useProductPage() {
 
     const [editFormData, setEditFormData] = useState({});
 
-    const debouncedSearch = useDebounce(search, 500);
-
-    // Reset page to 1 on search change
-    useEffect(() => {
-        setPage(1);
-    }, [debouncedSearch]);
-
     // Fetch Data
-    const { data: productsData, isLoading } = useProducts({ search: debouncedSearch, page, limit });
+    const { data: productsData, isLoading, refetch } = useProducts(queryContext);
     const products = productsData?.products || [];
     const pagination = productsData?.pagination || { page: 1, limit: 10, total: 0, pages: 1 };
     const { data: metadata = { brands: [], categories: [] } } = useProductMetadata();
@@ -131,10 +129,9 @@ export function useProductPage() {
         filteredProducts,
         stats,
         isLoading,
+        refetch,
         metadata,
         canManage,
-
-        // Mutations
         addMutation,
         updateMutation,
         deleteMutation,
@@ -143,6 +140,7 @@ export function useProductPage() {
         handleEditClick,
         handleViewClick,
         handleAddSubmit,
-        handleEditSubmit
+        handleEditSubmit,
+        handleSearch
     };
 }

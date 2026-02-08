@@ -1,17 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-utils';
 import { toast } from 'sonner';
+import { useFilters } from './useFilters';
 
-export function useCustomers(params = {}) {
+export function useCustomers() {
     const queryClient = useQueryClient();
+    const {
+        search, setSearch,
+        page, setPage,
+        limit, setLimit,
+        queryContext,
+        handleSearch
+    } = useFilters(50);
 
     const query = useQuery({
-        queryKey: ['customers', params],
-        queryFn: async () => {
-            const searchParams = new URLSearchParams(params);
-            const res = await api.get(`/api/customers?${searchParams.toString()}`);
-            return res.data;
-        }
+        queryKey: ['customers', queryContext],
+        queryFn: () => api.get('/api/customers', queryContext)
     });
 
     const addMutation = useMutation({
@@ -51,7 +55,12 @@ export function useCustomers(params = {}) {
         ...query,
         addMutation,
         updateMutation,
-        deleteMutation
+        deleteMutation,
+        // Filter state
+        search, setSearch,
+        page, setPage,
+        limit, setLimit,
+        handleSearch
     };
 }
 

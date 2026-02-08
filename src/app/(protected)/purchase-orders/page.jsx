@@ -224,6 +224,7 @@ export default function PurchaseOrdersPage() {
                                 <option value="cash">نقداً (كاش)</option>
                                 <option value="wallet">محفظة كاش</option>
                                 <option value="bank">تحويل بنكي</option>
+                                <option value="check">شيك مصرفي</option>
                                 <option value="credit">آجل (دين)</option>
                             </select>
                         </div>
