@@ -3,9 +3,9 @@ import { jwtVerify } from 'jose';
 
 const JWT_SECRET_STR = process.env.JWT_SECRET;
 if (!JWT_SECRET_STR) {
-    console.error('CRITICAL: JWT_SECRET environment variable is missing!');
+    console.error('CRITICAL ERROR: JWT_SECRET environment variable is missing! Authentication will fail.');
 }
-const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STR || 'placeholder_for_missing_secret');
+const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STR);
 
 export async function middleware(request) {
     const { pathname } = request.nextUrl;

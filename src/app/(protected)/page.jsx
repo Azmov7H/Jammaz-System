@@ -3,31 +3,29 @@
 import { useDashboard } from '@/hooks/useDashboard';
 import {
     TrendingUp, DollarSign, Package,
-    AlertTriangle, ShoppingCart, Users,
-    Clock, ArrowUpRight, Wallet, Activity,
-    Box, FileText, ArrowDownRight, RefreshCcw,
-    LayoutGrid, Zap, PieChart
+    AlertTriangle, ShoppingCart, Users
+    , ArrowUpRight, Wallet, Activity,
+    Box, FileText, RefreshCcw,
+
 } from 'lucide-react';
 import Link from 'next/link';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { RevenueChart } from '@/components/dashboard/RevenueChart';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/utils';
 import { format } from 'date-fns';
-import { ar } from 'date-fns/locale';
 
 export default function DashboardPage() {
     const {
         kpis,
-        monthSummary,
+
         recentActivity,
         lowStockProducts,
-        stats,
+
         chartData,
-        topSelling,
+
         strategy,
         isLoading,
         refetch
