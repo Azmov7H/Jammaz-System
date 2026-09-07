@@ -98,10 +98,10 @@ export function SupplierStatementTab({ supplierId }) {
                             className="min-w-[280px]"
                         />
                         <DocumentActions
-                            documentType={DOCUMENT_TYPES.CUSTOMER_ACCOUNT_STATEMENT}
+                            documentType={DOCUMENT_TYPES.SUPPLIER_ACCOUNT_STATEMENT}
                             documentId={supplierId}
                             filters={filters}
-                            formats={[OUTPUT_FORMATS.PRINT, OUTPUT_FORMATS.PDF, OUTPUT_FORMATS.XLSX]}
+                            formats={[OUTPUT_FORMATS.PRINT, OUTPUT_FORMATS.PDF]}
                         />
                     </div>
                 </div>

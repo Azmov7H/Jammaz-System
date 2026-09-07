@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
 import { format } from 'date-fns';
+import { todayLocal } from '@/lib/dates';
 import { ar } from 'date-fns/locale';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
@@ -28,7 +29,7 @@ import {
 } from 'lucide-react';
 
 export default function DailySalesPage() {
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(() => todayLocal());
 
     const { data: summary = {}, isLoading } = useQuery({
         queryKey: ['daily-sales', date],

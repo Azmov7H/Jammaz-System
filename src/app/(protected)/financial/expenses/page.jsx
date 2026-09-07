@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { todayLocal } from '@/lib/dates';
 import { Loader2, Receipt, ArrowDownRight, Wallet, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -18,7 +19,7 @@ export default function ExpensesPage() {
     const [amount, setAmount] = useState('');
     const [reason, setReason] = useState('');
     const [category, setCategory] = useState('other');
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(() => todayLocal());
 
     const mutation = useMutation({
         mutationFn: async (payload) => {

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/utils';
 import { getReceipt } from '@/services/financeService';
 import { DocumentActions } from '@/components/documents/DocumentActions';
+import { DocumentPrintStyles } from '@/components/documents/DocumentPrintStyles';
 import { DOCUMENT_TYPES } from '@/services/documentService';
 import { getPaymentMethod, maskSource } from '@/lib/paymentMethods';
 
@@ -162,6 +163,9 @@ export default function ReceiptPage() {
                 sourceNumberDisplay={sourceNumberDisplay}
                 receiptType={receiptType}
             />
+            {/* Shared print isolation: hides header/aside/nav so quick-print
+                outputs the receipt document, not the application shell. */}
+            <DocumentPrintStyles />
         </div>
     );
 }

@@ -25,6 +25,7 @@ import { PeriodPerformanceCard } from '@/components/financial/PeriodPerformanceC
 import { DebtSnapshotCard } from '@/components/financial/DebtSnapshotCard';
 import { labelCashFlowBuckets } from '@/components/financial/cashFlowUtils';
 import { matchesTypeFilter, exportFiltersFor } from '@/lib/treasuryFilters';
+import { todayLocal, toLocalYmd } from '@/lib/dates';
 import { ExportButton } from '@/components/common/ExportButton';
 import { TreasuryPrintView } from '@/components/financial/TreasuryPrintView';
 import { DocumentPrintStyles } from '@/components/documents/DocumentPrintStyles';
@@ -62,9 +63,13 @@ function SectionHeading({ title, scope }) {
 export default function FinancialPage() {
     const [period, setPeriod] = useState('MONTH');
     const [typeFilter, setTypeFilter] = useState('ALL');
-    const [customDates, setCustomDates] = useState({
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date().toISOString().split('T')[0]
+    // Business-day anchor: local (Egypt) calendar day, re-checked on an
+    // interval below so the page follows midnight without a manual refresh.
+    // customDates always derives from it — never a mount-frozen UTC string.
+    const [businessDay, setBusinessDay] = useState(() => todayLocal());
+    const [customDates, setCustomDates] = useState(() => {
+        const t = todayLocal();
+        return { startDate: t, endDate: t };
     });
 
     const queryClient = useQueryClient();
@@ -89,11 +94,14 @@ export default function FinancialPage() {
             };
         }
 
+        // Local business-day strings (never UTC): Egypt spends the first
+        // hours of each day on the previous UTC date. `businessDay` is an
+        // explicit dep so the range recomputes on midnight rollover.
         return {
-            startDate: start.toISOString().split('T')[0],
-            endDate: end.toISOString().split('T')[0]
+            startDate: toLocalYmd(start),
+            endDate: toLocalYmd(end)
         };
-    }, [period, customDates]);
+    }, [period, customDates, businessDay]);
 
     const { data: treasuryData, isLoading, dataUpdatedAt: treasuryUpdatedAt } = useTreasury(getDateRange());
     const { mutate: addTransaction, isPending } = useAddTransaction();
@@ -113,6 +121,24 @@ export default function FinancialPage() {
     // through a client-side slice again.
     const [txPage, setTxPage] = useState(1);
     const resetTxPage = useCallback(() => setTxPage(1), []);
+
+    // Calendar-day rollover: once a minute is plenty (no extra polling —
+    // the existing 30s data refetch already covers freshness). On flip,
+    // re-anchor customDates and invalidate the date-scoped treasury caches
+    // so queries (keyed by range) refetch for the new business day.
+    useEffect(() => {
+        const timer = setInterval(() => {
+            const t = todayLocal();
+            if (t === businessDay) return;
+            setBusinessDay(t);
+            setCustomDates({ startDate: t, endDate: t });
+            resetTxPage();
+            queryClient.invalidateQueries({ queryKey: ['treasury'] });
+            queryClient.invalidateQueries({ queryKey: ['treasury-transactions'] });
+            queryClient.invalidateQueries({ queryKey: ['treasury-cashflow'] });
+        }, 60 * 1000);
+        return () => clearInterval(timer);
+    }, [businessDay, queryClient, resetTxPage]);
     const handleTypeFilterChange = useCallback((f) => {
         setTypeFilter(f);
         setTxPage(1);
@@ -282,6 +308,7 @@ export default function FinancialPage() {
         : 'تحديث تلقائي كل 30 ثانية';
 
     return (
+        <>
         <div className="space-y-6 print:hidden" dir="rtl">
             <PageHeader
                 title="الخزينة"
@@ -371,10 +398,10 @@ export default function FinancialPage() {
                 ) : (
                     <div className="flex items-center gap-2 px-2">
                         <Label className="text-xs text-muted-foreground">تاريخ محدد:</Label>
-                        <Input
-                            type="date"
-                            className="h-8 w-36 text-xs"
-                            value={customDates.startDate}
+                            <Input
+                                type="date"
+                                className="h-8 w-36 text-xs"
+                                value={dateRange.startDate}
                             onChange={e => {
                                 setCustomDates({ startDate: e.target.value, endDate: e.target.value });
                                 setPeriod('CUSTOM');
@@ -496,15 +523,9 @@ export default function FinancialPage() {
             />
 
             {/* Print-only report (hidden on screen, rendered by the browser
-                print engine with native Arabic shaping/bidi). */}
-            <TreasuryPrintView
-                rows={printRows ?? []}
-                summary={printSummary}
-                periodLabel={periodLabel}
-                dateRange={dateRange}
-            />
-            <DocumentPrintStyles />
-
+                print engine with native Arabic shaping/bidi). It MUST stay a
+                sibling of the print:hidden screen tree — a print:block child
+                can never escape a display:none ancestor. */}
             <ConfirmDialog
                 open={deleteTargetId !== null}
                 onOpenChange={(open) => !open && setDeleteTargetId(null)}
@@ -514,5 +535,13 @@ export default function FinancialPage() {
                 onConfirm={handleConfirmDelete}
             />
         </div>
+        <TreasuryPrintView
+            rows={printRows ?? []}
+            summary={printSummary}
+            periodLabel={periodLabel}
+            dateRange={dateRange}
+        />
+        <DocumentPrintStyles />
+        </>
     );
 }

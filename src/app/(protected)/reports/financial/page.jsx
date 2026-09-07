@@ -9,6 +9,7 @@ import { Loader2, Printer, RefreshCcw, AlertCircle, CalendarDays } from 'lucide-
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { useFinancialReport } from '@/hooks/useReports';
+import { DocumentPrintStyles } from '@/components/documents/DocumentPrintStyles';
 
 const toInputDate = (d) => format(d, 'yyyy-MM-dd');
 const monthStart = () => {
@@ -178,6 +179,9 @@ export default function FinancialReportPage() {
 
                 </CardContent>
             </Card>
+            {/* Shared print isolation: hides header/aside/nav so the print
+                button outputs the income statement, not the app shell. */}
+            <DocumentPrintStyles />
         </div>
     );
 }

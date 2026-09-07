@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { PaymentMethodSelect } from '@/components/common/PaymentMethodSelect';
 import { SourceNumberField } from '@/components/financial/SourceNumberField';
 import { DocumentActions } from '@/components/documents/DocumentActions';
+import { DocumentPrintStyles } from '@/components/documents/DocumentPrintStyles';
 import { DOCUMENT_TYPES } from '@/services/documentService';
 
 export default function PurchaseOrderInvoice() {
@@ -260,6 +261,9 @@ export default function PurchaseOrderInvoice() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            {/* Shared print isolation: hides header/aside/nav so the print
+                button outputs the purchase invoice, not the app shell. */}
+            <DocumentPrintStyles />
         </div>
     );
 }

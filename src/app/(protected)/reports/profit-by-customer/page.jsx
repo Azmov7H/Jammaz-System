@@ -16,11 +16,15 @@ import { Button } from '@/components/ui/button';
 import { Loader2, TrendingUp, Download, RefreshCcw, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ReportService } from '@/services/reportService';
+import { toLocalYmd, todayLocal } from '@/lib/dates';
 
 export default function CustomerProfitReportPage() {
-    const [dateRange, setDateRange] = useState({
-        start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-        end: new Date().toISOString().split('T')[0]
+    const [dateRange, setDateRange] = useState(() => {
+        const now = new Date();
+        return {
+            start: toLocalYmd(new Date(now.getFullYear(), now.getMonth(), 1)),
+            end: todayLocal()
+        };
     });
 
     const { data: report = [], isLoading, isError, error, refetch, isFetching } = useQuery({
