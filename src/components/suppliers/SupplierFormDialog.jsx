@@ -82,7 +82,9 @@ export function SupplierFormDialog({ open, onOpenChange, mode = 'add', initialDa
         onSubmit({
             ...formData,
             isCustomer: !!formData.isCustomer,
-            linkedCustomer: formData.isCustomer ? (formData.linkedCustomer || null) : null
+            // T-DB-03b: omit the link when unlinked — an explicit null hits
+            // the sparse-unique index and 409s the SECOND such record.
+            linkedCustomer: formData.isCustomer ? (formData.linkedCustomer || undefined) : undefined
         });
     };
 

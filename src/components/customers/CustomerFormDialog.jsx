@@ -90,7 +90,9 @@ export function CustomerFormDialog({ open, onOpenChange, mode = 'add', initialDa
             await onSubmit({
                 ...values,
                 isSupplier: !!values.isSupplier,
-                linkedSupplier: values.isSupplier ? (values.linkedSupplier || null) : null
+                // T-DB-03b: omit the link when unlinked — an explicit null hits
+                // the sparse-unique index and 409s the SECOND such record.
+                linkedSupplier: values.isSupplier ? (values.linkedSupplier || undefined) : undefined
             });
         } catch (err) {
             const serverErrors = mapServerFieldErrors(err);
