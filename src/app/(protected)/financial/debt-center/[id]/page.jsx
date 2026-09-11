@@ -60,7 +60,12 @@ export default function DebtDetailPage({ params }) {
     if (isLoading) return <div className="p-12 text-center text-muted-foreground">جاري تحميل التفاصيل...</div>;
     if (!debt) return <div className="p-12 text-center text-destructive">الدين غير موجود</div>;
 
-    const progress = ((debt.originalAmount - debt.remainingAmount) / debt.originalAmount) * 100;
+    // FIN-OVERDEDUCT: clamp display-only (backend now rejects remaining >
+    // original, but legacy/diverged rows must never render NaN/negative).
+    const rawProgress = debt.originalAmount > 0
+        ? ((debt.originalAmount - debt.remainingAmount) / debt.originalAmount) * 100
+        : 0;
+    const progress = Math.min(100, Math.max(0, Number.isFinite(rawProgress) ? rawProgress : 0));
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto">

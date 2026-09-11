@@ -73,6 +73,14 @@ export function SupplierDebtManager({ supplier, open, onOpenChange }) {
     const handleRecordPayment = () => {
         if (!selectedDebt || !paymentAmount || Number(paymentAmount) <= 0) return;
 
+        // FIN-OVERDEDUCT: early UX feedback only — the backend rejects
+        // overpay; the amount is never silently modified.
+        const debtRemaining = Number(Number(selectedDebt.remainingAmount || 0).toFixed(2));
+        if (Number((Number(paymentAmount) - debtRemaining).toFixed(2)) > 0) {
+            toast.error(`المبلغ يتجاوز المتبقي على المديونية (${debtRemaining.toLocaleString()})`);
+            return;
+        }
+
         if ((paymentMethod === 'instapay' || paymentMethod === 'wallet') && !paymentSourceNumber.trim()) {
             toast.error('رقم حساب التحويل مطلوب');
             return;

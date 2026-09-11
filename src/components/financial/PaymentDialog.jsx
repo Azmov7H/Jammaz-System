@@ -128,11 +128,26 @@ export function UnifiedPaymentDialog({ open, onOpenChange, target, onSuccess }) 
 
     if (!kind) return null;
 
+    // FIN-OVERDEDUCT: UX ceiling per target (early feedback only — the
+    // backend rejects overpay; the amount is never silently modified).
+    const maxAmount = kind === 'invoice' && invoice
+        ? Number((invoice.total - invoice.paidAmount).toFixed(2))
+        : kind === 'debt' && debt
+            ? Number(Number(debt.remainingAmount || 0).toFixed(2))
+            : kind === 'customer-total'
+                ? Number(Number(target.totalBalance || 0).toFixed(2))
+                : null;
+
     const handleSubmit = (e) => {
         e.preventDefault();
 
         if (isSourceNumberRequired(method) && !sourceNumber.trim()) {
             toast.error('رقم حساب التحويل مطلوب');
+            return;
+        }
+
+        if (maxAmount !== null && Number((parseFloat(amount) - maxAmount).toFixed(2)) > 0) {
+            toast.error(`المبلغ يتجاوز المتاح (${maxAmount.toLocaleString()})`);
             return;
         }
 
@@ -270,6 +285,7 @@ export function UnifiedPaymentDialog({ open, onOpenChange, target, onSuccess }) 
                             type="number"
                             step="0.01"
                             min="0"
+                            max={maxAmount ?? undefined}
                             value={amount}
                             onChange={(e) => setAmount(e.target.value)}
                             placeholder="0.00"

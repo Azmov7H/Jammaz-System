@@ -13,9 +13,15 @@ import { Loader2, Receipt, ArrowDownRight, Wallet, Calendar } from 'lucide-react
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { cn } from '@/utils';
+import { useTreasury } from '@/hooks/useFinancial';
 
 export default function ExpensesPage() {
     const queryClient = useQueryClient();
+    // FIN-OVERDEDUCT: display-only hint so the user sees the available
+    // treasury balance before recording an expense (no sufficiency gate —
+    // that is an owner policy decision, see OVER_DEDUCTION_PLAN.md).
+    const { data: treasuryData } = useTreasury();
+    const treasuryBalance = treasuryData?.balance ?? null;
     const [amount, setAmount] = useState('');
     const [reason, setReason] = useState('');
     const [category, setCategory] = useState('other');
@@ -70,6 +76,11 @@ export default function ExpensesPage() {
                             <div>
                                 <h2 className="text-2xl font-bold tracking-tight uppercase">تسجيل مصروف جديد</h2>
                                 <p className="text-sm font-bold text-white/20">سيتم خصم المبلغ من رصيد الخزينة</p>
+                                {treasuryBalance !== null && (
+                                    <p className="text-sm font-bold text-white/40 mt-1">
+                                        رصيد الخزينة الحالي: {Number(treasuryBalance).toLocaleString()} ج.م
+                                    </p>
+                                )}
                             </div>
                         </div>
                     </div>

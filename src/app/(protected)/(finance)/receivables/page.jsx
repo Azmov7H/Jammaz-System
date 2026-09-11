@@ -78,6 +78,12 @@ export default function ReceivablesPage() {
     // Uses the shared api client so auth cookies + envelope unwrap apply.
     const paymentMutation = useMutation({
         mutationFn: async () => {
+            // FIN-OVERDEDUCT: early UX feedback only — the backend rejects
+            // overpay; the amount is never silently modified.
+            const remaining = Number(((selectedInvoice?.total || 0) - (selectedInvoice?.paidAmount || 0)).toFixed(2));
+            if (Number((parseFloat(paymentAmount) - remaining).toFixed(2)) > 0) {
+                throw new Error(`المبلغ يتجاوز المتبقي على الفاتورة (${remaining.toLocaleString()})`);
+            }
             return await api.post('/api/financial/payments/customer', {
                 invoice: selectedInvoice._id,
                 amount: parseFloat(paymentAmount),

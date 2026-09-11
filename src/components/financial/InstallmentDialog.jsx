@@ -48,7 +48,9 @@ export function InstallmentDialog({ open, onOpenChange, debt }) {
 
     if (!debt) return null;
 
-    const amountPerInstallment = (debt.remainingAmount / parseInt(formData.installmentsCount || '1')).toFixed(2);
+    // FIN-OVERDEDUCT: guard div-by-zero display (typing 0 bypasses min=2).
+    const installmentDivisor = Math.max(1, parseInt(formData.installmentsCount || '1', 10) || 1);
+    const amountPerInstallment = (debt.remainingAmount / installmentDivisor).toFixed(2);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
