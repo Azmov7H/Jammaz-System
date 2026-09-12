@@ -19,6 +19,7 @@ import { StatCard } from '@/components/ui/StatCard';
 import { TransactionsTable } from '@/components/financial/TransactionsTable';
 import { TransactionDetailsDialog } from '@/components/financial/TransactionDetailsDialog';
 import { AddTransactionDialog } from '@/components/financial/AddTransactionDialog';
+import { TahweeshDialog } from '@/components/financial/TahweeshDialog';
 import { CashFlowChart } from '@/components/financial/CashFlowChart';
 import { MethodBalancesCard } from '@/components/financial/MethodBalancesCard';
 import { PeriodPerformanceCard } from '@/components/financial/PeriodPerformanceCard';
@@ -353,6 +354,7 @@ export default function FinancialPage() {
                             isPending={isPending || isPayingSupplier}
                             suppliers={suppliers}
                         />
+                        <TahweeshDialog breakdown={treasuryData?.breakdown} />
                     </div>
                 }
             />
