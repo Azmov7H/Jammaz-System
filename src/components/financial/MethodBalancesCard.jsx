@@ -10,6 +10,10 @@ const METHODS = [
     { key: 'wallet', label: 'محفظة' },
     { key: 'instapay', label: 'انستا باي' },
     { key: 'check', label: 'شيك' },
+    // FIN-TAHWEESH-04 (T-13): set-aside account — isolated from operating
+    // totals by construction (backend exclusions), shown here for the full
+    // funds picture.
+    { key: 'tahweesh', label: 'تحويش (مرصود)' },
 ];
 
 export function MethodBalancesCard({ breakdown = {}, total = 0, className }) {

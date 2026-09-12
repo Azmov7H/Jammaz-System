@@ -3,7 +3,7 @@
 // Keep in sync with the backend enum (be-Jammaz/models/TreasuryTransaction.js):
 //   cash | bank | wallet | check | adjustment | instapay
 
-import { Wallet, Landmark, Smartphone, Receipt, FileCheck, Scale } from 'lucide-react';
+import { Wallet, Landmark, Smartphone, Receipt, FileCheck, Scale, PiggyBank } from 'lucide-react';
 
 // `icon`: lucide component for a distinct visual channel affordance (UX-002).
 // `color`: tailwind text/bg tokens reusing existing success/destructive/warning/primary semantics (UX-002, 06.7).
@@ -14,6 +14,10 @@ export const PAYMENT_METHODS = [
   { value: 'instapay',   labelAr: 'انستا باي',  labelEn: 'InstaPay',      channel: 'instapay',        channelLabelAr: 'انستا باي',        icon: Receipt,    color: 'text-rose-600' },
   { value: 'check',      labelAr: 'شيك',        labelEn: 'Check',          channel: 'check',           channelLabelAr: 'الشيكات',          icon: FileCheck,  color: 'text-amber-600' },
   { value: 'adjustment', labelAr: 'تسوية',      labelEn: 'Adjustment',     channel: 'adjustment',      channelLabelAr: 'تسويات',           icon: Scale,      color: 'text-slate-500' },
+  // FIN-TAHWEESH-04 (T-13): label/read-path only. Never add to an input
+  // methods list without a business decision — spends route through
+  // dedicated Tahweesh flows, not generic selectors.
+  { value: 'tahweesh',   labelAr: 'تحويش',      labelEn: 'Tahweesh',       channel: 'tahweesh',        channelLabelAr: 'التحويش',           icon: PiggyBank,  color: 'text-teal-600' },
 ];
 
 export const PAYMENT_METHOD_VALUES = PAYMENT_METHODS.map((m) => m.value);

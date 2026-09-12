@@ -18,7 +18,10 @@ import {
     syncDebts,
     updateDebt,
     payCustomerTotal,
-    getPartnerTransactions
+    getPartnerTransactions,
+    getTahweeshBalance,
+    depositTahweesh,
+    withdrawTahweesh
 } from '@/services/financeService';
 import { withMutationFeedback } from '@/lib/mutation-feedback';
 
@@ -132,6 +135,50 @@ export function useDeleteTransaction() {
                 queryClient.invalidateQueries({ queryKey: ['treasury-transactions'] });
                 queryClient.invalidateQueries({ queryKey: ['treasury-cashflow'] });
             }
+        })
+    });
+}
+
+/**
+ * FIN-TAHWEESH-04/05 — set-aside balance + transfer mutations.
+ * Balance polls with the treasury rhythm so the dialog ceiling stays fresh.
+ */
+export function useTahweeshBalance(options = {}) {
+    return useQuery({
+        queryKey: ['tahweesh-balance'],
+        queryFn: ({ signal }) => getTahweeshBalance({ signal }),
+        ...TREASURY_LIVE_OPTIONS,
+        ...options,
+    });
+}
+
+const invalidateMoney = (queryClient) => {
+    queryClient.invalidateQueries({ queryKey: ['treasury'] });
+    queryClient.invalidateQueries({ queryKey: ['treasury-transactions'] });
+    queryClient.invalidateQueries({ queryKey: ['treasury-cashflow'] });
+    queryClient.invalidateQueries({ queryKey: ['tahweesh-balance'] });
+};
+
+export function useTahweeshDeposit() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data) => depositTahweesh(data),
+        ...withMutationFeedback({
+            successMessage: 'تم التحويل إلى التحويش بنجاح',
+            fallbackErrorMessage: 'فشل التحويل إلى التحويش',
+            afterSuccess: () => invalidateMoney(queryClient),
+        })
+    });
+}
+
+export function useTahweeshWithdraw() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data) => withdrawTahweesh(data),
+        ...withMutationFeedback({
+            successMessage: 'تم السحب من التحويش بنجاح',
+            fallbackErrorMessage: 'فشل السحب من التحويش',
+            afterSuccess: () => invalidateMoney(queryClient),
         })
     });
 }
