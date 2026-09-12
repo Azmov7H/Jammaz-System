@@ -48,6 +48,17 @@ export const getTreasuryTransactions = (params = {}, options) =>
 export const getCashFlow = (params = {}, options) =>
     api.get('/api/treasury/cashflow', params, options);
 
+/**
+ * FIN-RPT-01 — per-number movement aggregates for wallet / instapay.
+ * Server-computed `{ method, period, numbers: [{number,received,withdrawn,
+ * count,net}], totals }`. The UI must display these as-is and never
+ * re-sum money client-side. Detail rows come from getTreasuryTransactions
+ * with `method` + `sourceNumber`.
+ * @param {object} params @param {{signal?: AbortSignal}} [options]
+ */
+export const getNumberReport = (params = {}, options) =>
+    api.get('/api/treasury/number-report', params, options);
+
 /** @param {object} data @returns {Promise<*>} */
 export const addTreasuryTransaction = (data) => api.post('/api/financial/transaction', data);
 

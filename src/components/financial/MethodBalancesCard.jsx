@@ -16,7 +16,11 @@ const METHODS = [
     { key: 'tahweesh', label: 'تحويش (مرصود)' },
 ];
 
-export function MethodBalancesCard({ breakdown = {}, total = 0, className }) {
+// FIN-RPT-01: wallet / instapay rows navigate to the per-number movement
+// report when onMethodReport is provided. Other rows stay static.
+const REPORT_METHODS = new Set(['wallet', 'instapay']);
+
+export function MethodBalancesCard({ breakdown = {}, total = 0, className, onMethodReport }) {
     const rows = METHODS.map((m) => ({ ...m, value: Number(breakdown[m.key]) || 0 }));
     const maxAbs = Math.max(1, ...rows.map((r) => Math.abs(r.value)));
     const methodsSum = rows.reduce((s, r) => s + r.value, 0);
@@ -36,7 +40,18 @@ export function MethodBalancesCard({ breakdown = {}, total = 0, className }) {
                 {rows.map((r) => (
                     <div key={r.key} className="space-y-1">
                         <div className="flex items-baseline justify-between gap-2">
-                            <span className="text-sm font-bold">{r.label}</span>
+                            {REPORT_METHODS.has(r.key) && onMethodReport ? (
+                                <button
+                                    type="button"
+                                    onClick={() => onMethodReport(r.key)}
+                                    className="text-sm font-bold underline decoration-dotted underline-offset-4 hover:text-primary transition-colors"
+                                    aria-label={`تقرير أرقام ${r.label}`}
+                                >
+                                    {r.label} ← التقرير
+                                </button>
+                            ) : (
+                                <span className="text-sm font-bold">{r.label}</span>
+                            )}
                             <span
                                 dir="ltr"
                                 className={cn(

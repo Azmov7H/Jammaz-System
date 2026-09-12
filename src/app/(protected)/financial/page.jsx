@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useTreasury, useTreasuryTransactions, useCashFlow, useAddTransaction, useDeleteTransaction, useSupplierPayment } from '@/hooks/useFinancial';
@@ -62,6 +63,7 @@ function SectionHeading({ title, scope }) {
 }
 
 export default function FinancialPage() {
+    const router = useRouter();
     const [period, setPeriod] = useState('MONTH');
     const [typeFilter, setTypeFilter] = useState('ALL');
     // Business-day anchor: local (Egypt) calendar day, re-checked on an
@@ -445,6 +447,7 @@ export default function FinancialPage() {
                             breakdown={treasuryData?.breakdown}
                             total={balance}
                             className="xl:col-span-2"
+                            onMethodReport={(method) => router.push(`/financial/numbers?method=${method}`)}
                         />
                     </div>
                 )}

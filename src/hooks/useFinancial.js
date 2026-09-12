@@ -5,6 +5,7 @@ import {
     getTreasury,
     getTreasuryTransactions,
     getCashFlow,
+    getNumberReport,
     addTreasuryTransaction,
     deleteTreasuryTransaction,
     getDebts,
@@ -53,12 +54,17 @@ export function useTreasury(params = {}) {
  */
 const LEDGER_PAGE_SIZE = 100;
 
-export function useTreasuryTransactions(dateRange = {}, { page = 1, limit = LEDGER_PAGE_SIZE, type, category } = {}, options = {}) {
+export function useTreasuryTransactions(dateRange = {}, { page = 1, limit = LEDGER_PAGE_SIZE, type, category, method, sourceNumber, referenceType, direction } = {}, options = {}) {
     const params = { ...dateRange, page, limit };
     if (type) params.type = type;
     if (category) params.category = category;
+    // FIN-RPT-01: number-report detail passthrough (server-validated).
+    if (method) params.method = method;
+    if (sourceNumber) params.sourceNumber = sourceNumber;
+    if (referenceType) params.referenceType = referenceType;
+    if (direction) params.type = direction === 'RECEIVED' ? 'INCOME' : direction === 'WITHDRAWN' ? 'EXPENSE' : params.type;
     return useQuery({
-        queryKey: ['treasury-transactions', dateRange, page, limit, type, category],
+        queryKey: ['treasury-transactions', dateRange, page, limit, type, category, method, sourceNumber, referenceType, direction],
         queryFn: async ({ signal }) => {
             const res = await getTreasuryTransactions(params, { signal });
             if (Array.isArray(res)) return { transactions: res, total: res.length, page, limit };
@@ -91,6 +97,25 @@ export function useCashFlow(dateRange = {}, options = {}) {
     });
 }
 
+/**
+ * FIN-RPT-01 — per-number movement aggregates (server-computed totals).
+ * `numbers` is an array of selected source numbers; empty = all numbers.
+ * Disabled unless `method` is wallet|instapay (the backend 400s otherwise).
+ */
+export function useNumberReport({ method, numbers = [], startDate, endDate, direction, referenceType } = {}, options = {}) {
+    const numbersKey = [...numbers].sort().join(',');
+    const params = { method, startDate, endDate };
+    if (numbers.length) params.numbers = numbers.join(',');
+    if (direction) params.direction = direction;
+    if (referenceType) params.referenceType = referenceType;
+    return useQuery({
+        queryKey: ['number-report', method, numbersKey, startDate, endDate, direction, referenceType],
+        queryFn: ({ signal }) => getNumberReport(params, { signal }),
+        placeholderData: keepPreviousData,
+        enabled: options.enabled !== false && (method === 'wallet' || method === 'instapay'),
+        ...TREASURY_LIVE_OPTIONS,
+    });
+}
 /** Supplier payment (manager+) with treasury + receivables invalidation. */
 export function useSupplierPayment() {
     const queryClient = useQueryClient();
