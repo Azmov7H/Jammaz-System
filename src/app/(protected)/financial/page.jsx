@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Wallet, Loader2, RefreshCcw, AlertCircle, Printer } from 'lucide-react';
+import { Wallet, Loader2, RefreshCcw, AlertCircle, Printer, PiggyBank } from 'lucide-react';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/utils';
@@ -19,6 +19,7 @@ import { StatCard } from '@/components/ui/StatCard';
 import { TransactionsTable } from '@/components/financial/TransactionsTable';
 import { TransactionDetailsDialog } from '@/components/financial/TransactionDetailsDialog';
 import { AddTransactionDialog } from '@/components/financial/AddTransactionDialog';
+import { TahweeshDialog } from '@/components/financial/TahweeshDialog';
 import { CashFlowChart } from '@/components/financial/CashFlowChart';
 import { MethodBalancesCard } from '@/components/financial/MethodBalancesCard';
 import { PeriodPerformanceCard } from '@/components/financial/PeriodPerformanceCard';
@@ -353,6 +354,7 @@ export default function FinancialPage() {
                             isPending={isPending || isPayingSupplier}
                             suppliers={suppliers}
                         />
+                        <TahweeshDialog breakdown={treasuryData?.breakdown} />
                     </div>
                 }
             />
@@ -421,14 +423,24 @@ export default function FinancialPage() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                        <StatCard
-                            title="الرصيد الكلي"
-                            value={balance.toLocaleString()}
-                            unit="ج.م"
-                            icon={Wallet}
-                            variant="primary"
-                            subtitle="الصندوق والبنك والمحافظ والشيكات"
-                        />
+                        <div className="space-y-4">
+                            <StatCard
+                                title="الرصيد الكلي"
+                                value={balance.toLocaleString()}
+                                unit="ج.م"
+                                icon={Wallet}
+                                variant="primary"
+                                subtitle="الصندوق والبنك والمحافظ والشيكات والتحويش"
+                            />
+                            <StatCard
+                                title="رصيد التحويش"
+                                value={Number(treasuryData?.tahweesh || 0).toLocaleString()}
+                                unit="ج.م"
+                                icon={PiggyBank}
+                                variant="success"
+                                subtitle="مبلغ مرصود — خارج مصاريف التشغيل"
+                            />
+                        </div>
                         <MethodBalancesCard
                             breakdown={treasuryData?.breakdown}
                             total={balance}

@@ -54,6 +54,19 @@ export const addTreasuryTransaction = (data) => api.post('/api/financial/transac
 /** @param {string} id @returns {Promise<*>} */
 export const deleteTreasuryTransaction = (id) => api.delete(`/api/financial/transaction/${id}`);
 
+/**
+ * FIN-TAHWEESH-04/05 — set-aside account client.
+ * getTahweeshBalance returns `{ balance }` (stored doc, ledger-rebuilt
+ * when missing). Deposit/withdraw accept `{ amount, note, transferId,
+ * source?, sourceNumber? }` — the caller generates transferId (uuid) so
+ * retries are idempotent.
+ */
+export const getTahweeshBalance = (options) => api.get('/api/tahweesh/balance', {}, options);
+/** @param {object} data @returns {Promise<*>} */
+export const depositTahweesh = (data) => api.post('/api/tahweesh/deposit', data);
+/** @param {object} data @returns {Promise<*>} */
+export const withdrawTahweesh = (data) => api.post('/api/tahweesh/withdraw', data);
+
 /** @param {object} params @param {{signal?: AbortSignal}} [options] @returns {Promise<{debts?: Debt[]}>} */
 export const getDebts = (params = {}, options) => api.get('/api/financial/debts', params, options);
 
