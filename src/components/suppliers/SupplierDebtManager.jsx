@@ -388,7 +388,7 @@ export function SupplierDebtManager({ supplier, open, onOpenChange }) {
                                     <PaymentMethodSelect
                                         value={paymentMethod}
                                         onValueChange={setPaymentMethod}
-                                        methods={['cash', 'wallet', 'bank', 'check', 'instapay']}
+                                        methods={['cash', 'wallet', 'check', 'instapay']}
                                         className="h-12 rounded-xl border bg-background font-bold"
                                     />
                                 </div>

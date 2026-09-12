@@ -201,7 +201,9 @@ export function UnifiedPaymentDialog({ open, onOpenChange, target, onSuccess }) 
 
     // ---- Summary block per kind (copy preserved from legacy variants) ----
     let summary;
-    let methodOptions = ['cash', 'bank', 'check', 'instapay'];
+    // FIN-BANK-01 (T-08): 'bank' removed from inputs — history still renders
+    // via PAYMENT_METHODS labels; the backend enum is unchanged.
+    let methodOptions = ['cash', 'check', 'instapay'];
 
     if (kind === 'debt' && debt) {
         methodOptions.push('wallet');

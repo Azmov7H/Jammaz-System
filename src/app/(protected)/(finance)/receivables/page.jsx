@@ -430,7 +430,7 @@ export default function ReceivablesPage() {
                                 <PaymentMethodSelect
                                     value={paymentMethod}
                                     onValueChange={setPaymentMethod}
-                                    methods={['cash', 'bank', 'wallet', 'instapay', 'check']}
+                                    methods={['cash', 'wallet', 'instapay', 'check']}
                                     className="h-14 rounded-2xl bg-white/5 border-white/5 font-bold"
                                 />
                                 <SourceNumberField

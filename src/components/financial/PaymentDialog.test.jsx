@@ -23,6 +23,14 @@ jest.mock('@tanstack/react-query', () => ({
 }));
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 jest.mock('@/lib/api-utils', () => ({ api: { post: jest.fn() } }));
+// Capture the methods prop to lock T-08 wiring (Radix options only mount
+// when open, which jsdom cannot drive reliably without user-event).
+jest.mock('@/components/common/PaymentMethodSelect', () => ({
+    PaymentMethodSelect: (props) => {
+        globalThis.__lastMethodOptions = props.methods;
+        return <div data-testid="method-select" />;
+    },
+}));
 
 const INVOICE = { _id: 'inv1', number: 'INV-1', total: 100, paidAmount: 20 };
 
@@ -52,5 +60,20 @@ describe('UnifiedPaymentDialog overpay UX', () => {
         fireEvent.change(screen.getByLabelText('قيمة الدفعة *'), { target: { value: '80' } });
         fireEvent.submit(document.querySelector('form'));
         expect(toast.error).not.toHaveBeenCalled();
+    });
+
+    test.each([
+        ['invoice', { kind: 'invoice', invoice: INVOICE }],
+        ['customer-total', { kind: 'customer-total', customerId: 'c1', customerName: 'عميل', totalBalance: 200 }],
+        ['debt', { kind: 'debt', debt: { _id: 'd1', remainingAmount: 150, debtorId: {}, referenceType: 'Invoice' } }],
+    ])('T-08: %s offers no bank option', (_kind, target) => {
+        setup(target);
+        expect(globalThis.__lastMethodOptions).toBeDefined();
+        expect(globalThis.__lastMethodOptions).not.toContain('bank');
+    });
+
+    test('T-08: history labels still resolve bank (read path kept)', async () => {
+        const { getPaymentLabel } = await import('@/lib/paymentMethods');
+        expect(getPaymentLabel('bank')).toBe('تحويل بنكي');
     });
 });
