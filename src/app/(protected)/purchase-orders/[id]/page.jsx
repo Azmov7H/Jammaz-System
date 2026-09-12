@@ -208,7 +208,7 @@ export default function PurchaseOrderInvoice() {
                                 <PaymentMethodSelect
                                     value={paymentType === 'credit' ? undefined : paymentType}
                                     onValueChange={setPaymentType}
-                                    methods={['cash', 'bank', 'wallet', 'instapay']}
+                                    methods={['cash', 'wallet', 'instapay']}
                                     disabled={receiving || paymentType === 'credit'}
                                     placeholder="اختر وسيلة الدفع"
                                 />

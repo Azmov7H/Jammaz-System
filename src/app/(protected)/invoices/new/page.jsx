@@ -398,7 +398,7 @@ export default function NewInvoicePage() {
                                 <PaymentMethodSelect
                                     value={paymentType === 'credit' ? undefined : paymentType}
                                     onValueChange={setPaymentType}
-                                    methods={['cash', 'bank', 'wallet', 'instapay', 'check']}
+                                    methods={['cash', 'wallet', 'instapay', 'check']}
                                     disabled={createInvoiceMutation.isPending || paymentType === 'credit'}
                                     placeholder="اختر وسيلة الدفع"
                                 />

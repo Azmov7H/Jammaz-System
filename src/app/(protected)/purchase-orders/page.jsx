@@ -229,7 +229,7 @@ export default function PurchaseOrdersPage() {
                             <PaymentMethodSelect
                                 value={paymentType === 'credit' ? undefined : paymentType}
                                 onValueChange={setPaymentType}
-                                methods={['cash', 'wallet', 'bank', 'check']}
+                                methods={['cash', 'wallet', 'check']}
                                 placeholder="اختر وسيلة الدفع"
                             />
                         </div>

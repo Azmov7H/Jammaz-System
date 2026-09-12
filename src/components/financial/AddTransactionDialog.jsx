@@ -60,6 +60,9 @@ export function AddTransactionDialog({ open, onOpenChange, formData, setFormData
                             value={formData.method}
                             onValueChange={v => setFormData({ ...formData, method: v })}
                             placeholder="اختر الوسيلة"
+                            // FIN-BANK-01 (T-08): pin the previously-default
+                            // full list minus bank (history labels untouched).
+                            methods={['cash', 'wallet', 'instapay', 'check']}
                         />
                     </div>
 

@@ -7,7 +7,7 @@ if (!JWT_SECRET_STR) {
 }
 const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STR);
 
-export async function middleware(request) {
+export async function proxy(request) {
     const { pathname } = request.nextUrl;
     const isApiRoute = pathname.startsWith('/api');
     const isAuthRoute = pathname.startsWith('/api/auth') || pathname.startsWith('/login') || pathname.startsWith('/public');
