@@ -6,15 +6,18 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2, ArrowRight, Package, Phone, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SupplierStatementTab } from '@/components/documents/SupplierStatementTab';
+import { SupplierTransactionTab } from '@/components/documents/SupplierTransactionTab';
 import { getSupplierById } from '@/services/supplierService';
 
 /**
- * DOC-SSTMT-002 — Supplier detail page.
+ * DOC-STX-002 — Supplier detail page.
  *
- * Hosts the redesigned SupplierStatementTab. The page is intentionally
+ * Hosts both the SupplierStatementTab (كشف رسمي) and the
+ * SupplierTransactionTab (حركات المورد). The page is intentionally
  * thin — the supplier data is fetched once for the header block, and
- * the tab does its own date-range window via the document engine.
+ * the tabs do their own date-range windows via the document engine.
  */
 export default function SupplierDetailPage() {
     const { id } = useParams();
@@ -79,7 +82,18 @@ export default function SupplierDetailPage() {
             </Card>
 
             <div className="max-w-5xl mx-auto">
-                <SupplierStatementTab supplierId={id} />
+                <Tabs defaultValue="transactionDoc" className="space-y-4">
+                    <TabsList>
+                        <TabsTrigger value="statementDoc" className="text-primary font-bold">كشف رسمي</TabsTrigger>
+                        <TabsTrigger value="transactionDoc" className="text-primary font-bold">حركات المورد</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="statementDoc">
+                        <SupplierStatementTab supplierId={id} />
+                    </TabsContent>
+                    <TabsContent value="transactionDoc">
+                        <SupplierTransactionTab supplierId={id} />
+                    </TabsContent>
+                </Tabs>
             </div>
         </div>
     );

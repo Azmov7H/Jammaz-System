@@ -23,7 +23,6 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { SupplierDebtManager } from '@/components/suppliers/SupplierDebtManager';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { PartnerTransactionDialog } from '@/components/financial/PartnerTransactionDialog';
 import { ExportButton } from '@/components/common/ExportButton';
 
 export default function SuppliersPage() {
@@ -32,7 +31,6 @@ export default function SuppliersPage() {
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDebtOpen, setIsDebtOpen] = useState(false);
-    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [selectedSupplier, setSelectedSupplier] = useState(null);
 
     const { data: queryData, isLoading, isFetching, isError, error, refetch, addMutation, updateMutation, deleteMutation } = useSuppliers({ search });
@@ -223,7 +221,11 @@ export default function SuppliersPage() {
                                 </TableRow>
                             ) : (
                                 suppliers.map((supplier) => (
-                                    <TableRow key={supplier._id} className="group hover:bg-muted/50 transition-colors h-20 border-white/5">
+                                    <TableRow
+                                        key={supplier._id}
+                                        className="group hover:bg-muted/50 transition-colors h-20 border-white/5 cursor-pointer"
+                                        onClick={() => router.push(`/suppliers/${supplier._id}`)}
+                                    >
                                         <TableCell className="px-6">
                                             <div className="flex items-center gap-4">
                                                 <Avatar className="h-12 w-12 border-2 border-primary/20 shadow-lg group-hover:scale-110 transition-transform">
@@ -232,10 +234,7 @@ export default function SuppliersPage() {
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div className="flex flex-col">
-                                                    <span
-                                                        onClick={() => { setSelectedSupplier(supplier); setIsHistoryOpen(true); }}
-                                                        className="font-bold text-foreground text-sm group-hover:text-primary transition-colors cursor-pointer hover:underline"
-                                                    >
+                                                    <span className="font-bold text-foreground text-sm group-hover:text-primary transition-colors">
                                                         {supplier.name}
                                                     </span>
                                                     <div className="flex items-center gap-2 mt-1">
@@ -282,7 +281,7 @@ export default function SuppliersPage() {
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    onClick={() => handleEditClick(supplier)}
+                                                    onClick={(e) => { e.stopPropagation(); handleEditClick(supplier); }}
                                                     className="h-10 w-10 rounded-xl hover:bg-primary/10 hover:text-primary transition-all"
                                                     title="تعديل"
                                                     aria-label="تعديل"
@@ -293,7 +292,7 @@ export default function SuppliersPage() {
                                                     variant="ghost"
                                                     size="icon"
                                                     className="h-10 w-10 rounded-xl hover:bg-success/10 text-success transition-all"
-                                                    onClick={() => { setSelectedSupplier(supplier); setIsDebtOpen(true); }}
+                                                    onClick={(e) => { e.stopPropagation(); setSelectedSupplier(supplier); setIsDebtOpen(true); }}
                                                     title="إدارة الديون"
                                                     aria-label="إدارة الديون"
                                                 >
@@ -303,7 +302,7 @@ export default function SuppliersPage() {
                                                     variant="ghost"
                                                     size="icon"
                                                     className="h-10 w-10 rounded-xl hover:bg-info/10 text-info transition-all"
-                                                    onClick={() => router.push(`/purchase-orders?supplierId=${supplier._id}`)}
+                                                    onClick={(e) => { e.stopPropagation(); router.push(`/purchase-orders?supplierId=${supplier._id}`); }}
                                                     title="سجل المشتريات"
                                                     aria-label="سجل المشتريات"
                                                 >
@@ -313,7 +312,7 @@ export default function SuppliersPage() {
                                                     variant="ghost"
                                                     size="icon"
                                                     className="h-10 w-10 rounded-xl hover:bg-destructive/10 text-destructive transition-all"
-                                                    onClick={() => handleDelete(supplier._id)}
+                                                    onClick={(e) => { e.stopPropagation(); handleDelete(supplier._id); }}
                                                     title="حذف"
                                                     aria-label="حذف"
                                                 >
@@ -347,11 +346,6 @@ export default function SuppliersPage() {
                 open={isDebtOpen}
                 supplier={selectedSupplier}
                 onOpenChange={setIsDebtOpen}
-            />
-            <PartnerTransactionDialog
-                open={isHistoryOpen}
-                partner={selectedSupplier}
-                onOpenChange={setIsHistoryOpen}
             />
 
             <ConfirmDialog
