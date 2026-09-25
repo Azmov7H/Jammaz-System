@@ -23,6 +23,9 @@ import { EmptyState } from '@/components/common/EmptyState';
  * - open / onOpenChange: controlled dialog state
  * - onSelect(product): selection callback
  * - multiple: keep the dialog open after selection (multi-add flows)
+ * - showSearch: always show the "بحث بالاسم أو الكود" search bar
+ *   (default true) — kept separate from showFilters so flows like the
+ *   stock-transfer dialog (showFilters=false) still get search
  * - showFilters: category/brand filter selects above the table
  */
 export function ProductSelector({
@@ -30,6 +33,7 @@ export function ProductSelector({
     onOpenChange,
     onSelect,
     multiple = false,
+    showSearch = true,
     showFilters = true,
 }) {
     const [searchTerm, setSearchTerm] = useState('');
@@ -72,17 +76,23 @@ export function ProductSelector({
                     </DialogTitle>
                 </DialogHeader>
 
-                {showFilters && (
-                    <div className="p-4 bg-muted/30 grid grid-cols-1 md:grid-cols-12 gap-4">
-                        <div className="md:col-span-6 relative">
+                {showSearch && (
+                    <div className="p-4 bg-muted/30">
+                        <div className="relative">
                             <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
                             <Input
                                 placeholder="بحث بالاسم أو الكود..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="pr-9"
+                                data-testid="product-selector-search"
                             />
                         </div>
+                    </div>
+                )}
+
+                {showFilters && (
+                    <div className="px-4 pb-4 bg-muted/30 grid grid-cols-1 md:grid-cols-12 gap-4">
                         <div className="md:col-span-3">
                             <Select value={filters.category} onValueChange={(v) => setFilters({ ...filters, category: v })}>
                                 <SelectTrigger>
