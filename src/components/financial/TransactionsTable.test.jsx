@@ -1,7 +1,9 @@
 /**
- * TransactionsTable ACL integration (FE-AUTH-003): the manual-transaction
- * delete action must be owner-only, mirroring backend `DELETE
- * /api/financial/transaction/:id` (`roleMiddleware(['owner'])`).
+ * TransactionsTable FIN-REV-01 ACL integration (FE-AUTH-003): the
+ * compensating reversal (keep history) action must be owner-only, mirroring
+ * backend `POST /api/financial/transaction/:id/reverse`
+ * (`roleMiddleware(['owner'])`). Document-backed rows instead surface a muted
+ * guidance icon.
  *
  * CJS style — required for jest.mock hoisting under next/jest (SWC).
  */
@@ -27,29 +29,46 @@ const manualTx = {
     date: '2026-08-30T10:00:00.000Z',
 };
 
-function renderTable(role) {
+function renderTable(role, props = {}) {
     useUserRole.mockReturnValue({ role, loading: false });
     return renderWithProviders(
         React.createElement(TransactionsTable, {
-            transactions: [manualTx],
+            transactions: props.transactions || [manualTx],
             typeFilter: 'ALL',
             onTypeFilterChange: () => {},
             onTxClick: () => {},
-            onDelete: () => {},
-            isDeleting: false,
+            onReverse: () => {},
+            isReversing: false,
+            ...props,
         })
     );
 }
 
-describe('TransactionsTable delete ACL', () => {
-    it('shows the delete action for owner (backend owner-only DELETE)', () => {
+describe('TransactionsTable reversal ACL (FIN-REV-01)', () => {
+    it('shows the reversal action for owner (backend owner-only reverse)', () => {
         renderTable(ROLES.OWNER);
-        expect(screen.getByLabelText('حذف الحركة')).toBeInTheDocument();
+        expect(screen.getByLabelText('عكس المعاملة')).toBeInTheDocument();
     });
 
-    it('hides the delete action for manager, matching backend 403', () => {
+    it('hides the reversal action for manager, matching backend 403', () => {
         renderTable(ROLES.MANAGER);
-        expect(screen.queryByLabelText('حذف الحركة')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('عكس المعاملة')).not.toBeInTheDocument();
+    });
+
+    it('shows a muted guidance icon for document-backed rows', () => {
+        renderTable(ROLES.OWNER, {
+            transactions: [{ ...manualTx, _id: '64b0000000000000000000f1', referenceType: 'Invoice' }],
+        });
+        expect(screen.getByLabelText('غير قابلة للعكس')).toBeInTheDocument();
+        expect(screen.queryByLabelText('عكس المعاملة')).not.toBeInTheDocument();
+    });
+
+    it('hides the guidance icon from non-owners', () => {
+        renderTable(ROLES.MANAGER, {
+            transactions: [{ ...manualTx, _id: '64b0000000000000000000f2', referenceType: 'Invoice' }],
+        });
+        expect(screen.queryByLabelText('غير قابلة للعكس')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('عكس المعاملة')).not.toBeInTheDocument();
     });
 
     it('keeps the details action visible for all roles', () => {
@@ -67,8 +86,8 @@ describe('TransactionsTable pagination', () => {
                 typeFilter: 'ALL',
                 onTypeFilterChange: () => {},
                 onTxClick: () => {},
-                onDelete: () => {},
-                isDeleting: false,
+                onReverse: () => {},
+                isReversing: false,
                 page: 1,
                 totalPages: 3,
                 total: 250,
@@ -116,8 +135,8 @@ describe('TransactionsTable unified collections', () => {
                 typeFilter: 'ALL',
                 onTypeFilterChange: () => {},
                 onTxClick: () => {},
-                onDelete: () => {},
-                isDeleting: false,
+                onReverse: () => {},
+                isReversing: false,
             })
         );
         expect(screen.getByRole('link', { name: 'عميل مجمع' })).toHaveAttribute(

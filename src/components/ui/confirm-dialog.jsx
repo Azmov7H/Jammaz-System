@@ -36,6 +36,7 @@ export function ConfirmDialog({
     destructive = true,
     pending = false,
     onConfirm,
+    children,
 }) {
     return (
         <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -48,6 +49,7 @@ export function ConfirmDialog({
                         </AlertDialogDescription>
                     )}
                 </AlertDialogHeader>
+                {children}
                 <AlertDialogFooter className="gap-2 sm:flex-row-reverse sm:justify-start">
                     <AlertDialogCancel className="rounded-xl font-bold">
                         {cancelLabel}

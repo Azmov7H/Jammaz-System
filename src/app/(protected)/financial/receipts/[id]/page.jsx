@@ -14,6 +14,9 @@ import { DocumentActions } from '@/components/documents/DocumentActions';
 import { DocumentPrintStyles } from '@/components/documents/DocumentPrintStyles';
 import { DOCUMENT_TYPES } from '@/services/documentService';
 import { getPaymentMethod, maskSource } from '@/lib/paymentMethods';
+import { Badge } from '@/components/ui/badge';
+import { ReversalActionButton } from '@/components/financial/ReversalActionButton';
+import { getReversalStateLabel } from '@/lib/transactionReversal';
 
 /**
  * DOC-CCR-001 / DOC-SPR-001 — ReceiptPage (redesigned).
@@ -152,6 +155,10 @@ export default function ReceiptPage() {
                     >
                         <Printer className="h-4 w-4" /> طباعة سريعة
                     </Button>
+                    {getReversalStateLabel(tx) && (
+                        <Badge variant="outline" className="h-8 px-3">{getReversalStateLabel(tx)}</Badge>
+                    )}
+                    <ReversalActionButton tx={tx} disabled={receiptType === 'unknown'} />
                 </div>
             </div>
 

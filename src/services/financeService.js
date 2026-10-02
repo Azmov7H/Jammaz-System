@@ -66,6 +66,20 @@ export const addTreasuryTransaction = (data) => api.post('/api/financial/transac
 export const deleteTreasuryTransaction = (id) => api.delete(`/api/financial/transaction/${id}`);
 
 /**
+ * FIN-REV-01 (T-REV) — compensating reversal that KEEPS history.
+ * Owner-only; the original row is marked `isReversed` and a flipped-type
+ * 'Reversal' counter-entry is booked (with the original's partnerId, so it
+ * shows up in the customer/supplier statement). Document-backed rows
+ * (Invoice/PO/returns sharing a P&L GL pair) are rejected — the caller must
+ * cancel the source document instead.
+ * @param {string} id
+ * @param {{ reason?: string }} [data]
+ * @returns {Promise<*>}
+ */
+export const reverseTreasuryTransaction = (id, data = {}) =>
+    api.post(`/api/treasury/transactions/${id}/reverse`, data);
+
+/**
  * FIN-TAHWEESH-04/05 — set-aside account client.
  * getTahweeshBalance returns `{ balance }` (stored doc, ledger-rebuilt
  * when missing). Deposit/withdraw accept `{ amount, note, transferId,

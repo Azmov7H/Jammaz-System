@@ -7,10 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Info, Trash2, Eye, ReceiptCent, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Info, RotateCcw, Eye, ReceiptCent, ChevronRight, ChevronLeft } from 'lucide-react';
 import { getPaymentLabel, maskSource } from '@/lib/paymentMethods';
 import { useUserRole } from '@/hooks/useUserRole';
 import { ROLES } from '@/lib/permissions';
+import { getReversalAction, getReversalStateLabel } from '@/lib/transactionReversal';
 
 function PartyCell({ tx }) {
     if (tx.referenceType === 'UnifiedCollection') {
@@ -34,7 +35,7 @@ function PartyCell({ tx }) {
     return null;
 }
 
-export function TransactionsTable({ transactions, typeFilter, onTypeFilterChange, onTxClick, onDelete, isDeleting, page = 1, totalPages = 1, total = 0, onPageChange }) {
+export function TransactionsTable({ transactions, typeFilter, onTypeFilterChange, onTxClick, onReverse, isReversing, page = 1, totalPages = 1, total = 0, onPageChange }) {
     const { role } = useUserRole();
     const canDelete = role === ROLES.OWNER;
     return (
@@ -103,6 +104,11 @@ export function TransactionsTable({ transactions, typeFilter, onTypeFilterChange
                                                     <Badge variant={tx.type === 'INCOME' ? 'default' : 'destructive'} className="gap-1 min-w-[70px] justify-center">
                                                         {tx.type === 'INCOME' ? 'وارد' : 'صادر'}
                                                     </Badge>
+                                                    {getReversalStateLabel(tx) && (
+                                                        <Badge variant="outline" className="gap-1 min-w-[70px] justify-center mt-1 block text-[10px] opacity-80">
+                                                            {getReversalStateLabel(tx)}
+                                                        </Badge>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>
                                                     {tx.referenceType === 'UnifiedCollection' ? (
@@ -140,6 +146,8 @@ export function TransactionsTable({ transactions, typeFilter, onTypeFilterChange
                                                                         {tx.referenceId?.debtorId?.name || 'طرف مديون'}
                                                                     </Link>
                                                                 ) : (tx.referenceId?.debtorId?.name || 'طرف مديون')
+                                                            ) : tx.referenceType === 'Reversal' ? (
+                                                                tx.referenceId?.name || 'عكس'
                                                             ) : '---'}
                                                         </span>
                                                         <span className="text-xs text-muted-foreground">
@@ -214,18 +222,38 @@ export function TransactionsTable({ transactions, typeFilter, onTypeFilterChange
                                                             </Link>
                                                         )}
 
-                                                        {tx.referenceType === 'Manual' && canDelete && (
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                aria-label="حذف الحركة"
-                                                                className="text-muted-foreground hover:text-destructive h-8 w-8"
-                                                                onClick={() => onDelete(tx._id)}
-                                                                disabled={isDeleting}
-                                                            >
-                                                                <Trash2 size={16} />
-                                                            </Button>
-                                                        )}
+                                                        {(() => {
+                                                            const rev = getReversalAction(tx, role);
+                                                            if (rev.canReverse) {
+                                                                return (
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        aria-label="عكس المعاملة"
+                                                                        title="عكس المعاملة (تعويضي — يحافظ على التاريخ)"
+                                                                        className="text-muted-foreground hover:text-warning h-8 w-8"
+                                                                        onClick={() => onReverse?.(tx)}
+                                                                        disabled={isReversing}
+                                                                    >
+                                                                        <RotateCcw size={16} />
+                                                                    </Button>
+                                                                );
+                                                            }
+                                                            if (canDelete && rev.guidance) {
+                                                                return (
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        aria-label="غير قابلة للعكس"
+                                                                        title={rev.guidance}
+                                                                        className="text-muted-foreground/40 cursor-not-allowed h-8 w-8"
+                                                                    >
+                                                                        <RotateCcw size={16} />
+                                                                    </Button>
+                                                                );
+                                                            }
+                                                            return null;
+                                                        })()}
                                                     </div>
                                                 </TableCell>
                                             </TableRow>

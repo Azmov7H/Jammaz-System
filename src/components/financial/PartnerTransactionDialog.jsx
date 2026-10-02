@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/table';
 import { Loader2, Receipt, Printer, ArrowDownCircle, ArrowUpCircle, ExternalLink, Calendar, Search } from 'lucide-react';
 import { usePartnerTransactions } from '@/hooks/useFinancial';
+import { ReversalActionButton } from '@/components/financial/ReversalActionButton';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import Link from 'next/link';
@@ -129,10 +130,11 @@ export function PartnerTransactionDialog({ partner, open, onOpenChange }) {
                                                 </TableCell>
                                                 <TableCell className="px-6 text-center">
                                                     <Badge variant="outline" className="text-xs font-bold h-5 border-white/10 bg-white/5">
-                                                        {tx.referenceType === 'Invoice' ? 'فاتورة' :
-                                                            tx.referenceType === 'PurchaseOrder' ? 'شراء' :
-                                                                tx.referenceType === 'SalesReturn' ? 'مرتجع' :
-                                                                    tx.referenceType === 'Debt' ? 'دين' :
+{tx.referenceType === 'Invoice' ? 'فاتورة' :
+                                                        tx.referenceType === 'PurchaseOrder' ? 'شراء' :
+                                                            tx.referenceType === 'SalesReturn' ? 'مرتجع' :
+                                                                tx.referenceType === 'Debt' ? 'دين' :
+                                                                    tx.referenceType === 'Reversal' ? 'عكس' :
                                                                         tx.referenceType === 'UnifiedCollection' ? 'تحصيل' : 'يدوي'}
                                                     </Badge>
                                                 </TableCell>
@@ -157,15 +159,18 @@ export function PartnerTransactionDialog({ partner, open, onOpenChange }) {
                                                     ) : '---'}
                                                 </TableCell>
                                                 <TableCell className="px-6 text-center print:hidden">
-                                                    {(tx.referenceType === 'Invoice' || tx.referenceType === 'PurchaseOrder') && tx.referenceId && (
-                                                        <Link
-                                                            href={tx.referenceType === 'Invoice' ? `/invoices/${tx.referenceId._id || tx.referenceId}` : `/purchase-orders/${tx.referenceId._id || tx.referenceId}`}
-                                                            className="text-muted-foreground hover:text-primary transition-colors inline-block p-2 rounded-xl hover:bg-primary/5"
-                                                            title="عرض المستند"
-                                                        >
-                                                            <ExternalLink size={18} />
-                                                        </Link>
-                                                    )}
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        {(tx.referenceType === 'Invoice' || tx.referenceType === 'PurchaseOrder') && tx.referenceId && (
+                                                            <Link
+                                                                href={tx.referenceType === 'Invoice' ? `/invoices/${tx.referenceId._id || tx.referenceId}` : `/purchase-orders/${tx.referenceId._id || tx.referenceId}`}
+                                                                className="text-muted-foreground hover:text-primary transition-colors inline-block p-2 rounded-xl hover:bg-primary/5"
+                                                                title="عرض المستند"
+                                                            >
+                                                                <ExternalLink size={18} />
+                                                            </Link>
+                                                        )}
+                                                        <ReversalActionButton tx={tx} />
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))}

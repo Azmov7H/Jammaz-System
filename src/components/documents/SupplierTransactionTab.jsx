@@ -26,9 +26,11 @@ import { AlertTriangle, Loader2, FileText, ArrowDownLeft, ArrowUpRight, Shopping
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { DateRangePicker } from '@/components/documents/DateRangePicker';
 import { DocumentActions } from '@/components/documents/DocumentActions';
 import { getDocumentData, DOCUMENT_TYPES, OUTPUT_FORMATS } from '@/services/documentService';
+import { ReversalActionButton } from '@/components/financial/ReversalActionButton';
 import { cn } from '@/utils';
 
 function fmtMoney(n) {
@@ -147,12 +149,13 @@ export function SupplierTransactionTab({ supplierId }) {
                                         <TableHead className="text-right font-bold text-xs uppercase tracking-widest">الطريقة</TableHead>
                                         <TableHead className="text-center font-bold text-xs uppercase tracking-widest text-destructive bg-destructive/5">مدين</TableHead>
                                         <TableHead className="text-center font-bold text-xs uppercase tracking-widest text-success bg-success/5">دائن</TableHead>
+                                        <TableHead className="text-center font-bold text-xs uppercase tracking-widest">إجراءات</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody data-testid="transaction-lines" data-line-count={lines.length}>
                                     {lines.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={5} className="text-center h-32 text-muted-foreground font-bold">
+                                            <TableCell colSpan={6} className="text-center h-32 text-muted-foreground font-bold">
                                                 لا توجد حركات في هذه الفترة / النوع
                                             </TableCell>
                                         </TableRow>
@@ -175,6 +178,8 @@ export function SupplierTransactionTab({ supplierId }) {
                                                             <span className="font-bold text-sm">{line.typeLabel || meta.label}</span>
                                                             <span className="text-xs text-muted-foreground">{line.label}</span>
                                                             <span className="text-[10px] text-muted-foreground/70 font-mono">#{line.reference || '-'}</span>
+                                                            {line.isReversed && <Badge variant="outline" className="w-fit mt-1 text-[10px]">مُعكّسة</Badge>}
+                                                            {line.isReversal && <Badge variant="outline" className="w-fit mt-1 text-[10px]">عكس</Badge>}
                                                         </div>
                                                     </div>
                                                 </TableCell>
@@ -186,6 +191,9 @@ export function SupplierTransactionTab({ supplierId }) {
                                                 </TableCell>
                                                 <TableCell className="text-center font-mono font-bold text-success">
                                                     {Number(line.credit) > 0 ? fmtMoney(line.credit) : '—'}
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    {line.txId ? <ReversalActionButton tx={line} /> : null}
                                                 </TableCell>
                                             </TableRow>
                                         );

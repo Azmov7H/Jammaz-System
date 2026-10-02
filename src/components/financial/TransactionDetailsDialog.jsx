@@ -6,11 +6,16 @@ import { ar } from 'date-fns/locale';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Info, User, Clock, Tag, ExternalLink, Eye, Wallet, ReceiptCent } from 'lucide-react';
+import { Info, User, Clock, Tag, ExternalLink, Eye, Wallet, ReceiptCent, RotateCcw } from 'lucide-react';
 import { maskSource } from '@/lib/paymentMethods';
+import { useUserRole } from '@/hooks/useUserRole';
+import { ROLES } from '@/lib/permissions';
+import { getReversalAction, getReversalStateLabel } from '@/lib/transactionReversal';
 
-export function TransactionDetailsDialog({ transaction, open, onOpenChange }) {
+export function TransactionDetailsDialog({ transaction, open, onOpenChange, onReverse, isReversing }) {
     const selectedTx = transaction;
+    const { role } = useUserRole();
+    const rev = getReversalAction(selectedTx, role);
     return (
             <Dialog open={open} onOpenChange={onOpenChange}>
                 <DialogContent dir="rtl" className="sm:max-w-[500px]">
@@ -140,11 +145,15 @@ export function TransactionDetailsDialog({ transaction, open, onOpenChange }) {
                                         <div className="flex flex-wrap items-center gap-2">
                                             <Badge variant="outline" className="capitalize">
                                                 {selectedTx.referenceType === 'Manual' ? 'إدخال يدوي' :
-                                                    selectedTx.referenceType === 'Invoice' ? 'نظام المبيعات' :
-                                                        selectedTx.referenceType === 'PurchaseOrder' ? 'نظام المشتريات' :
-                                                            selectedTx.referenceType === 'Debt' ? 'نظام الديون والمديونيات' :
-                                                                selectedTx.referenceType === 'UnifiedCollection' ? 'تحصيل مجمع' : selectedTx.referenceType}
+                                                    selectedTx.referenceType === 'Reversal' ? 'حركة عكس' :
+                                                        selectedTx.referenceType === 'Invoice' ? 'نظام المبيعات' :
+                                                            selectedTx.referenceType === 'PurchaseOrder' ? 'نظام المشتريات' :
+                                                                selectedTx.referenceType === 'Debt' ? 'نظام الديون والمديونيات' :
+                                                                    selectedTx.referenceType === 'UnifiedCollection' ? 'تحصيل مجمع' : selectedTx.referenceType}
                                             </Badge>
+                                            {getReversalStateLabel(selectedTx) && (
+                                                <Badge variant="outline">{getReversalStateLabel(selectedTx)}</Badge>
+                                            )}
 
                                             {/* Action Links in Dialog */}
                                             {selectedTx.referenceType === 'Invoice' && selectedTx.referenceId?._id && (
@@ -175,7 +184,20 @@ export function TransactionDetailsDialog({ transaction, open, onOpenChange }) {
                         </div>
                     )}
 
-                    <DialogFooter>
+                    <DialogFooter className="flex-col gap-2 sm:flex-col">
+                        {rev.canReverse && (
+                            <Button
+                                variant="outline"
+                                className="w-full gap-2 border-warning/30 text-warning hover:bg-warning/10"
+                                onClick={() => { onReverse?.(selectedTx); onOpenChange(false); }}
+                                disabled={isReversing}
+                            >
+                                <RotateCcw size={16} /> عكس هذه المعاملة
+                            </Button>
+                        )}
+                        {role === ROLES.OWNER && rev.guidance && (
+                            <p className="text-xs text-muted-foreground text-center w-full">{rev.guidance}</p>
+                        )}
                         <Button className="w-full" onClick={() => onOpenChange(false)}>إغلاق</Button>
                     </DialogFooter>
                 </DialogContent>

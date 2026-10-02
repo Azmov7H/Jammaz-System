@@ -8,6 +8,7 @@ import {
     getNumberReport,
     addTreasuryTransaction,
     deleteTreasuryTransaction,
+    reverseTreasuryTransaction,
     getDebts,
     getDebtors,
     getDebtOverview,
@@ -159,6 +160,40 @@ export function useDeleteTransaction() {
                 queryClient.invalidateQueries({ queryKey: ['treasury'] });
                 queryClient.invalidateQueries({ queryKey: ['treasury-transactions'] });
                 queryClient.invalidateQueries({ queryKey: ['treasury-cashflow'] });
+            }
+        })
+    });
+}
+
+/**
+ * FIN-REV-01 (T-REV) — compensating reversal (keep history).
+ * Owner-only affordance. Invalidates every money surface the reversal can
+ * touch: treasury ledger/cashflow, customer & supplier statements, debts,
+ * receivables, parties and the tahweesh balance.
+ */
+export function useReverseTransaction() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, reason }) => reverseTreasuryTransaction(id, { reason }),
+        ...withMutationFeedback({
+            successMessage: 'تم عكس المعاملة بنجاح',
+            fallbackErrorMessage: 'فشل عكس المعاملة',
+            afterSuccess: (_data, _vars) => {
+                queryClient.invalidateQueries({ queryKey: ['treasury'] });
+                queryClient.invalidateQueries({ queryKey: ['treasury-transactions'] });
+                queryClient.invalidateQueries({ queryKey: ['treasury-cashflow'] });
+                queryClient.invalidateQueries({ queryKey: ['tahweesh-balance'] });
+                queryClient.invalidateQueries({ queryKey: ['debts'] });
+                queryClient.invalidateQueries({ queryKey: ['debt-overview'] });
+                queryClient.invalidateQueries({ queryKey: ['receivables'] });
+                queryClient.invalidateQueries({ queryKey: ['customer'] });
+                queryClient.invalidateQueries({ queryKey: ['customer-statement'] });
+                queryClient.invalidateQueries({ queryKey: ['customer-statement-doc'] });
+                queryClient.invalidateQueries({ queryKey: ['customer-transaction-doc'] });
+                queryClient.invalidateQueries({ queryKey: ['supplier'] });
+                queryClient.invalidateQueries({ queryKey: ['supplier-statement-doc'] });
+                queryClient.invalidateQueries({ queryKey: ['supplier-transaction-doc'] });
+                queryClient.invalidateQueries({ queryKey: ['partner-transactions'] });
             }
         })
     });

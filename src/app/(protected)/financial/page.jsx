@@ -4,11 +4,12 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { useTreasury, useTreasuryTransactions, useCashFlow, useAddTransaction, useDeleteTransaction, useSupplierPayment } from '@/hooks/useFinancial';
+import { useTreasury, useTreasuryTransactions, useCashFlow, useAddTransaction, useReverseTransaction, useSupplierPayment } from '@/hooks/useFinancial';
 import { getTreasuryTransactions } from '@/services/financeService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Wallet, Loader2, RefreshCcw, AlertCircle, Printer, PiggyBank } from 'lucide-react';
@@ -108,7 +109,7 @@ export default function FinancialPage() {
 
     const { data: treasuryData, isLoading, dataUpdatedAt: treasuryUpdatedAt } = useTreasury(getDateRange());
     const { mutate: addTransaction, isPending } = useAddTransaction();
-    const { mutate: deleteTransaction, isPending: isDeleting } = useDeleteTransaction();
+    const { mutate: reverseTransaction, isPending: isReversing } = useReverseTransaction();
     const { mutate: paySupplier, isPending: isPayingSupplier } = useSupplierPayment();
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -205,22 +206,25 @@ export default function FinancialPage() {
         });
     };
 
-    const [deleteTargetId, setDeleteTargetId] = useState(null);
+    const [reverseTarget, setReverseTarget] = useState(null);
+    const [reverseReason, setReverseReason] = useState('');
 
     const filteredTransactions = useMemo(
         () => allTransactions.filter(tx => matchesTypeFilter(tx, typeFilter)),
         [allTransactions, typeFilter]
     );
 
-    const handleDelete = (id) => {
-        setDeleteTargetId(id);
+    const handleReverse = (tx) => {
+        setReverseReason('');
+        setReverseTarget(tx);
     };
 
-    const handleConfirmDelete = () => {
-        if (deleteTargetId) {
-            deleteTransaction(deleteTargetId);
+    const handleConfirmReverse = () => {
+        if (reverseTarget) {
+            reverseTransaction({ id: reverseTarget._id, reason: reverseReason });
         }
-        setDeleteTargetId(null);
+        setReverseTarget(null);
+        setReverseReason('');
     };
 
     const balance = treasuryData?.balance || 0;
@@ -521,8 +525,8 @@ export default function FinancialPage() {
                         typeFilter={typeFilter}
                         onTypeFilterChange={handleTypeFilterChange}
                         onTxClick={handleTxClick}
-                        onDelete={handleDelete}
-                        isDeleting={isDeleting}
+                        onReverse={handleReverse}
+                        isReversing={isReversing}
                         page={txPage}
                         totalPages={totalPages}
                         total={totalTransactions}
@@ -535,20 +539,44 @@ export default function FinancialPage() {
                 transaction={selectedTx}
                 open={isDetailsOpen}
                 onOpenChange={setIsDetailsOpen}
+                onReverse={handleReverse}
+                isReversing={isReversing}
             />
 
-            {/* Print-only report (hidden on screen, rendered by the browser
-                print engine with native Arabic shaping/bidi). It MUST stay a
-                sibling of the print:hidden screen tree — a print:block child
-                can never escape a display:none ancestor. */}
+            {/* FIN-REV-01: compensating reversal — keeps history (the
+                original is marked reversed + a flipped counter-entry is
+                booked). This replaces the old hard-delete undo. */}
             <ConfirmDialog
-                open={deleteTargetId !== null}
-                onOpenChange={(open) => !open && setDeleteTargetId(null)}
-                title="التراجع عن المعاملة"
-                description="هل أنت متأكد من التراجع عن هذه المعاملة؟ لا يمكن التراجع عن هذا الإجراء."
-                confirmLabel="تراجع"
-                onConfirm={handleConfirmDelete}
-            />
+                open={reverseTarget !== null}
+                onOpenChange={(open) => !open && setReverseTarget(null)}
+                title="عكس المعاملة"
+                description={
+                    <>
+                        هل أنت متأكد من عكس هذه المعاملة؟ سيتم تسجيل حركة معاكسة
+                        (تعويضية) وإلغاء الأثر المالي مع الاحتفاظ بسجل العملية
+                        {reverseTarget && (
+                            <span className="block mt-1 text-xs font-bold">
+                                المبلغ: {reverseTarget.amount.toLocaleString()} ج.م
+                                {reverseTarget.description ? ` — ${reverseTarget.description}` : ''}
+                            </span>
+                        )}
+                    </>
+                }
+                confirmLabel="عكس المعاملة"
+                onConfirm={handleConfirmReverse}
+            >
+                <div className="space-y-1.5">
+                    <Label htmlFor="reverse-reason">سبب العكس (اختياري)</Label>
+                    <Textarea
+                        id="reverse-reason"
+                        value={reverseReason}
+                        onChange={(e) => setReverseReason(e.target.value)}
+                        placeholder="مثال: إدخال مكرر بالخطأ"
+                        rows={2}
+                        disabled={isReversing}
+                    />
+                </div>
+            </ConfirmDialog>
         </div>
         <TreasuryPrintView
             rows={printRows ?? []}
