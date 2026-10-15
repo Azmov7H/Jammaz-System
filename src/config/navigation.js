@@ -19,7 +19,8 @@ import {
     TrendingUp,
     History,
     PackageX,
-    Link2
+    Link2,
+    Warehouse
 } from 'lucide-react';
 
 /**
@@ -47,6 +48,7 @@ export const navigationConfig = [
         title: 'المخزون والمشتريات',
         items: [
             { name: 'المنتجات', href: '/products', icon: Package, permission: 'products:view' },
+            { name: 'المخازن', href: '/warehouses', icon: Warehouse, permission: 'warehouses:view' },
             { name: 'المخزون الحالي', href: '/stock', icon: Boxes, permission: 'products:view' },
             { name: 'سجل حركة المخزون', href: '/stock-movements', icon: ArrowLeftRight, permission: 'products:view' },
             { name: 'الجرد الفعلي', href: '/physical-inventory', icon: ClipboardCheck, permission: 'audit:manage' },
