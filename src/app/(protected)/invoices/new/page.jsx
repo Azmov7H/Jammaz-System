@@ -214,7 +214,7 @@ export default function NewInvoicePage() {
 
                 {/* Global Source Toggle */}
                 <div className="flex bg-card border border-white/5 rounded-xl p-1 shadow-sm">
-                    <button
+                    <button type="button"
                         onClick={() => setDefaultSource('shop')}
                         className={cn(
                             "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
@@ -226,7 +226,7 @@ export default function NewInvoicePage() {
                         <Store className="w-4 h-4" />
                         بيع من المحل
                     </button>
-                    <button
+                    <button type="button"
                         onClick={() => setDefaultSource('warehouse')}
                         className={cn(
                             "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",

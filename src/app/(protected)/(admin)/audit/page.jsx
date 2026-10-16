@@ -272,7 +272,7 @@ export default function AuditPage() {
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="flex bg-muted p-1 rounded-lg">
-                            <button
+                            <button type="button"
                                 className={cn(
                                     "flex-1 py-2 text-sm font-semibold rounded-md transition-all",
                                     direction === 'warehouse_to_shop' ? 'bg-background shadow text-primary' : 'text-muted-foreground'
@@ -281,7 +281,7 @@ export default function AuditPage() {
                             >
                                 من المخزن ⬅ إلى المحل
                             </button>
-                            <button
+                            <button type="button"
                                 className={cn(
                                     "flex-1 py-2 text-sm font-semibold rounded-md transition-all",
                                     direction === 'shop_to_warehouse' ? 'bg-background shadow text-warning' : 'text-muted-foreground'

@@ -5,6 +5,7 @@ import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import {
   ArrowLeftRight,
   Search,
@@ -309,25 +310,25 @@ export default function StockPage() {
           placeholder="ابحث بعمق في قائمة الحركات والأصناف..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-16 pr-16 pl-8 rounded-[2rem] bg-white/[0.03] border-white/5 focus:bg-white/[0.07] focus:border-primary/30 transition-all font-bold text-xl placeholder:text-muted-foreground/30 shadow-inner ring-0 focus-visible:ring-0"
+          className="h-16 pr-16 pl-8 rounded-[2rem] bg-white/[0.03] border-white/5 focus:bg-white/[0.07] focus:border-primary/30 transition-all font-bold text-xl placeholder:text-muted-foreground/30 shadow-inner"
         />
 
         {/* Type Filter */}
         <div className="max-md:static max-md:mt-3 flex items-center gap-2 md:absolute md:left-4 md:top-1/2 md:-translate-y-1/2">
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="h-11 w-full pl-4 pr-10 rounded-xl bg-black/40 border border-white/10 text-xs font-bold text-white focus:border-primary/50 outline-none appearance-none cursor-pointer hover:bg-black/60 transition-colors"
-            style={{ backgroundImage: 'none' }}
-          >
-            <option value="ALL">كل الحركات</option>
-            <option value="IN">وارد (شراء)</option>
-            <option value="OUT">صادر (بيع/تالف)</option>
-            <option value="TRANSFER_TO_SHOP">تحويل للمحل</option>
-            <option value="TRANSFER_TO_WAREHOUSE">تحويل للمخزن</option>
-            <option value="TRANSFER">تحويل بين المخازن</option>
-            <option value="ADJUST">تسوية جردية</option>
-          </select>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="h-11 w-full pl-4 pr-10 rounded-xl bg-black/40 border border-white/10 text-xs font-bold text-white focus:border-primary/50 hover:bg-black/60">
+              <SelectValue placeholder="كل الحركات" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">كل الحركات</SelectItem>
+              <SelectItem value="IN">وارد (شراء)</SelectItem>
+              <SelectItem value="OUT">صادر (بيع/تالف)</SelectItem>
+              <SelectItem value="TRANSFER_TO_SHOP">تحويل للمحل</SelectItem>
+              <SelectItem value="TRANSFER_TO_WAREHOUSE">تحويل للمخزن</SelectItem>
+              <SelectItem value="TRANSFER">تحويل بين المخازن</SelectItem>
+              <SelectItem value="ADJUST">تسوية جردية</SelectItem>
+            </SelectContent>
+          </Select>
           <Layers className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary pointer-events-none" />
         </div>
       </motion.div>

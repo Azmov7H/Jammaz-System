@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -243,17 +244,20 @@ export default function CustomerClient({ id }) {
                                         </DialogHeader>
                                         <div className="space-y-4 py-4">
                                             <div className="space-y-2">
-                                                <Label>المنتج</Label>
-                                                <select
-                                                    className="w-full p-2 border rounded-md"
-                                                    value={selectedProduct}
-                                                    onChange={e => setSelectedProduct(e.target.value)}
-                                                >
-                                                    <option value="">اختر المنتج...</option>
-                                                    {productsData?.products?.map(p => (
-                                                        <option key={p._id} value={p._id}>{p.name} ({p.retailPrice} ج.م)</option>
+                                            <Label>المنتج</Label>
+                                            <Select value={selectedProduct || 'none'} onValueChange={(val) => setSelectedProduct(val === 'none' ? '' : val)}>
+                                                <SelectTrigger className="w-full">
+                                                    <SelectValue placeholder="اختر المنتج..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">اختر المنتج...</SelectItem>
+                                                    {productsData?.products?.map((p) => (
+                                                        <SelectItem key={p._id} value={p._id}>
+                                                            {p.name} ({p.retailPrice} ج.م)
+                                                        </SelectItem>
                                                     ))}
-                                                </select>
+                                                </SelectContent>
+                                            </Select>
                                             </div>
                                             <div className="space-y-2">
                                                 <Label>السعر الخاص (ج.م)</Label>

@@ -3,6 +3,7 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import {
     Palette,
     QrCode,
@@ -112,10 +113,10 @@ export function InvoiceDesignTab({ settings, onChange }) {
                     <div className="p-10">
                         <div className="space-y-4">
                             <Label className="text-xs font-bold text-white/20 uppercase tracking-[0.2em] mr-2">نص ختامي مخصص</Label>
-                            <textarea
+                            <Textarea
                                 value={settings.footerText || ''}
                                 onChange={e => set({ footerText: e.target.value })}
-                                className="w-full min-h-[160px] p-6 bg-white/[0.03] border border-white/10 rounded-[2rem] text-lg font-bold focus:ring-0 outline-none transition-all resize-none ring-0 placeholder:text-white/10"
+                                className="w-full min-h-[160px] p-6 bg-white/[0.03] border border-white/10 rounded-[2rem] text-lg font-bold focus-visible:ring-primary/30 transition-all resize-none placeholder:text-white/10"
                                 placeholder="مثل: البضاعة المباعة لا ترد ولا تستبدل بعد 14 يوم..."
                             />
                         </div>

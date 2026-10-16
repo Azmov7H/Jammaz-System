@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import {
     Table,
@@ -442,15 +443,16 @@ export function SupplierDebtManager({ supplier, open, onOpenChange }) {
 
                                 <div className="space-y-2">
                                     <Label>الفترة بين كل قسط</Label>
-                                    <select
-                                        className="w-full h-12 px-4 rounded-xl border bg-background font-bold"
-                                        value={interval}
-                                        onChange={(e) => setInterval(e.target.value)}
-                                    >
-                                        <option value="weekly">أسبوعي</option>
-                                        <option value="monthly">شهري</option>
-                                        <option value="daily">يومي</option>
-                                    </select>
+                                    <Select value={interval} onValueChange={setInterval}>
+                                        <SelectTrigger className="w-full h-12">
+                                            <SelectValue placeholder="الفترة بين كل قسط" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="weekly">أسبوعي</SelectItem>
+                                            <SelectItem value="monthly">شهري</SelectItem>
+                                            <SelectItem value="daily">يومي</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
 
                                 <div className="space-y-2">

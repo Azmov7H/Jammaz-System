@@ -8,7 +8,7 @@ export function NotificationBell({ className, ...props }) {
     const { unreadCount } = useNotifications();
 
     return (
-        <button
+        <button type="button"
             className={cn("relative p-2 rounded-md hover:bg-muted transition-colors group", className)}
             aria-label="الإشعارات"
             {...props}

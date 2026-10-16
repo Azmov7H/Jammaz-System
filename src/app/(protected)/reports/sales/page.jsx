@@ -72,14 +72,14 @@ export default function SalesReportPage() {
                                 type="date"
                                 value={startDate}
                                 onChange={(e) => setStartDate(e.target.value)}
-                                className="bg-transparent border-none text-xs font-bold focus:ring-0"
+                                className="bg-transparent border-none text-xs font-bold"
                             />
                             <span className="text-white/20">→</span>
                             <input
                                 type="date"
                                 value={endDate}
                                 onChange={(e) => setEndDate(e.target.value)}
-                                className="bg-transparent border-none text-xs font-bold focus:ring-0"
+                                className="bg-transparent border-none text-xs font-bold"
                             />
                             <Button onClick={handleFilter} size="sm" className="rounded-xl h-8 px-4">تحديث</Button>
                         </div>

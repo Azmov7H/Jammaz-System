@@ -253,7 +253,7 @@ export default function ReceivablesPage() {
                     placeholder="بحث باسم العميل أو رقم الفاتورة..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="border-none bg-transparent h-12 text-lg font-medium focus-visible:ring-0 px-0"
+                    className="border-none bg-transparent h-12 text-lg font-medium px-0"
                 />
             </motion.div>
 
@@ -329,7 +329,7 @@ export default function ReceivablesPage() {
                                                         </Badge>
                                                     </div>
                                                     <div className="flex items-center gap-3 text-sm text-muted-foreground font-medium">
-                                                        <button onClick={() => handleCopy(inv.number)} className="flex items-center gap-1.5 hover:text-primary transition-colors">
+                                                        <button type="button" onClick={() => handleCopy(inv.number)} className="flex items-center gap-1.5 hover:text-primary transition-colors">
                                                             <FileText className="h-3.5 w-3.5" />
                                                             {inv.number}
                                                         </button>

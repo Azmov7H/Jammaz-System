@@ -17,7 +17,7 @@ export function SidebarGroup({ title, children, isCollapsed, defaultExpanded = t
 
     return (
         <div className="space-y-1 py-4 first:pt-0 border-t border-white/5 first:border-t-0 transition-all duration-300">
-            <button
+            <button type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="flex items-center justify-between w-full px-3 py-2 group hover:bg-muted/30 rounded-lg transition-colors"
             >

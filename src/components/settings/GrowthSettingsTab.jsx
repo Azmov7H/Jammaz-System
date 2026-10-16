@@ -41,7 +41,7 @@ export function GrowthSettingsTab({ settings, onChange }) {
                                         const val = parseFloat(e.target.value) || 100;
                                         set({ pointsPerEGP: 1 / val });
                                     }}
-                                    className="h-14 text-3xl font-bold text-center border-0 bg-transparent text-white ring-0 focus-visible:ring-0 tabular-nums"
+                                    className="h-14 text-3xl font-bold text-center border-0 bg-transparent text-white tabular-nums"
                                 />
                                 <span className="font-bold text-white/40 uppercase text-xs tracking-[0.3em]">ج.م</span>
                             </div>
@@ -62,7 +62,7 @@ export function GrowthSettingsTab({ settings, onChange }) {
                                     step="0.01"
                                     value={settings.egpPerPoint || 0.1}
                                     onChange={e => set({ egpPerPoint: parseFloat(e.target.value) || 0 })}
-                                    className="h-14 text-3xl font-bold text-center border-0 bg-transparent text-white ring-0 focus-visible:ring-0 tabular-nums"
+                                    className="h-14 text-3xl font-bold text-center border-0 bg-transparent text-white tabular-nums"
                                 />
                                 <span className="font-bold text-white/40 uppercase text-xs tracking-[0.3em]">ج.م</span>
                             </div>
@@ -92,7 +92,7 @@ export function GrowthSettingsTab({ settings, onChange }) {
                                     type="number"
                                     value={settings.inactiveCustomerThresholdDays || 30}
                                     onChange={e => set({ inactiveCustomerThresholdDays: parseInt(e.target.value) || 0 })}
-                                    className="h-16 text-4xl font-bold text-center border-0 bg-transparent text-destructive ring-0 focus-visible:ring-0"
+                                    className="h-16 text-4xl font-bold text-center border-0 bg-transparent text-destructive"
                                 />
                                 <span className="font-bold text-destructive/30 uppercase text-xs tracking-[0.5em]">يوم</span>
                             </div>

@@ -163,7 +163,7 @@ export function InvoiceReturnDialog({ invoice, open, onOpenChange, returnItems, 
                                                 <Wallet size={12} className="text-warning" /> طريقة رد المبلغ
                                             </Label>
                                             <div className="grid grid-cols-2 gap-2">
-                                                <button
+                                                <button type="button"
                                                     onClick={() => setRefundMethod('cash')}
                                                     className={cn(
                                                         "flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all group/btn",
@@ -180,7 +180,7 @@ export function InvoiceReturnDialog({ invoice, open, onOpenChange, returnItems, 
                                                     </div>
                                                     <span className="text-xs font-bold uppercase tracking-tighter">خزينة نقداً</span>
                                                 </button>
-                                                <button
+                                                <button type="button"
                                                     onClick={() => setRefundMethod('customerBalance')}
                                                     className={cn(
                                                         "flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all group/btn",

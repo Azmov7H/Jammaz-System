@@ -133,7 +133,7 @@ export default function StockMovementsPage() {
                             { label: '30 يوم', val: 30 },
                             { label: '90 يوم', val: 90 }
                         ].map((period) => (
-                            <button
+                            <button type="button"
                                 key={period.val}
                                 onClick={() => setDays(period.val)}
                                 className={cn(
@@ -206,7 +206,7 @@ export default function StockMovementsPage() {
                         { id: 'TRANSFER', label: 'تحويلات', icon: ArrowRightLeft },
                         { id: 'ADJUST', label: 'تسويات', icon: FileEdit },
                     ].map((type) => (
-                        <button
+                        <button type="button"
                             key={type.id}
                             onClick={() => setFilterType(type.id)}
                             className={cn(

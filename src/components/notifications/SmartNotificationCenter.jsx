@@ -172,7 +172,7 @@ export function SmartNotificationCenter() {
                             <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
                                 <div className="flex flex-wrap gap-1 p-1 bg-white/5 rounded-xl border border-white/5">
                                     {TABS.map(tab => (
-                                        <button
+                                        <button type="button"
                                             key={tab.id}
                                             onClick={() => setActiveTab(tab.id)}
                                             className={cn(

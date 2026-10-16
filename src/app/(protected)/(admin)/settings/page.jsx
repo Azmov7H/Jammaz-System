@@ -58,7 +58,7 @@ export default function SettingsPage() {
                 }
             />
 
-            <Tabs defaultValue="general" className="w-full max-w-6xl mx-auto" onValueChange={setActiveTab}>
+            <Tabs defaultValue="general" className="w-full max-w-6xl 2xl:max-w-[1400px] mx-auto" onValueChange={setActiveTab}>
                 <TabsList className="grid grid-cols-2 md:grid-cols-5 h-auto p-2 bg-white/[0.02] border border-white/5 rounded-[2rem] glass-card mb-12 shadow-2xl">
                     <TabsTrigger value="general" className={TAB_TRIGGER_CLASS}>
                         <Building2 className="w-5 h-5 ml-2" /> البيانات العامة

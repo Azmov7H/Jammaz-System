@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 import {
     Table,
     TableBody,
@@ -38,7 +40,7 @@ const STATUS_LABELS = {
     'written-off': 'مشطوب',
 };
 
-export function DebtTable({ debts, onRecordPayment, onScheduleInstallment, onUnifiedCollection }) {
+export const DebtTable = React.memo(function DebtTable({ debts, onRecordPayment, onScheduleInstallment, onUnifiedCollection }) {
     const router = useRouter();
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [selectedDebtForEdit, setSelectedDebtForEdit] = useState(null);
@@ -189,7 +191,7 @@ export function DebtTable({ debts, onRecordPayment, onScheduleInstallment, onUni
             />
         </div >
     );
-}
+});
 
 // Helper to handle class merging if needed, or import from @/lib/utils if available
 function cn(...inputs) {

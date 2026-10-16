@@ -163,7 +163,7 @@ export default function InvoicesPage() {
                     <Search className="absolute right-6 top-1/2 -translate-y-1/2 text-primary h-6 w-6 group-focus-within:animate-pulse transition-all" />
                     <Input
                         placeholder="ابحث برقم الفاتورة، اسم العميل، أو التاريخ..."
-                        className="h-16 pr-16 pl-8 rounded-[2rem] bg-card/40 border-white/10 focus:bg-card/60 focus:border-primary/50 transition-all font-bold text-xl placeholder:text-muted-foreground/30 shadow-2xl backdrop-blur-xl ring-0 focus-visible:ring-0"
+                        className="h-16 pr-16 pl-8 rounded-[2rem] bg-card/40 border-white/10 focus:bg-card/60 focus:border-primary/50 transition-all font-bold text-xl placeholder:text-muted-foreground/30 shadow-2xl backdrop-blur-xl"
                         value={searchTerm}
                         onChange={handleSearch}
                     />
@@ -177,7 +177,7 @@ export default function InvoicesPage() {
                     ].map((tab) => {
                         const Icon = tab.icon;
                         return (
-                            <button
+                            <button type="button"
                                 key={tab.id}
                                 onClick={() => setFilterType(tab.id)}
                                 className={cn(

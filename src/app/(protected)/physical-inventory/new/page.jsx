@@ -121,7 +121,7 @@ export default function NewPhysicalInventoryPage() {
                                         { id: 'shop', label: 'المحل', icon: Store },
                                         { id: 'both', label: 'شامل', icon: Layers },
                                     ].map((loc) => (
-                                        <button
+                                        <button type="button"
                                             key={loc.id}
                                             type="button"
                                             onClick={() => setLocation(loc.id)}

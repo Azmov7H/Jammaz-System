@@ -10,25 +10,11 @@ export function SidebarProvider({ children }) {
 
     // Detect mobile viewport
     useEffect(() => {
-        const checkMobile = () => {
-            const mobile = window.innerWidth < 768;
-            setIsMobile(mobile);
-            // Only set initial state or if crossing breakpoint could be handled here,
-            // but simpler to just track isMobile and let verify side effect handle it
-            // or just leave it to user component.
-            // However, to replicate original intent without bug:
-            // We generally want mobile -> defaults closed, desktop -> defaults open.
-        };
-
-        checkMobile();
-
-        const handleResize = () => {
-            const mobile = window.innerWidth < 768;
-            setIsMobile(mobile);
-        };
-
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        const mql = window.matchMedia('(max-width: 767px)');
+        const apply = () => setIsMobile(mql.matches);
+        apply();
+        mql.addEventListener('change', apply);
+        return () => mql.removeEventListener('change', apply);
     }, []);
 
     // Auto-state management based on device type change

@@ -27,7 +27,14 @@ export default function Sidebar() {
             {/* Mobile Overlay */}
             {isMobile && isOpen && (
                 <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="القائمة الجانبية"
+                    tabIndex={-1}
                     onClick={closeSidebar}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') closeSidebar();
+                    }}
                     className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity duration-300 animate-in fade-in"
                 />
             )}
