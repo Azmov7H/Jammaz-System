@@ -17,7 +17,7 @@ import {
   Plus
 } from 'lucide-react';
 import { hasPermission } from '@/lib/permissions';import { useUserRole } from '@/hooks/useUserRole';
-import { useStockMovements, useAddStockMovement } from '@/hooks/useStock';
+import { useStockMovements, useAddStockMovement, useTransferStock } from '@/hooks/useStock';
 import { cn } from '@/utils';
 import { StockMovementDialog } from '@/components/stock/StockMovementDialog';
 import { MovementCard, MovementTypeBadge } from '@/components/stock/MovementCard';
@@ -79,7 +79,9 @@ export default function StockPage() {
     return [];
   }, [movementsData]);
 
-  const { mutate: addMovement, isPending: isSubmitting } = useAddStockMovement();
+  const { mutate: addMovement, isPending: isAdding } = useAddStockMovement();
+  const { mutate: transferStock, isPending: isTransferring } = useTransferStock();
+  const isSubmitting = isAdding || isTransferring;
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -143,7 +145,8 @@ export default function StockPage() {
   }, [movements, searchQuery, filterType]);
 
   const handleSubmit = (payload, resetCallback) => {
-    addMovement(payload, {
+    const mutation = payload?.type === 'TRANSFER_WAREHOUSE' ? transferStock : addMovement;
+    mutation(payload, {
       onSuccess: () => {
         setIsDialogOpen(false);
         if (resetCallback) resetCallback();
@@ -320,6 +323,7 @@ export default function StockPage() {
             <option value="OUT">صادر (بيع/تالف)</option>
             <option value="TRANSFER_TO_SHOP">تحويل للمحل</option>
             <option value="TRANSFER_TO_WAREHOUSE">تحويل للمخزن</option>
+            <option value="TRANSFER">تحويل بين المخازن</option>
             <option value="ADJUST">تسوية جردية</option>
           </select>
           <Layers className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary pointer-events-none" />

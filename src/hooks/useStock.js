@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getStockMovements, getStockStatus, moveStock } from '@/services/stockService';
+import { getStockMovements, getStockStatus, moveStock, transferStock } from '@/services/stockService';
 import { withMutationFeedback } from '@/lib/mutation-feedback';
 
 export function useStockMovements(params = {}) {
@@ -26,6 +26,22 @@ export function useAddStockMovement() {
             afterSuccess: () => {
                 queryClient.invalidateQueries({ queryKey: ['stock-movements'] });
                 queryClient.invalidateQueries({ queryKey: ['products'] });
+            }
+        })
+    });
+}
+
+export function useTransferStock() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data) => transferStock(data),
+        ...withMutationFeedback({
+            successMessage: 'تم تحويل المخزون بين المخازن بنجاح',
+            fallbackErrorMessage: 'فشل تحويل المخزون بين المخازن',
+            afterSuccess: () => {
+                queryClient.invalidateQueries({ queryKey: ['stock-movements'] });
+                queryClient.invalidateQueries({ queryKey: ['products'] });
+                queryClient.invalidateQueries({ queryKey: ['stock-status'] });
             }
         })
     });

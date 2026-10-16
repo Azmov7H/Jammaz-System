@@ -21,19 +21,24 @@ const WAREHOUSE_LABEL = {
     TRANSFER_TO_WAREHOUSE: 'المخزن الوجهة'
 };
 
+const EMPTY_FORM = {
+    productId: '', type: 'IN', qty: '', note: '', warehouseId: '',
+    fromWarehouseId: '', toWarehouseId: ''
+};
+
 export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting }) {
 
     const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
     const [selectedProductDetails, setSelectedProductDetails] = useState(null);
 
-    const [formData, setFormData] = useState({
-        productId: '', type: 'IN', qty: '', note: '', warehouseId: ''
-    });
+    const [formData, setFormData] = useState(EMPTY_FORM);
     const [items, setItems] = useState([]); // For bulk movements
 
     const { data: warehousesData } = useWarehouses();
     const { data: primaryWarehouse } = usePrimaryWarehouse();
     const additionalWarehouses = (warehousesData?.warehouses || []).filter(w => !w.isPrimary && w.isActive);
+
+    const isInterWarehouse = formData.type === 'TRANSFER_WAREHOUSE';
 
     const warehouseName = (id) => {
         if (!id) return primaryWarehouse?.name || 'المخزن الرئيسي';
@@ -66,6 +71,23 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        // Inter-warehouse move: always a single product targeting a source and a
+        // destination warehouse (blank = primary). The parent routes this type
+        // to the transfer endpoint.
+        if (isInterWarehouse) {
+            onSubmit({
+                type: 'TRANSFER_WAREHOUSE',
+                productId: formData.productId,
+                qty: Number(formData.qty),
+                fromWarehouseId: formData.fromWarehouseId || null,
+                toWarehouseId: formData.toWarehouseId || null,
+                note: formData.note
+            }, () => {
+                setFormData(EMPTY_FORM);
+                setItems([]);
+            });
+            return;
+        }
         // If we have bulk items, use them, otherwise use the single product form
         const payload = items.length > 0
             ? { items, type: formData.type, note: formData.note }
@@ -73,7 +95,7 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
 
         onSubmit(payload, () => {
             // Reset callback
-            setFormData({ productId: '', type: 'IN', qty: '', note: '', warehouseId: '' });
+            setFormData(EMPTY_FORM);
             setItems([]);
         });
     };
@@ -115,29 +137,77 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
                                 <option value="OUT" className="bg-secondary">صادر: صرف / تالف (من المخزن)</option>
                                 <option value="TRANSFER_TO_SHOP" className="bg-secondary">تحويل: من المخزن للمحل</option>
                                 <option value="TRANSFER_TO_WAREHOUSE" className="bg-secondary">إرجاع: من المحل للمخزن</option>
+                                <option value="TRANSFER_WAREHOUSE" className="bg-secondary">تحويل بين المخازن</option>
                             </select>
 
-                            <div className="space-y-2 pt-2 border-t border-white/5">
-                                <Label className="text-sm font-bold text-primary uppercase tracking-widest flex items-center gap-2">
-                                    <Warehouse size={14} className="opacity-50" />
-                                    {WAREHOUSE_LABEL[formData.type] || 'المخزن'}
-                                </Label>
-                                <select
-                                    data-testid="stock-movement-warehouse"
-                                    className="w-full h-12 px-5 border-2 border-white/5 rounded-2xl bg-white/[0.03] font-bold shadow-inner focus:border-primary/50 focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none cursor-pointer hover:bg-white/5"
-                                    value={formData.warehouseId}
-                                    onChange={e => setFormData({ ...formData, warehouseId: e.target.value })}
-                                >
-                                    <option value="" className="bg-secondary">
-                                        {primaryWarehouse?.name || 'المخزن الرئيسي'}
-                                    </option>
-                                    {additionalWarehouses.map(w => (
-                                        <option key={w._id} value={w._id} className="bg-secondary">
-                                            {w.name}
+                            {isInterWarehouse ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-white/5">
+                                    <div className="space-y-2">
+                                        <Label className="text-sm font-bold text-primary uppercase tracking-widest flex items-center gap-2">
+                                            <Warehouse size={14} className="opacity-50" />
+                                            المخزن المصدر
+                                        </Label>
+                                        <select
+                                            data-testid="stock-movement-from-warehouse"
+                                            className="w-full h-12 px-5 border-2 border-white/5 rounded-2xl bg-white/[0.03] font-bold shadow-inner focus:border-primary/50 focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none cursor-pointer hover:bg-white/5"
+                                            value={formData.fromWarehouseId}
+                                            onChange={e => setFormData({ ...formData, fromWarehouseId: e.target.value })}
+                                        >
+                                            <option value="" className="bg-secondary">
+                                                {primaryWarehouse?.name || 'المخزن الرئيسي'}
+                                            </option>
+                                            {additionalWarehouses.map(w => (
+                                                <option key={w._id} value={w._id} className="bg-secondary">
+                                                    {w.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-sm font-bold text-primary uppercase tracking-widest flex items-center gap-2">
+                                            <Warehouse size={14} className="opacity-50" />
+                                            المخزن الوجهة
+                                        </Label>
+                                        <select
+                                            data-testid="stock-movement-to-warehouse"
+                                            className="w-full h-12 px-5 border-2 border-white/5 rounded-2xl bg-white/[0.03] font-bold shadow-inner focus:border-primary/50 focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none cursor-pointer hover:bg-white/5"
+                                            value={formData.toWarehouseId}
+                                            onChange={e => setFormData({ ...formData, toWarehouseId: e.target.value })}
+                                        >
+                                            <option value="" className="bg-secondary">
+                                                {primaryWarehouse?.name || 'المخزن الرئيسي'}
+                                            </option>
+                                            {additionalWarehouses.map(w => (
+                                                <option key={w._id} value={w._id} className="bg-secondary">
+                                                    {w.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-2 pt-2 border-t border-white/5">
+                                    <Label className="text-sm font-bold text-primary uppercase tracking-widest flex items-center gap-2">
+                                        <Warehouse size={14} className="opacity-50" />
+                                        {WAREHOUSE_LABEL[formData.type] || 'المخزن'}
+                                    </Label>
+                                    <select
+                                        data-testid="stock-movement-warehouse"
+                                        className="w-full h-12 px-5 border-2 border-white/5 rounded-2xl bg-white/[0.03] font-bold shadow-inner focus:border-primary/50 focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none cursor-pointer hover:bg-white/5"
+                                        value={formData.warehouseId}
+                                        onChange={e => setFormData({ ...formData, warehouseId: e.target.value })}
+                                    >
+                                        <option value="" className="bg-secondary">
+                                            {primaryWarehouse?.name || 'المخزن الرئيسي'}
                                         </option>
-                                    ))}
-                                </select>
-                            </div>
+                                        {additionalWarehouses.map(w => (
+                                            <option key={w._id} value={w._id} className="bg-secondary">
+                                                {w.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -201,7 +271,7 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
                             <Button
                                 type="button"
                                 onClick={handleAddItem}
-                                disabled={!formData.productId || !formData.qty}
+                                disabled={isInterWarehouse || !formData.productId || !formData.qty}
                                 className="h-12 px-8 rounded-2xl gap-2 font-bold text-base gradient-primary border-0 hover-lift shadow-lg shadow-primary/20 disabled:opacity-30 transition-all active:scale-95"
                             >
                                 <Plus size={20} className="animate-bounce" />
@@ -212,7 +282,7 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
 
                     {/* Selected Items List */}
                     <AnimatePresence mode="popLayout">
-                        {items.length > 0 && (
+                        {!isInterWarehouse && items.length > 0 && (
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}

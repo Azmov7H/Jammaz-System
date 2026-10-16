@@ -24,10 +24,20 @@ export const getStockStatus = (params = {}, options) => api.get('/api/stock', pa
  */
 export const moveStock = (data) => api.post('/api/stock/move', data);
 
+/**
+ * Inter-warehouse transfer. `fromWarehouseId`/`toWarehouseId` of null mean the
+ * primary warehouse, so the primary may be on either side.
+ * @param {{productId: string, qty: number, fromWarehouseId: string|null, toWarehouseId: string|null, note?: string}} data
+ * @returns {Promise<*>}
+ */
+export const transferStock = (data) =>
+    api.post('/api/stock/transfer', { from: 'warehouse', to: 'warehouse', ...data });
+
 /** Legacy namespace kept for existing consumers. */
 export const StockService = {
     getMovements: getStockMovements,
-    getStockStatus,
+    getStockStatus: getStockStatus,
     moveStock,
+    transferStock,
     validateStockAvailability: async (items) => items.map(item => ({ ...item, available: true })),
 };

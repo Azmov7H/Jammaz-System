@@ -57,7 +57,7 @@ export default function StockMovementsPage() {
             const matchesType = filterType === 'ALL' ||
                 (filterType === 'IN' && m.type === 'IN') ||
                 (filterType === 'OUT' && (m.type === 'OUT' || m.type === 'SALE')) ||
-                (filterType === 'TRANSFER' && (m.type === 'TRANSFER_TO_SHOP' || m.type === 'TRANSFER_TO_WAREHOUSE')) ||
+                (filterType === 'TRANSFER' && (m.type === 'TRANSFER_TO_SHOP' || m.type === 'TRANSFER_TO_WAREHOUSE' || m.type === 'TRANSFER')) ||
                 (filterType === 'ADJUST' && m.type === 'ADJUST');
 
             return matchesSearch && matchesType;
@@ -81,6 +81,7 @@ export default function StockMovementsPage() {
             case 'IN': return { label: 'توريد جديد', icon: TrendingUp, color: 'emerald', bg: 'bg-success/10', text: 'text-success', border: 'border-success/20' };
             case 'TRANSFER_TO_SHOP': return { label: 'تحويل للمحل', icon: ArrowRightLeft, color: 'blue', bg: 'bg-info/10', text: 'text-info', border: 'border-info/20' };
             case 'TRANSFER_TO_WAREHOUSE': return { label: 'تحويل للمخزن', icon: ArrowRightLeft, color: 'indigo', bg: 'bg-info/10', text: 'text-info', border: 'border-info/20' };
+            case 'TRANSFER': return { label: 'تحويل بين المخازن', icon: ArrowRightLeft, color: 'indigo', bg: 'bg-info/10', text: 'text-info', border: 'border-info/20' };
             case 'ADJUST': return { label: 'تسوية جردية', icon: FileEdit, color: 'amber', bg: 'bg-warning/10', text: 'text-warning', border: 'border-warning/20' };
             default: return { label: 'حركة عامة', icon: Package, color: 'slate', bg: 'bg-muted500/10', text: 'text-muted-foreground', border: 'border-border/20' };
         }
