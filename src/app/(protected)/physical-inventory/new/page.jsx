@@ -29,16 +29,23 @@ import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { useCreateInventoryCount } from '@/hooks/usePhysicalInventory';
 import { useProductMetadata } from '@/hooks/useProducts';
+import { useWarehouses, usePrimaryWarehouse } from '@/hooks/useWarehouses';
 
 export default function NewPhysicalInventoryPage() {
     const router = useRouter();
     const [location, setLocation] = useState('');
     const [category, setCategory] = useState('all');
     const [isBlind, setIsBlind] = useState(false);
+    // '' → primary warehouse (backend treats blank/null as primary).
+    const [warehouseId, setWarehouseId] = useState('');
 
     const createMutation = useCreateInventoryCount();
     const { data: metadata, isLoading: fetchingMetadata } = useProductMetadata();
     const categories = metadata?.categories || [];
+
+    const { data: warehousesData } = useWarehouses();
+    const { data: primaryWarehouse } = usePrimaryWarehouse();
+    const additionalWarehouses = (warehousesData?.warehouses || []).filter((w) => !w.isPrimary && w.isActive);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -47,7 +54,8 @@ export default function NewPhysicalInventoryPage() {
         createMutation.mutate({
             location,
             category: category === 'all' ? null : category,
-            isBlind
+            isBlind,
+            warehouseId: location === 'warehouse' ? (warehouseId || null) : null
         }, {
             // Success/error toasts come from the mutation hook; here we
             // only navigate. The api client strips the envelope so `res`
@@ -127,9 +135,40 @@ export default function NewPhysicalInventoryPage() {
                                         </button>
                                     ))}
                                 </div>
-                            </div>
 
-                            {/* Category Section */}
+                                {location === 'warehouse' && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        className="space-y-2"
+                                    >
+                                        <Label className="text-xs font-bold text-muted-foreground flex items-center gap-2">
+                                            <Warehouse className="w-3.5 h-3.5" /> المخزن المراد جرده
+                                        </Label>
+                                        <Select
+                                            value={warehouseId || '__primary__'}
+                                            onValueChange={(val) => setWarehouseId(val === '__primary__' ? '' : val)}
+                                        >
+                                            <SelectTrigger
+                                                data-testid="inventory-warehouse-select"
+                                                className="h-12 rounded-2xl border-0 bg-muted/30 font-bold focus:ring-2 ring-primary/20"
+                                            >
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent className="rounded-2xl border-0 shadow-custom-xl">
+                                                <SelectItem value="__primary__" className="font-bold py-3 text-primary">
+                                                    {primaryWarehouse?.name || 'المخزن الرئيسي'}
+                                                </SelectItem>
+                                                {additionalWarehouses.map((w) => (
+                                                    <SelectItem key={w._id} value={w._id} className="font-medium py-3">
+                                                        {w.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </motion.div>
+                                )}
+                            </div>
                             <div className="space-y-4">
                                 <Label className="text-sm font-bold flex items-center gap-2 text-primary/80">
                                     <LayoutGrid className="w-4 h-4" /> القسم المختار

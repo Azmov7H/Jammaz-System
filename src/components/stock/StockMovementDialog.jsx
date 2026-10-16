@@ -5,11 +5,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
-import { ArrowLeftRight, Loader2, Plus, Trash2, Package, Layers, AlertCircle, Search } from 'lucide-react';
+import { ArrowLeftRight, Loader2, Plus, Trash2, Package, Layers, AlertCircle, Search, Warehouse } from 'lucide-react';
 import { cn } from '@/utils';
 import { useProducts } from '@/hooks/useProducts';
+import { useWarehouses, usePrimaryWarehouse } from '@/hooks/useWarehouses';
 import { ProductSelector } from '@/components/products/ProductSelector';
 import { AnimatePresence, motion } from 'framer-motion';
+
+// Warehouse-aware labels for the operation type (which side of the move the
+// selected warehouse represents).
+const WAREHOUSE_LABEL = {
+    IN: 'المخزن المستلم (الوجهة)',
+    OUT: 'المخزن المصروف منه (المصدر)',
+    TRANSFER_TO_SHOP: 'المخزن المصدر',
+    TRANSFER_TO_WAREHOUSE: 'المخزن الوجهة'
+};
 
 export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting }) {
 
@@ -17,9 +27,18 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
     const [selectedProductDetails, setSelectedProductDetails] = useState(null);
 
     const [formData, setFormData] = useState({
-        productId: '', type: 'IN', qty: '', note: ''
+        productId: '', type: 'IN', qty: '', note: '', warehouseId: ''
     });
     const [items, setItems] = useState([]); // For bulk movements
+
+    const { data: warehousesData } = useWarehouses();
+    const { data: primaryWarehouse } = usePrimaryWarehouse();
+    const additionalWarehouses = (warehousesData?.warehouses || []).filter(w => !w.isPrimary && w.isActive);
+
+    const warehouseName = (id) => {
+        if (!id) return primaryWarehouse?.name || 'المخزن الرئيسي';
+        return (warehousesData?.warehouses || []).find(w => w._id === id)?.name || 'مخزن';
+    };
 
     const handleAddItem = () => {
         if (!formData.productId || !formData.qty) return;
@@ -31,10 +50,12 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
             productId: formData.productId,
             name: productName,
             qty: Number(formData.qty),
-            note: formData.note
+            note: formData.note,
+            // '' → primary warehouse (backend treats null/undefined as primary)
+            warehouseId: formData.warehouseId || undefined
         }]);
 
-        // Reset product selection but keep type and global note
+        // Reset product selection but keep type, warehouse and global note
         setFormData({ ...formData, productId: '', qty: '' });
         setSelectedProductDetails(null);
     };
@@ -48,11 +69,11 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
         // If we have bulk items, use them, otherwise use the single product form
         const payload = items.length > 0
             ? { items, type: formData.type, note: formData.note }
-            : formData;
+            : { ...formData, warehouseId: formData.warehouseId || undefined };
 
         onSubmit(payload, () => {
             // Reset callback
-            setFormData({ productId: '', type: 'IN', qty: '', note: '' });
+            setFormData({ productId: '', type: 'IN', qty: '', note: '', warehouseId: '' });
             setItems([]);
         });
     };
@@ -85,6 +106,7 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
                                 <span className="text-xs font-bold text-muted-foreground bg-white/5 px-2 py-1 rounded-md">Unified Action</span>
                             </div>
                             <select
+                                data-testid="stock-movement-type"
                                 className="w-full h-14 px-5 border-2 border-white/5 rounded-2xl bg-white/[0.03] font-bold text-lg shadow-inner focus:border-primary/50 focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none cursor-pointer hover:bg-white/5"
                                 value={formData.type}
                                 onChange={e => setFormData({ ...formData, type: e.target.value })}
@@ -94,6 +116,28 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
                                 <option value="TRANSFER_TO_SHOP" className="bg-secondary">تحويل: من المخزن للمحل</option>
                                 <option value="TRANSFER_TO_WAREHOUSE" className="bg-secondary">إرجاع: من المحل للمخزن</option>
                             </select>
+
+                            <div className="space-y-2 pt-2 border-t border-white/5">
+                                <Label className="text-sm font-bold text-primary uppercase tracking-widest flex items-center gap-2">
+                                    <Warehouse size={14} className="opacity-50" />
+                                    {WAREHOUSE_LABEL[formData.type] || 'المخزن'}
+                                </Label>
+                                <select
+                                    data-testid="stock-movement-warehouse"
+                                    className="w-full h-12 px-5 border-2 border-white/5 rounded-2xl bg-white/[0.03] font-bold shadow-inner focus:border-primary/50 focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none cursor-pointer hover:bg-white/5"
+                                    value={formData.warehouseId}
+                                    onChange={e => setFormData({ ...formData, warehouseId: e.target.value })}
+                                >
+                                    <option value="" className="bg-secondary">
+                                        {primaryWarehouse?.name || 'المخزن الرئيسي'}
+                                    </option>
+                                    {additionalWarehouses.map(w => (
+                                        <option key={w._id} value={w._id} className="bg-secondary">
+                                            {w.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                     </div>
 
@@ -197,6 +241,9 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
                                                     <p className="text-lg font-bold text-foreground group-hover:text-primary transition-colors leading-tight">{item.name}</p>
                                                     <div className="flex items-center gap-3">
                                                         <span className="text-xs bg-primary/20 text-primary px-3 py-1 rounded-full font-bold shadow-sm">الكمية: {item.qty}</span>
+                                                        <span className="text-xs bg-info/20 text-info px-3 py-1 rounded-full font-bold shadow-sm flex items-center gap-1">
+                                                            <Warehouse size={10} /> {warehouseName(item.warehouseId)}
+                                                        </span>
                                                         {item.note && (
                                                             <div className="flex items-center gap-1 text-xs text-muted-foreground font-bold italic opacity-60">
                                                                 <AlertCircle size={10} />

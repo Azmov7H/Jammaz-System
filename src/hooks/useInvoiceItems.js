@@ -69,8 +69,11 @@ export function useInvoiceItems({ items, setItems, onReportShortage, defaultSour
             unitPrice: product.retailPrice || product.sellPrice || 0,
             qty: 1,
             source: source,
+            // null → primary warehouse (backend treats null/undefined as primary)
+            warehouseId: null,
             shopQty: product.shopQty || 0,
             warehouseQty: product.warehouseQty || 0,
+            warehouseStocks: product.warehouseStocks || [],
             maxQty: stockToCheck,
             retailPrice: product.retailPrice || product.sellPrice,
             wholesalePrice: product.wholesalePrice,
@@ -82,9 +85,22 @@ export function useInvoiceItems({ items, setItems, onReportShortage, defaultSour
         setSearchResults([]);
     };
 
+    /**
+     * Available quantity for an item given its source and (optional) selected
+     * warehouse slot. warehouseId falsy → the primary warehouse quantity.
+     */
+    const availableQty = (item, warehouseId = item.warehouseId) => {
+        if (item.source !== 'warehouse') return item.shopQty || 0;
+        if (!warehouseId) return item.warehouseQty || 0;
+        const slot = (item.warehouseStocks || []).find(
+            s => String(s.warehouseId) === String(warehouseId)
+        );
+        return slot?.qty || 0;
+    };
+
     const updateQty = (index, qty) => {
         const item = items[index];
-        const maxAvailable = item.source === 'warehouse' ? item.warehouseQty : item.shopQty;
+        const maxAvailable = availableQty(item);
 
         if (Number(qty) > maxAvailable) {
             toast.error(`الكمية المتوفرة في ${item.source === 'warehouse' ? 'المخزن' : 'المحل'} فقط ${maxAvailable}`);
@@ -128,11 +144,30 @@ export function useInvoiceItems({ items, setItems, onReportShortage, defaultSour
         const newItems = [...items];
         const item = newItems[index];
         item.source = source;
+        // Reset the warehouse selection when leaving/switching source: the shop
+        // has no warehouse, and returning to warehouse defaults to the primary.
+        item.warehouseId = null;
 
-        const maxAvailable = item.source === 'warehouse' ? item.warehouseQty : item.shopQty;
+        const maxAvailable = availableQty(item, null);
         if (item.qty > maxAvailable) {
             item.qty = Math.min(1, maxAvailable);
             toast.info(`تم تغيير المصدر. الكمية المتوفرة: ${maxAvailable}`);
+        }
+
+        setItems(newItems);
+    };
+
+    const updateWarehouse = (index, warehouseId) => {
+        const newItems = [...items];
+        const item = newItems[index];
+        item.warehouseId = warehouseId || null;
+
+        const maxAvailable = availableQty(item);
+        if (item.qty > maxAvailable) {
+            item.qty = maxAvailable > 0 ? Math.min(item.qty, maxAvailable) : 0;
+            if (maxAvailable > 0) {
+                toast.info(`تم تغيير المخزن. الكمية المتوفرة: ${maxAvailable}`);
+            }
         }
 
         setItems(newItems);
@@ -176,6 +211,8 @@ export function useInvoiceItems({ items, setItems, onReportShortage, defaultSour
         updatePrice,
         removeItem,
         updateSource,
+        updateWarehouse,
+        availableQty,
         addServiceItem
     };
 }

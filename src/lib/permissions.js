@@ -18,6 +18,8 @@ export const PERMISSIONS = {
         'reports:view',
         'suppliers:manage',
         'transfers:manage',
+        'warehouses:view',
+        'warehouses:manage',
         'users:manage',
         'activity:view',
         'settings:manage',
@@ -34,12 +36,14 @@ export const PERMISSIONS = {
         'dashboard:view',
         'stock:manage',
         'transfers:manage',
+        'warehouses:view',
         'products:view',
         'audit:manage'
     ],
     [ROLES.VIEWER]: [
         'dashboard:view',
         'products:view',
+        'warehouses:view',
         'stock:view_only',
         'reports:view'
     ]

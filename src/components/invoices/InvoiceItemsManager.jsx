@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/utils';
 import { ProductSelector } from '@/components/products/ProductSelector';
 import { useInvoiceItems } from '@/hooks/useInvoiceItems';
+import { useWarehouses, usePrimaryWarehouse } from '@/hooks/useWarehouses';
 
 export function InvoiceItemsManager({ items, setItems, onReportShortage, defaultSource = 'shop' }) {
     const {
@@ -25,8 +26,18 @@ export function InvoiceItemsManager({ items, setItems, onReportShortage, default
         updatePrice,
         removeItem,
         updateSource,
+        updateWarehouse,
+        availableQty,
         addServiceItem
     } = useInvoiceItems({ items, setItems, onReportShortage, defaultSource });
+
+    const { data: warehousesData } = useWarehouses();
+    const { data: primaryWarehouse } = usePrimaryWarehouse();
+
+    const warehouseLabel = (id) => {
+        if (!id) return primaryWarehouse?.name || 'المخزن الرئيسي';
+        return (warehousesData?.warehouses || []).find(w => w._id === id)?.name || 'مخزن';
+    };
 
     return (
         <div className="glass-card p-6 rounded-[2rem] border border-white/5 space-y-6">
@@ -204,7 +215,7 @@ export function InvoiceItemsManager({ items, setItems, onReportShortage, default
                             const profitMargin = item.buyPrice > 0 ? ((item.unitPrice - item.buyPrice) / item.buyPrice) * 100 : 0;
                             const isLoss = item.unitPrice < item.buyPrice;
                             const isLowMargin = item.minProfitMargin > 0 && profitMargin < item.minProfitMargin;
-                            const maxAvailable = item.source === 'warehouse' ? item.warehouseQty : item.shopQty;
+                            const maxAvailable = availableQty(item);
 
                             return (
                                 <motion.div
@@ -272,6 +283,31 @@ export function InvoiceItemsManager({ items, setItems, onReportShortage, default
                                                 <div className="h-10 flex items-center justify-center text-xs text-muted-foreground">
                                                     -
                                                 </div>
+                                            )}
+                                            {!item.isService && item.source === 'warehouse' && (
+                                                <Select
+                                                    value={item.warehouseId || '__primary__'}
+                                                    onValueChange={(val) => updateWarehouse(idx, val === '__primary__' ? null : val)}
+                                                >
+                                                    <SelectTrigger
+                                                        data-testid="invoice-item-warehouse"
+                                                        className="h-8 mt-1 text-xs bg-white/10 border-white/10 rounded-lg"
+                                                    >
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="__primary__">
+                                                            <span className="text-xs">{warehouseLabel(null)}</span>
+                                                        </SelectItem>
+                                                        {(item.warehouseStocks || [])
+                                                            .filter(s => (s.qty || 0) > 0 || String(s.warehouseId) === String(item.warehouseId))
+                                                            .map(s => (
+                                                                <SelectItem key={s.warehouseId} value={String(s.warehouseId)}>
+                                                                    <span className="text-xs">{warehouseLabel(s.warehouseId)} ({s.qty || 0})</span>
+                                                                </SelectItem>
+                                                            ))}
+                                                    </SelectContent>
+                                                </Select>
                                             )}
                                         </div>
 
