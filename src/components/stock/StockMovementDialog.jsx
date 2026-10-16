@@ -71,18 +71,20 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // Inter-warehouse move: always a single product targeting a source and a
-        // destination warehouse (blank = primary). The parent routes this type
-        // to the transfer endpoint.
+        // Inter-warehouse move: a source and a destination warehouse (blank =
+        // primary). Supports a single product or a bulk list of products moved
+        // together in one atomic operation.
         if (isInterWarehouse) {
-            onSubmit({
+            const shared = {
                 type: 'TRANSFER_WAREHOUSE',
-                productId: formData.productId,
-                qty: Number(formData.qty),
                 fromWarehouseId: formData.fromWarehouseId || null,
                 toWarehouseId: formData.toWarehouseId || null,
                 note: formData.note
-            }, () => {
+            };
+            const payload = items.length > 0
+                ? { ...shared, items: items.map(i => ({ productId: i.productId, qty: i.qty, note: i.note })) }
+                : { ...shared, productId: formData.productId, qty: Number(formData.qty) };
+            onSubmit(payload, () => {
                 setFormData(EMPTY_FORM);
                 setItems([]);
             });
@@ -271,7 +273,7 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
                             <Button
                                 type="button"
                                 onClick={handleAddItem}
-                                disabled={isInterWarehouse || !formData.productId || !formData.qty}
+                                disabled={!formData.productId || !formData.qty}
                                 className="h-12 px-8 rounded-2xl gap-2 font-bold text-base gradient-primary border-0 hover-lift shadow-lg shadow-primary/20 disabled:opacity-30 transition-all active:scale-95"
                             >
                                 <Plus size={20} className="animate-bounce" />
@@ -282,7 +284,7 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
 
                     {/* Selected Items List */}
                     <AnimatePresence mode="popLayout">
-                        {!isInterWarehouse && items.length > 0 && (
+                        {items.length > 0 && (
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
@@ -311,9 +313,11 @@ export function StockMovementDialog({ open, onOpenChange, onSubmit, isSubmitting
                                                     <p className="text-lg font-bold text-foreground group-hover:text-primary transition-colors leading-tight">{item.name}</p>
                                                     <div className="flex items-center gap-3">
                                                         <span className="text-xs bg-primary/20 text-primary px-3 py-1 rounded-full font-bold shadow-sm">الكمية: {item.qty}</span>
-                                                        <span className="text-xs bg-info/20 text-info px-3 py-1 rounded-full font-bold shadow-sm flex items-center gap-1">
-                                                            <Warehouse size={10} /> {warehouseName(item.warehouseId)}
-                                                        </span>
+                                                        {!isInterWarehouse && (
+                                                            <span className="text-xs bg-info/20 text-info px-3 py-1 rounded-full font-bold shadow-sm flex items-center gap-1">
+                                                                <Warehouse size={10} /> {warehouseName(item.warehouseId)}
+                                                            </span>
+                                                        )}
                                                         {item.note && (
                                                             <div className="flex items-center gap-1 text-xs text-muted-foreground font-bold italic opacity-60">
                                                                 <AlertCircle size={10} />

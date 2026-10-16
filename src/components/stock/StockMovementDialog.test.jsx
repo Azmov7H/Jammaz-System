@@ -22,19 +22,35 @@ jest.mock('@/hooks/useWarehouses', () => ({
     usePrimaryWarehouse: () => ({ data: { _id: 'main', name: 'المخزن الرئيسي', isPrimary: true } }),
 }));
 
-jest.mock('@/components/products/ProductSelector', () => ({
-    ProductSelector: ({ onSelect }) => (
-        <button type="button" data-testid="pick-product" onClick={() => onSelect({ _id: 'p1', name: 'منتج' })}>
-            pick
-        </button>
-    ),
-}));
+// Cycles products so a bulk list can contain distinct items; reset per test.
+jest.mock('@/components/products/ProductSelector', () => {
+    let count = 0;
+    return {
+        ProductSelector: ({ onSelect }) => (
+            <button
+                type="button"
+                data-testid="pick-product"
+                onClick={() => {
+                    count += 1;
+                    onSelect({ _id: `p${count}`, name: `منتج ${count}` });
+                }}
+            >
+                pick
+            </button>
+        ),
+        __resetProductSelector: () => { count = 0; },
+    };
+});
+
+const { __resetProductSelector } = require('@/components/products/ProductSelector');
 
 function setup() {
     const onSubmit = jest.fn();
     render(<StockMovementDialog open onOpenChange={() => {}} onSubmit={onSubmit} isSubmitting={false} />);
     return { onSubmit };
 }
+
+beforeEach(() => __resetProductSelector());
 
 describe('StockMovementDialog — inter-warehouse transfer', () => {
     test('shows source + destination pickers (not the single picker) for the transfer type', () => {
@@ -69,5 +85,36 @@ describe('StockMovementDialog — inter-warehouse transfer', () => {
             fromWarehouseId: null,
             toWarehouseId: 'w2',
         });
+    });
+
+    test('submits a bulk TRANSFER_WAREHOUSE payload when multiple products are queued', () => {
+        const { onSubmit } = setup();
+
+        fireEvent.change(screen.getByTestId('stock-movement-type'), { target: { value: 'TRANSFER_WAREHOUSE' } });
+        fireEvent.change(screen.getByTestId('stock-movement-from-warehouse'), { target: { value: 'w2' } });
+        fireEvent.change(screen.getByTestId('stock-movement-to-warehouse'), { target: { value: '' } });
+
+        // Queue two distinct products.
+        fireEvent.click(screen.getByTestId('pick-product'));
+        fireEvent.change(screen.getByPlaceholderText('الكمية'), { target: { value: '2' } });
+        fireEvent.click(screen.getByRole('button', { name: /إدراج للقائمة/ }));
+
+        fireEvent.click(screen.getByTestId('pick-product'));
+        fireEvent.change(screen.getByPlaceholderText('الكمية'), { target: { value: '5' } });
+        fireEvent.click(screen.getByRole('button', { name: /إدراج للقائمة/ }));
+
+        fireEvent.submit(screen.getByTestId('stock-movement-type').closest('form'));
+
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+        const [payload] = onSubmit.mock.calls[0];
+        expect(payload).toMatchObject({
+            type: 'TRANSFER_WAREHOUSE',
+            fromWarehouseId: 'w2',
+            toWarehouseId: null,
+        });
+        expect(payload.items).toEqual([
+            { productId: 'p1', qty: 2, note: '' },
+            { productId: 'p2', qty: 5, note: '' },
+        ]);
     });
 });

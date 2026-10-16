@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/utils';
 import { getStockMovements } from '@/services/stockService';
+import { MovementDetailsDialog } from '@/components/stock/MovementDetailsDialog';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 
@@ -21,6 +22,7 @@ export default function StockMovementsPage() {
     const [days, setDays] = useState(30);
     const [searchProduct, setSearchProduct] = useState('');
     const [filterType, setFilterType] = useState('ALL'); // ALL, IN, OUT, TRANSFER, ADJUST
+    const [selectedMovement, setSelectedMovement] = useState(null);
 
     const { data: movementsData, isLoading, isFetching, isError, error, refetch } = useQuery({
         queryKey: ['stock-movements', days],
@@ -276,7 +278,18 @@ export default function StockMovementsPage() {
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0 }}
                                         transition={{ delay: i * 0.05 }}
-                                        className="glass-card p-4 rounded-[1.5rem] border border-white/5 hover:bg-white/5 transition-colors group relative overflow-hidden"
+                                        role="button"
+                                        tabIndex={0}
+                                        data-testid="stock-movement-record"
+                                        onClick={() => setSelectedMovement(movement)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                setSelectedMovement(movement);
+                                            }
+                                        }}
+                                        aria-label={`عرض تفاصيل حركة ${movement.productId?.name || ''}`}
+                                        className="glass-card p-4 rounded-[1.5rem] border border-white/5 hover:bg-white/5 transition-colors group relative overflow-hidden cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40"
                                     >
                                         <div className={`absolute top-0 right-0 w-1 h-full ${config.bg.replace('/10', '')}`} />
 
@@ -356,6 +369,14 @@ export default function StockMovementsPage() {
                     </div>
                 )}
             </div>
+
+            <MovementDetailsDialog
+                open={!!selectedMovement}
+                onOpenChange={(nextOpen) => {
+                    if (!nextOpen) setSelectedMovement(null);
+                }}
+                movement={selectedMovement}
+            />
         </div>
     );
 }

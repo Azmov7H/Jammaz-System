@@ -14,7 +14,7 @@ jest.mock('@/lib/api-utils', () => ({
 }));
 
 const { api } = require('@/lib/api-utils');
-const { moveStock, transferStock } = require('./stockService');
+const { moveStock, transferStock, transferStockBulk } = require('./stockService');
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -43,5 +43,22 @@ describe('stockService.transferStock', () => {
         api.post.mockResolvedValue({});
         await moveStock({ productId: 'p1', qty: 1, type: 'IN' });
         expect(api.post).toHaveBeenCalledWith('/api/stock/move', { productId: 'p1', qty: 1, type: 'IN' });
+    });
+});
+
+describe('stockService.transferStockBulk', () => {
+    test('posts a multi-product payload to /api/stock/transfer-bulk as-is', async () => {
+        api.post.mockResolvedValue({ moved: 2 });
+        const payload = {
+            fromWarehouseId: 'w1',
+            toWarehouseId: 'w2',
+            note: 'نقل دفعة',
+            items: [
+                { productId: 'p1', qty: 2 },
+                { productId: 'p2', qty: 5 },
+            ],
+        };
+        await transferStockBulk(payload);
+        expect(api.post).toHaveBeenCalledWith('/api/stock/transfer-bulk', payload);
     });
 });

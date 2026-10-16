@@ -21,6 +21,7 @@ import { useStockMovements, useAddStockMovement, useTransferStock } from '@/hook
 import { cn } from '@/utils';
 import { StockMovementDialog } from '@/components/stock/StockMovementDialog';
 import { MovementCard, MovementTypeBadge } from '@/components/stock/MovementCard';
+import { MovementDetailsDialog } from '@/components/stock/MovementDetailsDialog';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { TableCell } from '@/components/ui/table';
 import {
@@ -86,6 +87,7 @@ export default function StockPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('ALL');
+  const [selectedMovement, setSelectedMovement] = useState(null);
 
   // Stats Logic
   const stats = useMemo(() => {
@@ -363,7 +365,17 @@ export default function StockPage() {
               layout
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className="group hover:bg-white/[0.04] border-white/5 transition-all duration-300 h-20"
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelectedMovement(m)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelectedMovement(m);
+                }
+              }}
+              aria-label={`عرض تفاصيل حركة ${m.productId?.name || ''}`}
+              className="group hover:bg-white/[0.04] border-white/5 transition-all duration-300 h-20 cursor-pointer focus:outline-none focus:bg-white/[0.06]"
             >
               <TableCell className="px-8">
                 <div className="flex items-center gap-4">
@@ -399,7 +411,22 @@ export default function StockPage() {
               </TableCell>
             </motion.tr>
           )}
-          renderMobileCard={(m) => <MovementCard movement={m} />}
+          renderMobileCard={(m) => (
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelectedMovement(m)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelectedMovement(m);
+                }
+              }}
+              className="cursor-pointer focus:outline-none"
+            >
+              <MovementCard movement={m} />
+            </div>
+          )}
         />
       </motion.div>
 
@@ -408,6 +435,14 @@ export default function StockPage() {
         onOpenChange={setIsDialogOpen}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
+      />
+
+      <MovementDetailsDialog
+        open={!!selectedMovement}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setSelectedMovement(null);
+        }}
+        movement={selectedMovement}
       />
     </div>
   );

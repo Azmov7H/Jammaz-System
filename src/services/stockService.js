@@ -33,11 +33,21 @@ export const moveStock = (data) => api.post('/api/stock/move', data);
 export const transferStock = (data) =>
     api.post('/api/stock/transfer', { from: 'warehouse', to: 'warehouse', ...data });
 
+/**
+ * Bulk inter-warehouse transfer — move many products between two warehouses in
+ * one atomic operation. `fromWarehouseId`/`toWarehouseId` of null mean the
+ * primary warehouse.
+ * @param {{items: Array<{productId: string, qty: number, note?: string}>, fromWarehouseId: string|null, toWarehouseId: string|null, note?: string}} data
+ * @returns {Promise<*>}
+ */
+export const transferStockBulk = (data) => api.post('/api/stock/transfer-bulk', data);
+
 /** Legacy namespace kept for existing consumers. */
 export const StockService = {
     getMovements: getStockMovements,
     getStockStatus: getStockStatus,
     moveStock,
     transferStock,
+    transferStockBulk,
     validateStockAvailability: async (items) => items.map(item => ({ ...item, available: true })),
 };
