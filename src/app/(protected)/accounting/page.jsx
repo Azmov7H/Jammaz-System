@@ -176,7 +176,7 @@ export default function AccountingPage() {
                             { id: 'ledger', label: 'دفتر الأستاذ', icon: FileText },
                             { id: 'trial-balance', label: 'ميزان المراجعة', icon: Layers },
                         ].map((tab) => (
-                            <button
+                            <button type="button"
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 className={cn(

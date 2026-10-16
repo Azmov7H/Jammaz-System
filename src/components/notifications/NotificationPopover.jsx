@@ -73,14 +73,14 @@ export function NotificationPopover() {
                 {/* Footer Actions */}
                 {notifications.length > 0 && (
                     <div className="grid grid-cols-2 border-t text-center divide-x divide-x-reverse overflow-hidden">
-                        <button
+                        <button type="button"
                             onClick={() => markAsRead('all')}
                             className="flex items-center justify-center gap-2 py-3 text-xs font-medium text-muted-foreground hover:text-primary hover:bg-muted/30 transition-colors"
                         >
                             <Check size={14} />
                             <span>تحديد الكل كمقروء</span>
                         </button>
-                        <button
+                        <button type="button"
                             onClick={handleClearAll}
                             className="flex items-center justify-center gap-2 py-3 text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-muted/30 transition-colors"
                         >

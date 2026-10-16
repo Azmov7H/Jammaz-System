@@ -158,7 +158,6 @@
 .animate-fade-in {
   animation: fadeIn 0.4s ease-out forwards;
 }
-/* Print scoping: when printing the partner transactions dialog, only #print-area is rendered */
 @media print {
   body.printing-partner-transactions * {
     visibility: hidden;
@@ -175,4 +174,48 @@
     right: 0;
     width: 100%;
   }
+}
+
+/* Respect user motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Global focus-visible ring fallback */
+:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .skip-link {
+    position: fixed;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 100;
+    padding: 0.5rem 0.75rem;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.5rem;
+    transform: translateY(-120%);
+    transition: transform 0.2s ease;
+  }
+
+  .skip-link:focus {
+    transform: translateY(0);
+  }
+}
+
+/* Performance helper: mark large lists/tables */
+.content-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 500px;
 }

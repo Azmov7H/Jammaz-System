@@ -119,7 +119,7 @@ export default function WarehousesPage() {
                 <Input
                     placeholder="ابحث باسم أو كود المخزن..."
                     data-testid="warehouse-search-input"
-                    className="h-16 pr-16 pl-8 rounded-[2rem] bg-card/40 border-white/10 focus:bg-card/60 focus:border-primary/50 transition-all font-bold text-xl placeholder:text-muted-foreground/30 shadow-2xl backdrop-blur-xl ring-0 focus-visible:ring-0"
+                    className="h-16 pr-16 pl-8 rounded-[2rem] bg-card/40 border-white/10 focus:bg-card/60 focus:border-primary/50 transition-all font-bold text-xl placeholder:text-muted-foreground/30 shadow-2xl backdrop-blur-xl"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                 />

@@ -5,6 +5,7 @@ import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import {
   ArrowLeftRight,
   Search,
@@ -17,10 +18,11 @@ import {
   Plus
 } from 'lucide-react';
 import { hasPermission } from '@/lib/permissions';import { useUserRole } from '@/hooks/useUserRole';
-import { useStockMovements, useAddStockMovement } from '@/hooks/useStock';
+import { useStockMovements, useAddStockMovement, useTransferStock } from '@/hooks/useStock';
 import { cn } from '@/utils';
 import { StockMovementDialog } from '@/components/stock/StockMovementDialog';
 import { MovementCard, MovementTypeBadge } from '@/components/stock/MovementCard';
+import { MovementDetailsDialog } from '@/components/stock/MovementDetailsDialog';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { TableCell } from '@/components/ui/table';
 import {
@@ -79,11 +81,14 @@ export default function StockPage() {
     return [];
   }, [movementsData]);
 
-  const { mutate: addMovement, isPending: isSubmitting } = useAddStockMovement();
+  const { mutate: addMovement, isPending: isAdding } = useAddStockMovement();
+  const { mutate: transferStock, isPending: isTransferring } = useTransferStock();
+  const isSubmitting = isAdding || isTransferring;
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('ALL');
+  const [selectedMovement, setSelectedMovement] = useState(null);
 
   // Stats Logic
   const stats = useMemo(() => {
@@ -143,7 +148,8 @@ export default function StockPage() {
   }, [movements, searchQuery, filterType]);
 
   const handleSubmit = (payload, resetCallback) => {
-    addMovement(payload, {
+    const mutation = payload?.type === 'TRANSFER_WAREHOUSE' ? transferStock : addMovement;
+    mutation(payload, {
       onSuccess: () => {
         setIsDialogOpen(false);
         if (resetCallback) resetCallback();
@@ -304,24 +310,25 @@ export default function StockPage() {
           placeholder="ابحث بعمق في قائمة الحركات والأصناف..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-16 pr-16 pl-8 rounded-[2rem] bg-white/[0.03] border-white/5 focus:bg-white/[0.07] focus:border-primary/30 transition-all font-bold text-xl placeholder:text-muted-foreground/30 shadow-inner ring-0 focus-visible:ring-0"
+          className="h-16 pr-16 pl-8 rounded-[2rem] bg-white/[0.03] border-white/5 focus:bg-white/[0.07] focus:border-primary/30 transition-all font-bold text-xl placeholder:text-muted-foreground/30 shadow-inner"
         />
 
         {/* Type Filter */}
         <div className="max-md:static max-md:mt-3 flex items-center gap-2 md:absolute md:left-4 md:top-1/2 md:-translate-y-1/2">
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="h-11 w-full pl-4 pr-10 rounded-xl bg-black/40 border border-white/10 text-xs font-bold text-white focus:border-primary/50 outline-none appearance-none cursor-pointer hover:bg-black/60 transition-colors"
-            style={{ backgroundImage: 'none' }}
-          >
-            <option value="ALL">كل الحركات</option>
-            <option value="IN">وارد (شراء)</option>
-            <option value="OUT">صادر (بيع/تالف)</option>
-            <option value="TRANSFER_TO_SHOP">تحويل للمحل</option>
-            <option value="TRANSFER_TO_WAREHOUSE">تحويل للمخزن</option>
-            <option value="ADJUST">تسوية جردية</option>
-          </select>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="h-11 w-full pl-4 pr-10 rounded-xl bg-black/40 border border-white/10 text-xs font-bold text-white focus:border-primary/50 hover:bg-black/60">
+              <SelectValue placeholder="كل الحركات" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">كل الحركات</SelectItem>
+              <SelectItem value="IN">وارد (شراء)</SelectItem>
+              <SelectItem value="OUT">صادر (بيع/تالف)</SelectItem>
+              <SelectItem value="TRANSFER_TO_SHOP">تحويل للمحل</SelectItem>
+              <SelectItem value="TRANSFER_TO_WAREHOUSE">تحويل للمخزن</SelectItem>
+              <SelectItem value="TRANSFER">تحويل بين المخازن</SelectItem>
+              <SelectItem value="ADJUST">تسوية جردية</SelectItem>
+            </SelectContent>
+          </Select>
           <Layers className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary pointer-events-none" />
         </div>
       </motion.div>
@@ -359,7 +366,17 @@ export default function StockPage() {
               layout
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className="group hover:bg-white/[0.04] border-white/5 transition-all duration-300 h-20"
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelectedMovement(m)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelectedMovement(m);
+                }
+              }}
+              aria-label={`عرض تفاصيل حركة ${m.productId?.name || ''}`}
+              className="group hover:bg-white/[0.04] border-white/5 transition-all duration-300 h-20 cursor-pointer focus:outline-none focus:bg-white/[0.06]"
             >
               <TableCell className="px-8">
                 <div className="flex items-center gap-4">
@@ -395,7 +412,22 @@ export default function StockPage() {
               </TableCell>
             </motion.tr>
           )}
-          renderMobileCard={(m) => <MovementCard movement={m} />}
+          renderMobileCard={(m) => (
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelectedMovement(m)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelectedMovement(m);
+                }
+              }}
+              className="cursor-pointer focus:outline-none"
+            >
+              <MovementCard movement={m} />
+            </div>
+          )}
         />
       </motion.div>
 
@@ -404,6 +436,14 @@ export default function StockPage() {
         onOpenChange={setIsDialogOpen}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
+      />
+
+      <MovementDetailsDialog
+        open={!!selectedMovement}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setSelectedMovement(null);
+        }}
+        movement={selectedMovement}
       />
     </div>
   );

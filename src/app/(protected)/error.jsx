@@ -19,9 +19,6 @@ export default function Error({ error, reset }) {
                 <p className="text-muted-foreground">
                     نعتذر، واجه النظام مشكلة غير متوقعة.
                 </p>
-                <p className="text-sm text-muted-foreground/80 font-mono bg-muted p-2 rounded max-w-md overflow-auto">
-                    {error.message || 'Unknown Error'}
-                </p>
             </div>
             <Button onClick={() => reset()} variant="default">
                 حاول مرة أخرى

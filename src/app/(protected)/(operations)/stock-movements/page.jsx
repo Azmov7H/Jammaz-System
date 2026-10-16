@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/utils';
 import { getStockMovements } from '@/services/stockService';
+import { MovementDetailsDialog } from '@/components/stock/MovementDetailsDialog';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 
@@ -21,6 +22,7 @@ export default function StockMovementsPage() {
     const [days, setDays] = useState(30);
     const [searchProduct, setSearchProduct] = useState('');
     const [filterType, setFilterType] = useState('ALL'); // ALL, IN, OUT, TRANSFER, ADJUST
+    const [selectedMovement, setSelectedMovement] = useState(null);
 
     const { data: movementsData, isLoading, isFetching, isError, error, refetch } = useQuery({
         queryKey: ['stock-movements', days],
@@ -57,7 +59,7 @@ export default function StockMovementsPage() {
             const matchesType = filterType === 'ALL' ||
                 (filterType === 'IN' && m.type === 'IN') ||
                 (filterType === 'OUT' && (m.type === 'OUT' || m.type === 'SALE')) ||
-                (filterType === 'TRANSFER' && (m.type === 'TRANSFER_TO_SHOP' || m.type === 'TRANSFER_TO_WAREHOUSE')) ||
+                (filterType === 'TRANSFER' && (m.type === 'TRANSFER_TO_SHOP' || m.type === 'TRANSFER_TO_WAREHOUSE' || m.type === 'TRANSFER')) ||
                 (filterType === 'ADJUST' && m.type === 'ADJUST');
 
             return matchesSearch && matchesType;
@@ -81,6 +83,7 @@ export default function StockMovementsPage() {
             case 'IN': return { label: 'توريد جديد', icon: TrendingUp, color: 'emerald', bg: 'bg-success/10', text: 'text-success', border: 'border-success/20' };
             case 'TRANSFER_TO_SHOP': return { label: 'تحويل للمحل', icon: ArrowRightLeft, color: 'blue', bg: 'bg-info/10', text: 'text-info', border: 'border-info/20' };
             case 'TRANSFER_TO_WAREHOUSE': return { label: 'تحويل للمخزن', icon: ArrowRightLeft, color: 'indigo', bg: 'bg-info/10', text: 'text-info', border: 'border-info/20' };
+            case 'TRANSFER': return { label: 'تحويل بين المخازن', icon: ArrowRightLeft, color: 'indigo', bg: 'bg-info/10', text: 'text-info', border: 'border-info/20' };
             case 'ADJUST': return { label: 'تسوية جردية', icon: FileEdit, color: 'amber', bg: 'bg-warning/10', text: 'text-warning', border: 'border-warning/20' };
             default: return { label: 'حركة عامة', icon: Package, color: 'slate', bg: 'bg-muted500/10', text: 'text-muted-foreground', border: 'border-border/20' };
         }
@@ -130,7 +133,7 @@ export default function StockMovementsPage() {
                             { label: '30 يوم', val: 30 },
                             { label: '90 يوم', val: 90 }
                         ].map((period) => (
-                            <button
+                            <button type="button"
                                 key={period.val}
                                 onClick={() => setDays(period.val)}
                                 className={cn(
@@ -203,7 +206,7 @@ export default function StockMovementsPage() {
                         { id: 'TRANSFER', label: 'تحويلات', icon: ArrowRightLeft },
                         { id: 'ADJUST', label: 'تسويات', icon: FileEdit },
                     ].map((type) => (
-                        <button
+                        <button type="button"
                             key={type.id}
                             onClick={() => setFilterType(type.id)}
                             className={cn(
@@ -275,7 +278,18 @@ export default function StockMovementsPage() {
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0 }}
                                         transition={{ delay: i * 0.05 }}
-                                        className="glass-card p-4 rounded-[1.5rem] border border-white/5 hover:bg-white/5 transition-colors group relative overflow-hidden"
+                                        role="button"
+                                        tabIndex={0}
+                                        data-testid="stock-movement-record"
+                                        onClick={() => setSelectedMovement(movement)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                setSelectedMovement(movement);
+                                            }
+                                        }}
+                                        aria-label={`عرض تفاصيل حركة ${movement.productId?.name || ''}`}
+                                        className="glass-card p-4 rounded-[1.5rem] border border-white/5 hover:bg-white/5 transition-colors group relative overflow-hidden cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40"
                                     >
                                         <div className={`absolute top-0 right-0 w-1 h-full ${config.bg.replace('/10', '')}`} />
 
@@ -355,6 +369,14 @@ export default function StockMovementsPage() {
                     </div>
                 )}
             </div>
+
+            <MovementDetailsDialog
+                open={!!selectedMovement}
+                onOpenChange={(nextOpen) => {
+                    if (!nextOpen) setSelectedMovement(null);
+                }}
+                movement={selectedMovement}
+            />
         </div>
     );
 }

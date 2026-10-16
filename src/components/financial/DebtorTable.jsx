@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 import {
     Table,
     TableBody,
@@ -15,7 +17,7 @@ import { ArrowUpRight, User, FileText, Coins, Phone, Loader2 } from 'lucide-reac
 import { TableEmptyState } from '@/components/common/EmptyState';
 import { useRouter } from 'next/navigation';
 
-export function DebtorTable({ debtors, onUnifiedCollection }) {
+export const DebtorTable = React.memo(function DebtorTable({ debtors, onUnifiedCollection }) {
     const router = useRouter();
 
     return (
@@ -100,5 +102,4 @@ export function DebtorTable({ debtors, onUnifiedCollection }) {
                 </TableBody>
             </Table>
         </div >
-    );
-}
+    );});

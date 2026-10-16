@@ -96,7 +96,7 @@ export default function ExpensesPage() {
                                         required
                                         value={amount}
                                         onChange={(e) => setAmount(e.target.value)}
-                                        className="h-16 pl-14 pr-6 rounded-2xl bg-white/[0.03] border-white/10 focus:bg-white/[0.05] focus:border-destructive/50 transition-all font-bold text-2xl tabular-nums shadow-inner ring-0 focus-visible:ring-0"
+                                        className="h-16 pl-14 pr-6 rounded-2xl bg-white/[0.03] border-white/10 focus:bg-white/[0.05] focus:border-destructive/50 transition-all font-bold text-2xl tabular-nums shadow-inner"
                                         placeholder="0.00"
                                     />
                                     <Wallet className="absolute left-6 top-1/2 -translate-y-1/2 h-6 w-6 text-destructive/50 group-focus-within:text-destructive transition-colors" />
@@ -111,7 +111,7 @@ export default function ExpensesPage() {
                                         required
                                         value={date}
                                         onChange={(e) => setDate(e.target.value)}
-                                        className="h-16 pl-14 pr-6 rounded-2xl bg-white/[0.03] border-white/10 focus:bg-white/[0.05] focus:border-primary/50 transition-all font-bold text-lg ring-0 focus-visible:ring-0"
+                                        className="h-16 pl-14 pr-6 rounded-2xl bg-white/[0.03] border-white/10 focus:bg-white/[0.05] focus:border-primary/50 transition-all font-bold text-lg"
                                     />
                                     <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 h-6 w-6 text-primary/50" />
                                 </div>
@@ -120,7 +120,7 @@ export default function ExpensesPage() {
                             <div className="space-y-4">
                                 <Label htmlFor="category" className="font-bold text-white/40 uppercase tracking-widest text-xs mr-2">التصنيف</Label>
                                 <Select value={category} onValueChange={setCategory}>
-                                    <SelectTrigger className="h-16 rounded-2xl bg-white/[0.03] border-white/10 focus:bg-white/[0.05] focus:border-primary/50 transition-all font-bold text-lg px-6 ring-0 focus-visible:ring-0">
+                                    <SelectTrigger className="h-16 rounded-2xl bg-white/[0.03] border-white/10 focus:bg-white/[0.05] focus:border-primary/50 transition-all font-bold text-lg px-6">
                                         <SelectValue placeholder="اختر التصنيف" />
                                     </SelectTrigger>
                                     <SelectContent className="glass-card border-white/10 rounded-2xl overflow-hidden backdrop-blur-3xl">
@@ -144,7 +144,7 @@ export default function ExpensesPage() {
                                     onChange={(e) => setReason(e.target.value)}
                                     placeholder="مثلاً: سداد فاتورة الكهرباء لشهر ديسمبر"
                                     rows={3}
-                                    className="rounded-2xl bg-white/[0.03] border-white/10 focus:bg-white/[0.05] focus:border-primary/50 transition-all font-bold text-lg p-6 ring-0 focus-visible:ring-0 resize-none"
+                                    className="rounded-2xl bg-white/[0.03] border-white/10 focus:bg-white/[0.05] focus:border-primary/50 transition-all font-bold text-lg p-6 resize-none"
                                 />
                             </div>
 

@@ -44,7 +44,7 @@ export function DefaultsSettingsTab({ settings, onChange }) {
                                         type="number"
                                         value={settings.defaultCustomerTerms || 0}
                                         onChange={e => set({ defaultCustomerTerms: parseInt(e.target.value) || 0 })}
-                                        className="h-10 text-3xl font-bold border-0 bg-transparent text-white ring-0 focus-visible:ring-0 tabular-nums text-center"
+                                        className="h-10 text-3xl font-bold border-0 bg-transparent text-white tabular-nums text-center"
                                     />
                                     <span className="text-xs font-bold text-white/10 uppercase tracking-widest">يوم</span>
                                 </div>
@@ -60,7 +60,7 @@ export function DefaultsSettingsTab({ settings, onChange }) {
                                         type="number"
                                         value={settings.defaultSupplierTerms || 0}
                                         onChange={e => set({ defaultSupplierTerms: parseInt(e.target.value) || 0 })}
-                                        className="h-10 text-3xl font-bold border-0 bg-transparent text-white ring-0 focus-visible:ring-0 tabular-nums text-center"
+                                        className="h-10 text-3xl font-bold border-0 bg-transparent text-white tabular-nums text-center"
                                     />
                                     <span className="text-xs font-bold text-white/10 uppercase tracking-widest">يوم</span>
                                 </div>
@@ -91,7 +91,7 @@ export function DefaultsSettingsTab({ settings, onChange }) {
                                             type="number"
                                             value={settings.minDebtNotificationAmount || 0}
                                             onChange={e => set({ minDebtNotificationAmount: parseInt(e.target.value) || 0 })}
-                                            className="h-12 text-5xl font-bold text-center border-0 bg-transparent text-warning ring-0 focus-visible:ring-0 tabular-nums"
+                                            className="h-12 text-5xl font-bold text-center border-0 bg-transparent text-warning tabular-nums"
                                         />
                                         <span className="text-xl font-bold text-warning/20">ج.م</span>
                                     </div>

@@ -36,7 +36,7 @@ export function AlertsSettingsTab({ settings, onChange }) {
                                 type="number"
                                 value={settings.stockAlertThreshold || 0}
                                 onChange={e => set({ stockAlertThreshold: parseInt(e.target.value) || 0 })}
-                                className="h-12 w-24 text-2xl font-bold text-center border-0 bg-transparent text-warning ring-0 focus-visible:ring-0"
+                                className="h-12 w-24 text-2xl font-bold text-center border-0 bg-transparent text-warning"
                             />
                             <span className="font-bold text-warning/30 uppercase text-xs tracking-[0.3em]">وحدة</span>
                         </div>
@@ -55,7 +55,7 @@ export function AlertsSettingsTab({ settings, onChange }) {
                                 type="number"
                                 value={settings.supplierPaymentAlertDays || 0}
                                 onChange={e => set({ supplierPaymentAlertDays: parseInt(e.target.value) || 0 })}
-                                className="h-12 w-24 text-2xl font-bold text-center border-0 bg-transparent text-info ring-0 focus-visible:ring-0"
+                                className="h-12 w-24 text-2xl font-bold text-center border-0 bg-transparent text-info"
                             />
                             <span className="font-bold text-info/30 uppercase text-xs tracking-[0.3em]">أيام</span>
                         </div>
@@ -74,7 +74,7 @@ export function AlertsSettingsTab({ settings, onChange }) {
                                 type="number"
                                 value={settings.customerCollectionAlertDays || 0}
                                 onChange={e => set({ customerCollectionAlertDays: parseInt(e.target.value) || 0 })}
-                                className="h-12 w-24 text-2xl font-bold text-center border-0 bg-transparent text-success ring-0 focus-visible:ring-0"
+                                className="h-12 w-24 text-2xl font-bold text-center border-0 bg-transparent text-success"
                             />
                             <span className="font-bold text-success/30 uppercase text-xs tracking-[0.3em]">أيام</span>
                         </div>

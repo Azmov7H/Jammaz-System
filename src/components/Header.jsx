@@ -54,7 +54,14 @@ export default function Header() {
         handleLogout
     } = useHeader();
 
-    if (!mounted) return null;
+    if (!mounted) {
+        return (
+            <header
+                className="sticky top-0 z-40 h-20 bg-background/40 backdrop-blur-xl border-b border-white/5"
+                aria-hidden="true"
+            />
+        );
+    }
 
     return (
         <header className={cn(
@@ -80,6 +87,8 @@ export default function Header() {
                             <Search className="h-4 w-4" />
                         </div>
                         <Input
+                            type="search"
+                            aria-label="بحث سريعة"
                             placeholder="بحث سريعة (Ctrl+K)"
                             className="bg-white/5 border-white/10 pr-10 h-10 rounded-xl focus-visible:ring-primary/30 focus-visible:bg-white/10 transition-all font-bold"
                         />

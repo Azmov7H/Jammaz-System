@@ -55,7 +55,7 @@ export default function DailySalesPage() {
                             type="date"
                             value={date}
                             onChange={(e) => setDate(e.target.value)}
-                            className="w-[180px] h-10 border-none bg-transparent focus-visible:ring-0 font-bold text-sm tracking-tight"
+                            className="w-[180px] h-10 border-none bg-transparent font-bold text-sm tracking-tight"
                         />
                     </div>
                 }

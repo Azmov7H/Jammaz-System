@@ -1,76 +1,94 @@
-# نظام إدارة مخازن الجماز
+# نظام إدارة مخازن الجماز — الواجهة الأمامية
 
-نظام متكامل لإدارة المخازن والمبيعات مبني باستخدام **Next.js (App Router)**، **Tailwind CSS**، و **MongoDB**.
+واجهة Next.js (App Router) لنظام إدارة المخازن والمالية.
 
-## المميزات
-- 📦 إدارة المنتجات والمخزون
-- 🧾 نظام فواتير ومبيعات (POS مبسط)
-- 🔒 مصادقة Google OAuth وآمنة (JWT HttpOnly Cookies)
-- 📊 لوحة تحكم مع إحصائيات ورسوم بيانية
-- 🌍 واجهة عربية بالكامل (RTL)
+## المكدّس (Stack)
+
+- **Next.js 16** (App Router) + **React 19**
+- **Tailwind CSS 3** + الرموز (design tokens) في `src/app/globals.css`
+- **Shadcn UI / Radix UI** للمكونات
+- **TanStack Query** لحالة الخادم (data fetching/caching)
+- **Zod** للتحقق (عند الحاجة)
+- **Sonner** للتنبيهات (Toasts)
 
 ## المتطلبات
-- Node.js 18+
+
+- Node.js 20+
+- Backend (`be-Jammaz`) قيد التشغيل (الافتراضي: `http://127.0.0.1:5000`)
 - MongoDB (محلي أو Atlas)
 
-## تعليمات التشغيل
+## إعداد البيئة (.env.local)
 
-1. **تثبيت الاعتمادات**
-   ```bash
-   npm install
-   ```
+```bash
+cp .env.example .env.local
+```
 
-2. **إعداد البيئة (.env)**
-   - انسخ ملف الامثلة:
-     ```bash
-     cp EXAMPLE.env .env.local
-     ```
-   - املأ البيانات المطلوبة (`MONGODB_URI`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`).
+Required keys:
 
-3. **تجهيز قاعدة البيانات (Seeding)**
-   لتوليد بيانات تجريبية (منتجات، مستخدمين، فواتير):
-   ```bash
-   node scripts/seed.js
-   ```
+- `JWT_SECRET` (يجب أن يطابق Backend)
+- `API_PROXY_TARGET` (التطوير: `http://127.0.0.1:5000`)
+- `NEXT_PUBLIC_API_URL` (عادةً فارغ، لاستخدام الـ proxy)
 
-4. **تشغيل المشروع**
-   ```bash
-   npm run dev
-   ```
-   افتح [http://localhost:3000](http://localhost:3000) في المتصفح.
+## التشغيل
+
+```bash
+pnpm install
+pnpm dev
+```
+
+Opens: [http://localhost:3000](http://localhost:3000)
+
+## سكربتات
+
+```bash
+pnpm dev        # تشغيل وضع التطوير
+pnpm build      # بناء الإنتاج
+pnpm start      # تشغيل بناء الإنتاج
+pnpm lint       # فحص ESLint
+pnpm test       # تشغيل Jest
+```
 
 ## هيكلية المشروع
 
-يرجى مراجعة [ARCHITECTURE.md](file:///c:/Users/DRC/Desktop/Next.js/Nkl/transfer/ARCHITECTURE.md) للحصول على تفاصيل كاملة حول بنية المشروع.
-
-- `src/app/(public)`: الصفحات العامة (تسجيل الدخول).
-- `src/app/(protected)`: صفحات لوحة التحكم المحمية.
-- `src/app/api`: منطق الخلفية وواجهات البرمجيات.
-- `src/lib/services`: منطق الأعمال المستقل.
-- `src/models`: مخططات MongoDB.
-- `src/config/navigation.js`: إعدادات التنقل المركزية.
+- `src/app/(public)` — صفحات عامة (تسجيل الدخول)
+- `src/app/(protected)` — لوحة التحكم (shell مع Sidebar/Header)
+- `src/components/ui` — primitives (Shadcn)
+- `src/components` — مكونات alanma ويژة (accounting, financial, invoices, notifications...)
+- `src/hooks` — hooks (TanStack Query wrappers)
+- `src/utils` — `cn`, `formatCurrency`, `formatDate`
+- `src/config/navigation.js` — إعدادات التنقل
+- `src/providers` — Query/Sidebar providers
+- `src/context` — contexts (Notifications)
 
 ## المصادقة (Authentication)
-يعتمد النظام على Google OAuth. عند تسجيل الدخول:
-1. يتم تحويل المستخدم لصفحة Google.
-2. عند العودة، يتم التحقق من المستخدم وإنشاءه في قاعدة البيانات إذا كان جديداً.
-3. يتم إصدار رمز **JWT** وتخزينه في **HttpOnly Cookie** آمن.
-4. يتم حماية المسارات (`middleware.js`) للتحقق من وجود الرمز.
 
----.
+- JWT في HttpOnly cookie
+- `next.config.mjs` يُعيد توجيه `/api/*` إلى `API_PROXY_TARGET`
+- middleware يتحقق من الجلسة
+
+## الإشعارات (Notifications)
+
+- Backend يشغّل cron كل 5 دقائق (`NotificationService.syncAllAlerts()`)
+- الواجهة تستعلم عبر `/api/notifications` مع polling/shadcn patterns
+
+## التصميم (Design)
+
+- RTL: `<html lang="ar" dir="rtl">`
+- Shadcn UI (Radix)
+- الحالة الموحدة: `LoadingState`, `EmptyState`, `ErrorState`
+- جداول متجاوبة: `ResponsiveTable`
+- breakpoints مخصصة (حتى ultra-wide) و `prefers-reduced-motion`
 
 ## الاختبارات (Testing)
 
 ```bash
-pnpm test            # تشغيل كامل (<60 ثانية)
-pnpm test --watch    # وضع المراقبة
-pnpm test -- src/lib/api-utils.test.js   # ملف محدد
+pnpm test
 ```
 
-- **الأدوات المساعدة:** `src/test/utils.jsx` — `renderWithProviders` (QueryClient جديد لكل اختبار، retry معطّل) وأشكال الاستجابة (`envelopeOk`/`envelopeFail`/`jsonResponse`) لمحاكاة طبقة الـ API.
-- **مصفوفة الـ fetcher:** `src/lib/api-utils.test.js` — يثبّت سلوك فك الغلاف، إلغاء تكرار GET فقط، انتهاء المهلة (408)، وتوجيه 401 لمرة واحدة عبر seam ‏`__internals`.
-- **الصلاحيات والجلسة:** `src/lib/permissions.test.js` و `src/hooks/useUserRole.test.js`.
-- **المكونات:** `RoleGate.test.jsx` و `confirm-dialog.test.jsx` بجانب مصادرها.
-- **التدفقات الحرجة:** حسابات بنود الفاتورة (`useInvoiceItems.test.js`) وبوابة إشعارات الجلسة (`useNotifications.test.js`).
+Tests use Jest + Testing Library.
 
-> ملاحظة: اختبارات تستخدم `jest.mock()` يجب أن تُكتب بأسلوب CommonJS (`require`) — تحويل SWC في `next/jest` لا يرفع (hoist) الـ mock لملفات ES Modules.
+## Self-check
+
+```bash
+pnpm lint && pnpm test && pnpm build
+```

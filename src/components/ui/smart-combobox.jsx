@@ -63,7 +63,7 @@ export function SmartCombobox({ options = [], value, onChange, placeholder = "Se
                                 setSearchValue(val);
                                 if (onSearchChange) onSearchChange(val);
                             }}
-                            className="h-14 pr-11 bg-transparent font-bold text-base focus:ring-0 placeholder:text-muted-foreground/50 border-0"
+                            className="h-14 pr-11 bg-transparent font-bold text-base placeholder:text-muted-foreground/50 border-0"
                         />
                     </div>
                     <CommandList className="max-h-[350px] scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
@@ -82,7 +82,7 @@ export function SmartCombobox({ options = [], value, onChange, placeholder = "Se
                                 </div>
 
                                 {onCreate && searchValue && !exactMatch && (
-                                    <button
+                                    <button type="button"
                                         className="mt-2 flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm bg-primary text-primary-foreground font-bold hover:scale-105 transition-transform shadow-lg shadow-primary/20"
                                         onClick={() => {
                                             const nameToCreate = searchValue;
