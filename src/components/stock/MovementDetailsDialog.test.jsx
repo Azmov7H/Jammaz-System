@@ -1,7 +1,8 @@
 /**
- * MovementDetailsDialog — full transfer details (qty, source & destination).
+ * MovementDetailsDialog — full transfer details (qty, source & destination)
+ * and the undo (reversal) action for transfer movements.
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MovementDetailsDialog } from './MovementDetailsDialog';
 
 jest.mock('@/hooks/useWarehouses', () => ({
@@ -14,6 +15,15 @@ jest.mock('@/hooks/useWarehouses', () => ({
         },
     }),
     usePrimaryWarehouse: () => ({ data: { _id: 'main', name: 'المخزن الرئيسي', isPrimary: true } }),
+}));
+
+jest.mock('@/hooks/useUserRole', () => ({
+    useUserRole: () => ({ role: 'owner', user: { name: 'مدير' }, loading: false }),
+}));
+
+const reverseMock = jest.fn();
+jest.mock('@/hooks/useStock', () => ({
+    useReverseStockMovement: () => ({ mutate: reverseMock, isPending: false }),
 }));
 
 const transfer = {
@@ -57,5 +67,55 @@ describe('MovementDetailsDialog', () => {
     test('renders nothing when there is no movement', () => {
         const { container } = render(<MovementDetailsDialog open onOpenChange={() => {}} movement={null} />);
         expect(container).toBeEmptyDOMElement();
+    });
+});
+
+describe('MovementDetailsDialog — undo (reversal)', () => {
+    beforeEach(() => reverseMock.mockReset());
+
+    test('offers an undo action for an irreversible-once transfer covering a populated dialog', () => {
+        render(<MovementDetailsDialog open onOpenChange={() => {}} movement={transfer} />);
+        const undo = screen.getByTestId('movement-details-undo');
+        expect(undo).toBeInTheDocument();
+        expect(undo).toHaveTextContent('تراجع عن هذه الحركة');
+    });
+
+    test('sends the reversal request with the movement id and note', () => {
+        render(<MovementDetailsDialog open onOpenChange={() => {}} movement={transfer} />);
+        fireEvent.click(screen.getByTestId('movement-details-undo'));
+
+        fireEvent.change(screen.getByTestId('movement-details-undo-note'), { target: { value: 'خطأ في الطلب' } });
+        fireEvent.click(screen.getByTestId('movement-details-undo-confirm'));
+
+        expect(reverseMock).toHaveBeenCalledTimes(1);
+        const payload = reverseMock.mock.calls[0][0];
+        expect(payload.movementId).toBe('m1');
+        expect(payload.note).toBe('خطأ في الطلب');
+    });
+
+    test('disables the undo action when the movement is already reversed', () => {
+        render(
+            <MovementDetailsDialog
+                open
+                onOpenChange={() => {}}
+                movement={{ ...transfer, reversed: true, reverses: undefined }}
+            />
+        );
+        expect(screen.queryByTestId('movement-details-undo')).not.toBeInTheDocument();
+        // The visible warning badge replaces it
+        expect(screen.getByText('تم التراجع عن هذه الحركة')).toBeInTheDocument();
+    });
+
+    test('does not offer undo for non-transfer movements (sales, IN, ADJUST)', () => {
+        const { unmount } = render(
+            <MovementDetailsDialog open onOpenChange={() => {}} movement={{ ...transfer, type: 'IN' }} />
+        );
+        expect(screen.queryByTestId('movement-details-undo')).not.toBeInTheDocument();
+        unmount();
+
+        render(
+            <MovementDetailsDialog open onOpenChange={() => {}} movement={{ ...transfer, type: 'REVERSAL' }} />
+        );
+        expect(screen.queryByTestId('movement-details-undo')).not.toBeInTheDocument();
     });
 });

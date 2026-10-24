@@ -7,7 +7,8 @@ import {
     TrendingUp,
     TrendingDown,
     Layers,
-    Package
+    Package,
+    Undo2
 } from 'lucide-react';
 import { cn } from '@/utils';
 
@@ -19,6 +20,7 @@ export const MovementTypeBadge = ({ type }) => {
         'TRANSFER_TO_SHOP': { variant: "secondary", label: 'تحويل للمحل', className: "bg-info/10 text-info border-info/20", icon: ArrowLeftRight },
         'TRANSFER_TO_WAREHOUSE': { variant: "outline", label: 'إرجاع للمخزن', className: "bg-info/10 text-info border-info/20", icon: ArrowLeftRight },
         'TRANSFER': { variant: "secondary", label: 'تحويل بين المخازن', className: "bg-info/10 text-info border-info/20", icon: ArrowLeftRight },
+        'REVERSAL': { variant: "outline", label: 'تراجع عن تحويل', className: "bg-warning/10 text-warning border-warning/25", icon: Undo2 },
         'ADJUST': { variant: "outline", label: 'تسوية جردية', className: "bg-warning/10 text-warning border-warning/20", icon: Layers },
     };
 

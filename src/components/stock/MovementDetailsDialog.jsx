@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -9,8 +10,13 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { MovementTypeBadge } from '@/components/stock/MovementCard';
 import { useWarehouses, usePrimaryWarehouse } from '@/hooks/useWarehouses';
+import { useUserRole } from '@/hooks/useUserRole';
+import { hasPermission } from '@/lib/permissions';
+import { useReverseStockMovement } from '@/hooks/useStock';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { cn } from '@/utils';
@@ -22,8 +28,16 @@ import {
     CalendarClock,
     Hash,
     AlertCircle,
-    Layers
+    Layers,
+    Undo2,
+    Loader2
 } from 'lucide-react';
+
+/**
+ * Movement types the backend can undo (transfers only — see
+ * StockService.reverseMovement). Kept in sync with the server-side list.
+ */
+const REVERSIBLE_TYPES = ['TRANSFER', 'TRANSFER_TO_SHOP', 'TRANSFER_TO_WAREHOUSE'];
 
 /**
  * Full-detail view for a single stock movement. Warehouse references may arrive
@@ -43,12 +57,99 @@ const InfoRow = ({ icon: Icon, label, children, testid }) => (
     </div>
 );
 
+/**
+ * Undo action for one movement. Owns its form state; Radix unmounts the
+ * dialog content on close, so the state dies with the dialog (no reset
+ * effect needed).
+ */
+function UndoActionSection({ movement, onDone }) {
+    const [showForm, setShowForm] = useState(false);
+    const [note, setNote] = useState('');
+    const { mutate: reverseMovement, isPending: isReversing } = useReverseStockMovement();
+    const m = movement;
+
+    const handleConfirm = () => {
+        reverseMovement(
+            { movementId: m._id, note: note.trim() || undefined },
+            {
+                onSuccess: () => {
+                    setShowForm(false);
+                    setNote('');
+                    onDone?.();
+                }
+            }
+        );
+    };
+
+    if (!showForm) {
+        return (
+            <Button
+                type="button"
+                variant="outline"
+                data-testid="movement-details-undo"
+                onClick={() => setShowForm(true)}
+                className="h-12 px-8 rounded-2xl font-bold border-warning/40 text-warning hover:bg-warning/10 hover:text-warning w-full sm:w-auto"
+            >
+                <Undo2 size={18} />
+                تراجع عن هذه الحركة
+            </Button>
+        );
+    }
+
+    return (
+        <div
+            className="w-full flex flex-col sm:flex-row items-stretch sm:items-end gap-3 p-4 rounded-2xl bg-warning/5 border border-warning/20"
+            data-testid="movement-details-undo-form"
+        >
+            <div className="flex-1 space-y-1.5">
+                <Label className="text-xs font-bold text-warning uppercase tracking-widest">
+                    ملاحظة التراجع (اختياري)
+                </Label>
+                <Input
+                    data-testid="movement-details-undo-note"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="سبب التراجع..."
+                    className="h-11 rounded-xl font-bold"
+                />
+                <p className="text-xs text-muted-foreground font-bold">
+                    سيتم إرجاع الكمية ({m.qty}) إلى موقعها السابق وتسجيل حركة تراجع مسجلة.
+                </p>
+            </div>
+            <div className="flex gap-2">
+                <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setShowForm(false)}
+                    className="h-11 px-6 rounded-xl font-bold"
+                >
+                    إلغاء
+                </Button>
+                <Button
+                    type="button"
+                    variant="destructive"
+                    data-testid="movement-details-undo-confirm"
+                    onClick={handleConfirm}
+                    disabled={isReversing}
+                    className="h-11 px-6 rounded-xl font-bold"
+                >
+                    {isReversing ? <Loader2 className="animate-spin size-4" /> : <Undo2 size={16} />}
+                    تأكيد التراجع
+                </Button>
+            </div>
+        </div>
+    );
+}
+
 export function MovementDetailsDialog({ open, onOpenChange, movement }) {
     const { data: warehousesData } = useWarehouses();
     const { data: primaryWarehouse } = usePrimaryWarehouse();
+    const { role } = useUserRole();
     const m = movement;
 
     if (!m) return null;
+
+    const canUndo = REVERSIBLE_TYPES.includes(m.type) && !m.reversed && !m.reverses && hasPermission(role, 'stock:manage');
 
     const resolveWarehouse = (value) => {
         if (value && typeof value === 'object') return value.name || 'مخزن';
@@ -92,8 +193,14 @@ export function MovementDetailsDialog({ open, onOpenChange, movement }) {
                                 </Badge>
                             </div>
                         </div>
-                        <div className="flex items-center gap-4 sm:flex-col sm:items-end">
+                        <div className="flex flex-col items-end gap-2">
                             <MovementTypeBadge type={m.type} />
+                            {m.reversed && (
+                                <Badge className="bg-warning/15 text-warning border-warning/30 w-fit">
+                                    <Undo2 size={12} />
+                                    تم التراجع عن هذه الحركة
+                                </Badge>
+                            )}
                             <div className="flex flex-col items-end">
                                 <span className="text-xs font-bold text-muted-foreground uppercase">الكمية</span>
                                 <span className="text-3xl font-bold tabular-nums" data-testid="movement-details-qty">{m.qty}</span>
@@ -167,7 +274,15 @@ export function MovementDetailsDialog({ open, onOpenChange, movement }) {
                     )}
                 </div>
 
-                <DialogFooter className="px-6 py-4 border-t border-white/10">
+                <DialogFooter className="px-6 py-4 border-t border-white/10 flex-col gap-3">
+                    {canUndo && (
+                        <UndoActionSection
+                            key={m._id}
+                            movement={m}
+                            onDone={() => onOpenChange(false)}
+                        />
+                    )}
+
                     <Button
                         type="button"
                         onClick={() => onOpenChange(false)}

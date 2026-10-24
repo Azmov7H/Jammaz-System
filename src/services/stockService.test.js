@@ -14,7 +14,7 @@ jest.mock('@/lib/api-utils', () => ({
 }));
 
 const { api } = require('@/lib/api-utils');
-const { moveStock, transferStock, transferStockBulk } = require('./stockService');
+const { moveStock, transferStock, transferStockBulk, reverseStockMovement } = require('./stockService');
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -60,5 +60,16 @@ describe('stockService.transferStockBulk', () => {
         };
         await transferStockBulk(payload);
         expect(api.post).toHaveBeenCalledWith('/api/stock/transfer-bulk', payload);
+    });
+});
+
+describe('stockService.reverseStockMovement', () => {
+    test('POSTs the undo request for a movement id', async () => {
+        api.post.mockResolvedValue({ reversal: {} });
+        await reverseStockMovement('m1', 'خطأ في الطلب');
+        expect(api.post).toHaveBeenCalledWith('/api/stock/movements/m1/reverse', { note: 'خطأ في الطلب' });
+
+        await reverseStockMovement('m2');
+        expect(api.post).toHaveBeenCalledWith('/api/stock/movements/m2/reverse', { note: undefined });
     });
 });

@@ -42,6 +42,17 @@ export const transferStock = (data) =>
  */
 export const transferStockBulk = (data) => api.post('/api/stock/transfer-bulk', data);
 
+/**
+ * Undo a transfer movement. The backend inverts the stock mutation atomically
+ * and records a REVERSAL movement. Transfers only (TRANSFER, TRANSFER_TO_SHOP,
+ * TRANSFER_TO_WAREHOUSE); each one can be undone at most once.
+ * @param {string} id StockMovement _id
+ * @param {string} [note]
+ * @returns {Promise<*>}
+ */
+export const reverseStockMovement = (id, note) =>
+    api.post(`/api/stock/movements/${id}/reverse`, { note });
+
 /** Legacy namespace kept for existing consumers. */
 export const StockService = {
     getMovements: getStockMovements,
@@ -49,5 +60,6 @@ export const StockService = {
     moveStock,
     transferStock,
     transferStockBulk,
+    reverseStockMovement,
     validateStockAvailability: async (items) => items.map(item => ({ ...item, available: true })),
 };
