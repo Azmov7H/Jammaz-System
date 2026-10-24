@@ -1,5 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getStockMovements, getStockStatus, moveStock, transferStock, transferStockBulk } from '@/services/stockService';
+import {
+    getStockMovements,
+    getStockStatus,
+    moveStock,
+    transferStock,
+    transferStockBulk,
+    reverseStockMovement
+} from '@/services/stockService';
 import { withMutationFeedback } from '@/lib/mutation-feedback';
 
 export function useStockMovements(params = {}) {
@@ -43,6 +50,26 @@ export function useTransferStock() {
         ...withMutationFeedback({
             successMessage: 'تم تحويل المخزون بين المخازن بنجاح',
             fallbackErrorMessage: 'فشل تحويل المخزون بين المخازن',
+            afterSuccess: () => {
+                queryClient.invalidateQueries({ queryKey: ['stock-movements'] });
+                queryClient.invalidateQueries({ queryKey: ['products'] });
+                queryClient.invalidateQueries({ queryKey: ['stock-status'] });
+            }
+        })
+    });
+}
+
+/**
+ * Undo a stock movement (transfers only). The backend refuses non-transfer
+ * types, double undo and movements whose products were moved onward.
+ */
+export function useReverseStockMovement() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ movementId, note }) => reverseStockMovement(movementId, note),
+        ...withMutationFeedback({
+            successMessage: 'تم التراجع عن الحركة وإرجاع الكمية',
+            fallbackErrorMessage: 'فشل التراجع عن الحركة',
             afterSuccess: () => {
                 queryClient.invalidateQueries({ queryKey: ['stock-movements'] });
                 queryClient.invalidateQueries({ queryKey: ['products'] });

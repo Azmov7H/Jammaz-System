@@ -59,7 +59,7 @@ export default function StockMovementsPage() {
             const matchesType = filterType === 'ALL' ||
                 (filterType === 'IN' && m.type === 'IN') ||
                 (filterType === 'OUT' && (m.type === 'OUT' || m.type === 'SALE')) ||
-                (filterType === 'TRANSFER' && (m.type === 'TRANSFER_TO_SHOP' || m.type === 'TRANSFER_TO_WAREHOUSE' || m.type === 'TRANSFER')) ||
+                (filterType === 'TRANSFER' && (m.type === 'TRANSFER_TO_SHOP' || m.type === 'TRANSFER_TO_WAREHOUSE' || m.type === 'TRANSFER' || m.type === 'REVERSAL')) ||
                 (filterType === 'ADJUST' && m.type === 'ADJUST');
 
             return matchesSearch && matchesType;
@@ -72,7 +72,7 @@ export default function StockMovementsPage() {
             total: movements.length,
             in: movements.filter(m => m.type === 'IN').reduce((acc, m) => acc + m.qty, 0),
             out: movements.filter(m => ['OUT', 'SALE'].includes(m.type)).reduce((acc, m) => acc + m.qty, 0),
-            transfers: movements.filter(m => m.type.includes('TRANSFER')).length
+            transfers: movements.filter(m => m.type.includes('TRANSFER') || m.type === 'REVERSAL').length
         };
     }, [movements]);
 
@@ -84,6 +84,7 @@ export default function StockMovementsPage() {
             case 'TRANSFER_TO_SHOP': return { label: 'تحويل للمحل', icon: ArrowRightLeft, color: 'blue', bg: 'bg-info/10', text: 'text-info', border: 'border-info/20' };
             case 'TRANSFER_TO_WAREHOUSE': return { label: 'تحويل للمخزن', icon: ArrowRightLeft, color: 'indigo', bg: 'bg-info/10', text: 'text-info', border: 'border-info/20' };
             case 'TRANSFER': return { label: 'تحويل بين المخازن', icon: ArrowRightLeft, color: 'indigo', bg: 'bg-info/10', text: 'text-info', border: 'border-info/20' };
+            case 'REVERSAL': return { label: 'تراجع عن تحويل', icon: RefreshCcw, color: 'amber', bg: 'bg-warning/10', text: 'text-warning', border: 'border-warning/25' };
             case 'ADJUST': return { label: 'تسوية جردية', icon: FileEdit, color: 'amber', bg: 'bg-warning/10', text: 'text-warning', border: 'border-warning/20' };
             default: return { label: 'حركة عامة', icon: Package, color: 'slate', bg: 'bg-muted500/10', text: 'text-muted-foreground', border: 'border-border/20' };
         }

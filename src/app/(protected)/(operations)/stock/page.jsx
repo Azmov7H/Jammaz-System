@@ -96,7 +96,7 @@ export default function StockPage() {
       total: movements.length,
       in: movements.filter(m => m.type === 'IN').reduce((acc, m) => acc + m.qty, 0),
       out: movements.filter(m => ['OUT', 'SALE'].includes(m.type)).reduce((acc, m) => acc + m.qty, 0),
-      transfers: movements.filter(m => m.type.includes('TRANSFER')).length
+      transfers: movements.filter(m => m.type.includes('TRANSFER') || m.type === 'REVERSAL').length
     };
   }, [movements]);
 
@@ -326,6 +326,7 @@ export default function StockPage() {
               <SelectItem value="TRANSFER_TO_SHOP">تحويل للمحل</SelectItem>
               <SelectItem value="TRANSFER_TO_WAREHOUSE">تحويل للمخزن</SelectItem>
               <SelectItem value="TRANSFER">تحويل بين المخازن</SelectItem>
+              <SelectItem value="REVERSAL">تراجع عن تحويل</SelectItem>
               <SelectItem value="ADJUST">تسوية جردية</SelectItem>
             </SelectContent>
           </Select>
