@@ -123,7 +123,6 @@ export default function NewPhysicalInventoryPage() {
                                     ].map((loc) => (
                                         <button type="button"
                                             key={loc.id}
-                                            type="button"
                                             onClick={() => setLocation(loc.id)}
                                             className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all duration-300 ${location === loc.id
                                                 ? 'border-primary bg-primary/5 shadow-inner-lg'
